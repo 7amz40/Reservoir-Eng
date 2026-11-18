@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Havlena–Odeh Analyzer</title>
+  <meta name="description" content="Material balance dashboard: reads production and PVT data from Excel and finds N, m and G with the Havlena–Odeh straight-line method.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect x='.5' y='.5' width='33' height='33' rx='7' fill='%23FAFCF9' stroke='%23BFCCC6'/%3E%3Cpath d='M7 6v21h21' fill='none' stroke='%2313221E' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M7 21.5L28 10' stroke='%2313221E' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='14' cy='17.6' r='2.4' fill='%231E8A50'/%3E%3Ccircle cx='20' cy='14.6' r='2.4' fill='%231E8A50'/%3E%3Ccircle cx='25' cy='11.4' r='2.4' fill='%231E8A50'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=STIX+Two+Text:ital,wght@0,400;1,400;1,500&display=swap">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+<!--BODY-START-->
+<a class="skip" href="#main">Skip to results</a>
+
+<header class="appbar">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 34 34" aria-hidden="true">
+      <rect x=".5" y=".5" width="33" height="33" rx="7" style="fill:var(--paper);stroke:var(--line-strong)"/>
+      <path d="M7 6v21h21" style="fill:none;stroke:var(--ink)" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M7 21.5L28 10" style="stroke:var(--ink)" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="14" cy="17.6" r="2.3" style="fill:var(--oil)"/>
+      <circle cx="20" cy="14.6" r="2.3" style="fill:var(--oil)"/>
+      <circle cx="25" cy="11.4" r="2.3" style="fill:var(--oil)"/>
+      <path d="M7 18.7l2.8 2.8-2.8 2.8-2.8-2.8z" style="fill:var(--ink);stroke:var(--paper)" stroke-width="1"/>
+    </svg>
+    <div class="brand-text">
+      <h1>Havlena–Odeh analyzer</h1>
+      <p>Find <var>N</var>, <var>m</var> and <var>G</var> of a gas-cap oil reservoir from production and PVT data</p>
+    </div>
+  </div>
+  <div class="appbar-tools">
+    <button class="icon-btn" id="theme-btn" type="button" aria-label="Switch to dark theme" title="Switch theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="i-moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><g class="i-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
+    </button>
+    <button class="btn" id="export-btn" type="button" aria-label="Export results" data-download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+      <span>Export results</span>
+    </button>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="side" aria-label="Data and settings">
+
+    <details class="side-sec" id="sec-data" open>
+      <summary>Data source <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+      <div class="side-body">
+        <div class="drop" id="drop" role="button" tabindex="0" aria-describedby="drop-hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/></svg>
+          <p class="drop-title">Drop an Excel file here</p>
+          <p class="drop-sub">or <span class="linklike">choose a file</span></p>
+          <p class="drop-hint" id="drop-hint">.xlsx or .csv with columns <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub>, <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub></p>
+        </div>
+        <input type="file" id="file" class="sr-only" tabindex="-1" aria-hidden="true" accept=".xlsx,.xlsm,.csv,.txt,.xls,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
+
+        <div class="source" id="source" aria-live="polite"></div>
+
+        <div class="side-actions">
+          <button class="btn-quiet" type="button" id="use-example">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+            Load the HW example
+          </button>
+          <button class="btn-quiet" type="button" id="dl-template" data-download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+            Blank template
+          </button>
+          <button class="btn-quiet" type="button" id="dl-example" data-download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+            Example file
+          </button>
+        </div>
+
+        <details class="needs">
+          <summary>What the file needs</summary>
+          <ul>
+            <li>A table with a header row: pressure <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub> (or <var>R</var><sub>p</sub>), <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub> and <var>B</var><sub>g</sub>, in any order. Units in the header, like “Np (MMSTB)”, are read.</li>
+            <li>The initial parameters <var>p</var><sub>i</sub>, <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub>, <var>R</var><sub>si</sub>, <var>S</var><sub>wc</sub>, <var>C</var><sub>w</sub>, <var>C</var><sub>f</sub> as label and value pairs, on a second sheet or beside or below the table.</li>
+            <li>If <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub> or <var>R</var><sub>si</sub> are missing, they are read from the table row at <var>p</var><sub>i</sub>.</li>
+            <li>The file stays on your computer. Nothing is uploaded.</li>
+          </ul>
+        </details>
+      </div>
+    </details>
+
+    <details class="side-sec" id="sec-params" open>
+      <summary>Reservoir parameters <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+      <div class="side-body">
+        <p class="side-note">Read from your file. Change a value to see how the results move.</p>
+        <div id="params"></div>
+        <label class="switch">
+          <input type="checkbox" id="efw" checked>
+          <span>Include water and rock expansion, <var>E</var><sub>fw</sub><small>Uses <var>S</var><sub>wc</sub>, <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub>. Turn off to neglect it.</small></span>
+        </label>
+      </div>
+    </details>
+
+    <details class="side-sec" id="sec-cols" open>
+      <summary>Columns and units <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+      <div class="side-body">
+        <p class="side-note">Columns are matched from the header names. Fix a match or a unit here if needed.</p>
+        <div class="sheet-pick" id="sheet-pick" hidden></div>
+        <div class="colmap" id="colmap"></div>
+        <h3 class="side-h3">Show results in</h3>
+        <div class="outunits">
+          <label class="sym" for="out-N"><var>N</var></label>
+          <select id="out-N">
+            <option value="STB">STB</option>
+            <option value="MSTB">MSTB</option>
+            <option value="MMSTB" selected>MMSTB</option>
+          </select>
+          <label class="sym" for="out-G"><var>G</var></label>
+          <select id="out-G">
+            <option value="SCF">SCF</option>
+            <option value="MMSCF">MMSCF</option>
+            <option value="MMMSCF" selected>Bscf (MMMSCF)</option>
+          </select>
+        </div>
+      </div>
+    </details>
+  </aside>
+
+  <main id="main" tabindex="-1">
+    <div class="alert" id="alert" role="alert" hidden></div>
+
+    <section class="ledger" id="ledger" aria-labelledby="ledger-title">
+      <h2 class="sr-only" id="ledger-title">Results</h2>
+      <div class="ledger-line">
+        <span class="ledger-label">Fitted line</span>
+        <span class="ledger-eq" id="eq">–</span>
+        <span class="ledger-fit" id="fitline"></span>
+      </div>
+      <div class="ledger-grid">
+        <div class="res" id="res-N">
+          <div class="res-top"><span class="res-sym">N</span><span class="res-name">Stock-tank oil initially in place</span></div>
+          <div class="res-val"><span class="val">–</span><span class="u"></span></div>
+          <div class="res-how">Intercept of the line</div>
+          <div class="res-ci"></div>
+        </div>
+        <div class="res" id="res-m">
+          <div class="res-top"><span class="res-sym">m</span><span class="res-name">Gas-cap to oil-zone volume ratio</span></div>
+          <div class="res-val"><span class="val">–</span><span class="u"></span></div>
+          <div class="res-how">Slope ÷ intercept</div>
+          <div class="res-ci"></div>
+        </div>
+        <div class="res" id="res-G">
+          <div class="res-top"><span class="res-sym">G</span><span class="res-name">Gas-cap gas initially in place</span></div>
+          <div class="res-val"><span class="val">–</span><span class="u"></span></div>
+          <div class="res-how"><var>G</var> = <var>mN</var> <var>B</var><sub>oi</sub> / <var>B</var><sub>gi</sub></div>
+          <div class="res-ci"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-ho" aria-labelledby="ho-title">
+      <div class="panel-head">
+        <div>
+          <h2 id="ho-title">Havlena–Odeh plot</h2>
+          <p class="panel-sub" id="ho-sub">Each point is one pressure step. The straight line through them meets the axis at <var>N</var>, and its slope is <var>mN</var>. Click a point to leave it out of the fit.</p>
+        </div>
+        <div class="panel-tools">
+          <label class="check"><input type="checkbox" id="labels-all"> Label all pressures</label>
+          <button class="btn-quiet" type="button" id="reset-points" hidden>Add all points back</button>
+          <button class="btn-quiet" type="button" id="png-ho" data-download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>
+            PNG
+          </button>
+        </div>
+      </div>
+      <div class="ho-grid">
+        <div>
+          <ul class="legend" id="legend-ho"></ul>
+          <div class="chart" id="chart-ho"></div>
+        </div>
+        <div class="notes-col">
+          <div>
+            <h3>Fit notes</h3>
+            <ul class="notes" id="notes"></ul>
+          </div>
+          <div>
+            <h3>Fit statistics</h3>
+            <dl class="stats" id="stats"></dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="pair">
+      <section class="panel" aria-labelledby="check-title">
+        <div class="panel-head">
+          <div>
+            <h2 id="check-title">Check: <var>F</var> against <var>E</var><sub>t</sub></h2>
+            <p class="panel-sub">With the fitted <var>m</var>, the points should sit on one straight line through the origin with slope <var>N</var>.</p>
+          </div>
+          <div class="panel-tools">
+            <button class="btn-quiet" type="button" id="png-check" data-download>PNG</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <ul class="legend" id="legend-check"></ul>
+          <div class="chart" id="chart-check"></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="drive-title">
+        <div class="panel-head">
+          <div>
+            <h2 id="drive-title">Drive indices</h2>
+            <p class="panel-sub">Share of the production supported by each mechanism, at the fitted <var>N</var> and <var>m</var>.</p>
+          </div>
+          <div class="panel-tools">
+            <button class="btn-quiet" type="button" id="png-drive" data-download>PNG</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <ul class="legend" id="legend-drive"></ul>
+          <div class="chart" id="chart-drive"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" id="panel-explorer" aria-labelledby="exp-title">
+      <div class="panel-head">
+        <div>
+          <h2 id="exp-title">Try another <var>m</var></h2>
+          <p class="panel-sub">The classic check by Havlena and Odeh: pick a value of <var>m</var> and plot <var>F</var> against <var>E</var><sub>t</sub>. Only the right <var>m</var> puts the points on a straight line through the origin.</p>
+        </div>
+      </div>
+      <div class="explorer-controls">
+        <div class="m-slider">
+          <label for="m-range"><var>m</var></label>
+          <input type="range" id="m-range" min="0" max="1" step="0.001" value="0.5">
+          <input type="text" class="m-num" id="m-num" inputmode="decimal" aria-label="Value of m">
+        </div>
+        <button class="btn-quiet" type="button" id="m-fit">Use the fitted <var>m</var></button>
+      </div>
+      <p class="explorer-read" id="m-read" aria-live="polite"></p>
+      <div class="explorer-grid">
+        <div>
+          <p class="mini-h"><var>F</var> against <var>E</var><sub>t</sub> for this <var>m</var></p>
+          <ul class="legend" id="legend-exp"></ul>
+          <div class="chart" id="chart-exp"></div>
+        </div>
+        <div>
+          <p class="mini-h">How far the points spread around the line <span>(lower is straighter)</span></p>
+          <ul class="legend" aria-hidden="true"></ul>
+          <div class="chart" id="chart-scan"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-table" aria-labelledby="table-title">
+      <div class="panel-head">
+        <div>
+          <h2 id="table-title">Calculation table</h2>
+          <p class="panel-sub">Every term of the material balance at each pressure, in field units. Untick a row to leave it out of the fit.</p>
+        </div>
+        <div class="panel-tools">
+          <button class="btn-quiet" type="button" id="csv-btn" data-download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+            CSV
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="calc" id="calc"></table>
+      </div>
+      <div class="table-foot" id="table-foot"></div>
+    </section>
+
+    <section class="method" aria-labelledby="method-title">
+      <h2 id="method-title">Method</h2>
+      <p>Havlena and Odeh (1963) wrote the material balance for a gas-cap oil reservoir as a straight line. With both <var>N</var> and <var>m</var> unknown, a plot of <var>y</var> against <var>x</var> gives <var>N</var> as the intercept and <var>mN</var> as the slope.</p>
+      <div class="eqs">
+        <div class="eq">
+          <span class="eq-name">Underground withdrawal</span>
+          <div class="eqn"><var>F</var><span class="op">=</span><var>N</var><sub>p</sub> [<var>B</var><sub>o</sub><span class="op">+</span>(<var>R</var><sub>p</sub><span class="op">−</span><var>R</var><sub>s</sub>) <var>B</var><sub>g</sub>]<span class="op">+</span><var>W</var><sub>p</sub> <var>B</var><sub>w</sub></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Oil and dissolved gas</span>
+          <div class="eqn"><var>E</var><sub>o</sub><span class="op">=</span>(<var>B</var><sub>o</sub><span class="op">−</span><var>B</var><sub>oi</sub>)<span class="op">+</span>(<var>R</var><sub>si</sub><span class="op">−</span><var>R</var><sub>s</sub>) <var>B</var><sub>g</sub></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Gas-cap expansion</span>
+          <div class="eqn"><var>E</var><sub>g</sub><span class="op">=</span><var>B</var><sub>oi</sub> (<span class="frac"><span class="num"><var>B</var><sub>g</sub></span><span class="den"><var>B</var><sub>gi</sub></span></span><span class="op">−</span>1)</div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Connate water and rock</span>
+          <div class="eqn"><var>E</var><sub>fw</sub><span class="op">=</span><var>B</var><sub>oi</sub> <span class="frac"><span class="num"><var>C</var><sub>w</sub> <var>S</var><sub>wc</sub><span class="op">+</span><var>C</var><sub>f</sub></span><span class="den">1<span class="op">−</span><var>S</var><sub>wc</sub></span></span> Δ<var>p</var></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Material balance</span>
+          <div class="eqn"><var>F</var><span class="op">=</span><var>N</var> [<var>E</var><sub>o</sub><span class="op">+</span><var>m</var> <var>E</var><sub>g</sub><span class="op">+</span>(1<span class="op">+</span><var>m</var>) <var>E</var><sub>fw</sub>]</div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Straight line</span>
+          <div class="eqn"><span class="frac"><span class="num"><var>F</var></span><span class="den"><var>E</var><sub>o</sub><span class="op">+</span><var>E</var><sub>fw</sub></span></span><span class="op">=</span><var>N</var><span class="op">+</span><var>mN</var> <span class="frac"><span class="num"><var>E</var><sub>g</sub><span class="op">+</span><var>E</var><sub>fw</sub></span><span class="den"><var>E</var><sub>o</sub><span class="op">+</span><var>E</var><sub>fw</sub></span></span></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Gas cap from the line</span>
+          <div class="eqn wrap"><span class="part"><var>m</var><span class="op">=</span><span class="frac"><span class="num word">slope</span><span class="den word">intercept</span></span></span><span class="gap"></span><span class="part"><var>G</var><span class="op">=</span><span class="frac"><span class="num"><var>mN</var> <var>B</var><sub>oi</sub></span><span class="den"><var>B</var><sub>gi</sub></span></span></span></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Drive indices</span>
+          <div class="eqn wrap"><span class="part"><span class="word">DDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N</var> <var>E</var><sub>o</sub></span><span class="den"><var>F</var></span></span></span><span class="gap"></span><span class="part"><span class="word">SDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N m</var> <var>E</var><sub>g</sub></span><span class="den"><var>F</var></span></span></span><span class="gap"></span><span class="part"><span class="word">CDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N</var> (1<span class="op">+</span><var>m</var>) <var>E</var><sub>fw</sub></span><span class="den"><var>F</var></span></span></span></div>
+        </div>
+      </div>
+      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub> in psi⁻¹. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method.</p>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <span>PNGE 4412 Reservoir Engineering, HW 2, Question 2</span>
+  <span>Runs in your browser. Files are read on this device and never uploaded.</span>
+</footer>
+
+<div class="drop-overlay" id="drop-overlay" hidden><div>Drop the file to analyze it</div></div>
+<p class="sr-only" id="status" aria-live="polite"></p>
+<!--BODY-END-->
+
+<!--SCRIPTS-START-->
+<script src="assets/vendor/d3.v7.9.0.min.js"></script>
+<script src="assets/vendor/jszip.v3.10.1.min.js"></script>
+<!--SCRIPTS-END-->
+<script src="assets/js/units.js"></script>
+<script src="assets/js/xlsxio.js"></script>
+<script src="assets/js/parser.js"></script>
+<script src="assets/js/mbe.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

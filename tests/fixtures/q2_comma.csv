@@ -1,0 +1,21 @@
+P (psia),Rs (SCF/STB),Bo (rb/STB),Bg (rb/STB),Np (MMSTB),Gp (MMSCF)
+2740,650,1.404,0.0009,0.0,0
+2500,592,1.374,0.001,7.88,5988.8
+2290,545,1.349,0.0011,18.42,15565
+2109,507,1.329,0.0012,29.15,26818
+1949,471,1.316,0.0013,40.69,39673
+1818,442,1.303,0.0014,50.14,51394
+1702,418,1.294,0.0015,58.42,62217
+1608,398,1.287,0.0016,65.39,71603
+1535,383,1.28,0.0017,70.74,79229
+1480,370,1.276,0.0018,74.54,85348
+1440,362,1.273,0.0018,77.43,89819
+
+"Initial pressure, pi",2740,psia
+"Initial oil FVF, Boi",1.404,rb/STB
+"Initial gas FVF, Bgi",0.0009,rb/SCF
+"Initial solution GOR, Rsi",650,SCF/STB
+"Connate water saturation, Swc",0.05,fraction
+"Water compressibility, Cw",3e-06,1/psi
+"Formation compressibility, Cf",4e-06,1/psi
+Porosity,0.25,fraction
