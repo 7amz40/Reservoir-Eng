@@ -155,7 +155,7 @@ test('rounding check: the example data cannot pin down m', async () => {
   const msg = r.result.messages.warnings.find(m => m.code === 'rounding');
   assert.ok(msg, 'rounding warning');
   assert.match(msg.text, /2,500 and 2,290 psia/);
-  assert.match(msg.text, /N = 522\.6 MMSTB and m = 0\.005/);
+  assert.match(msg.text, /N = 522\.9 MMSTB and m = 0\.005/);
   const neg = r.result.messages.warnings.find(m => m.code === 'm-neg');
   assert.match(neg.text, /N = 530\.2 MMSTB/);
   // the same numbers every time (seeded)
@@ -211,4 +211,53 @@ test('combination drive: too large an aquifer is reported per point', () => {
   const r = E.analyze(s.rows, s.params, { aquifer: { mode: 'pot', K: 1e9 } });
   assert.ok(r.terms.filter(t => t.Np > 0).every(t => t.reason === 'W_e is larger than F'));
   assert.equal(r.ok, false);
+});
+
+test('the line is (F − W_e)/(E_o + (1 + m) E_fw) against E_g/(E_o + (1 + m) E_fw) at the fitted m', async () => {
+  const { runFile, SAMPLES } = require('./helpers');
+  const path = require('path');
+  const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  const m = r.result.results.m;
+  for (const t of r.result.terms.filter(t => t.usable)) {
+    const Et = t.Eo + (1 + m) * t.Efw;
+    close(t.x, t.Eg / Et, 1e-9, 'x at ' + t.p);
+    close(t.y, t.Fnet / Et, 1e-9, 'y at ' + t.p);
+  }
+  // one more fit on these axes gives the same N and m: the repeated fit has settled
+  const inc = r.result.terms.filter(t => t.included);
+  const again = E.linreg(inc.map(t => t.x), inc.map(t => t.y));
+  close(again.intercept, r.result.results.N, 1e-9, 'N');
+  close(again.slope / again.intercept, m, 1e-9, 'm');
+  assert.ok(r.result.fit.rounds > 1 && r.result.fit.rounds < 20, 'rounds ' + r.result.fit.rounds);
+});
+
+test('without E_fw the line is F/E_o against E_g/E_o, found in one round', () => {
+  const s = synthetic({ N: 150e6, m: 0.4 });
+  const r = E.analyze(s.rows, s.params, { includeEfw: false });
+  for (const t of r.terms.filter(t => t.usable)) {
+    close(t.x, t.Eg / t.Eo, 1e-12, 'x');
+    close(t.y, t.F / t.Eo, 1e-12, 'y');
+  }
+  assert.equal(r.fit.rounds, 1);
+});
+
+test('the (1 + m) on E_fw matters: leaving it out misses N and m, the repeated fit does not', () => {
+  const s = synthetic({ N: 150e6, m: 1.2, swc: 0.3, cw: 5e-6, cf: 1e-5 });
+  const r = E.analyze(s.rows, s.params, {});
+  close(r.results.N, 150e6, 1e-9, 'N');
+  close(r.results.m, 1.2, 1e-8, 'm');
+  // the same axes with E_fw instead of (1 + m) E_fw
+  const inc = r.terms.filter(t => t.included);
+  const naive = E.linreg(inc.map(t => t.Eg / (t.Eo + t.Efw)), inc.map(t => t.F / (t.Eo + t.Efw)));
+  assert.ok(Math.abs(naive.intercept / 150e6 - 1) > 0.01, 'naive N is off by more than 1 %');
+});
+
+test('a point with E_o ≤ 0 is left out with a reason', () => {
+  const s = synthetic({ N: 150e6, m: 0.4 });
+  s.rows[2].Bo = s.params.Boi - 0.5; // makes E_o negative at that point
+  const r = E.analyze(s.rows, s.params, {});
+  const t = r.terms.find(x => x.id === s.rows[2].id);
+  assert.equal(t.usable, false);
+  assert.equal(t.reason, 'E_o is not positive');
+  assert.ok(r.messages.warnings.some(m => m.code === 'eo' && /1 point has E_o ≤ 0/.test(m.text)));
 });

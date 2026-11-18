@@ -94,26 +94,26 @@ def shot(pg, name, full=False):
 def t_example(b):
     pg = Page(b)
     assert pg.page.locator("#alert").is_hidden()
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     assert pg.val("res-m") == "−0.070"
-    assert pg.val("res-G") == "−79.43"
-    assert "0.618" in pg.text("#fitline") and pg.fit_points() == 10
+    assert pg.val("res-G") == "−79.53"
+    assert "0.613" in pg.text("#fitline") and pg.fit_points() == 10
     assert pg.page.locator("#chart-ho circle.hit").count() == 10
     assert pg.page.locator("#calc tbody tr").count() == 11
     assert "Example" in pg.text("#source")
     assert pg.page.locator("#res-m .res-flag").count() == 1, "negative m is flagged"
     assert pg.page.locator("#res-G .res-flag").count() == 1, "negative G is flagged"
     notes = pg.text("#notes")
-    assert "negative" in notes and "R² = 0.618" in notes
+    assert "negative" in notes and "R² = 0.613" in notes
     assert "2,500 and 2,290 psia" in notes, "rounding check names the sensitive points"
     # drive indices are hidden while m < 0, and come back once the two sensitive points are left out
     assert "Not shown" in pg.text("#chart-drive") and pg.page.locator("#chart-drive svg").count() == 0
     pg.page.click("#notes button[data-rows]")
-    assert pg.val("res-m") == "0.00517" and pg.val("res-N") == "522.6"
+    assert pg.val("res-m") == "0.00506" and pg.val("res-N") == "522.9"
     assert pg.page.locator("#chart-drive svg").count() == 1
     assert pg.page.locator("#res-G .res-flag").count() == 0
     pg.page.click("#reset-points")
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     shot(pg, "desktop-light", full=True)
     pg.close()
 
@@ -126,7 +126,7 @@ def t_layouts(b):
             continue
         pg.upload(os.path.join(FIX, f))
         assert pg.page.locator("#alert").is_hidden(), f + ": " + pg.text("#alert")
-        assert pg.val("res-N") == "729.6", f + " N=" + pg.val("res-N")
+        assert pg.val("res-N") == "729.9", f + " N=" + pg.val("res-N")
         assert pg.val("res-m") == "−0.070", f
         assert pg.fit_points() == 10, f
     pg.close()
@@ -156,7 +156,7 @@ def t_errors(b):
     pg = Page(b)
     pg.upload(os.path.join(FIX, "q2_legacy.xls"))
     assert "97–2003" in pg.text("#alert")
-    assert pg.val("res-N") == "729.6", "previous result kept"
+    assert pg.val("res-N") == "729.9", "previous result kept"
     pg.page.click("#alert button[data-act=dismiss]")
     assert pg.page.locator("#alert").is_hidden()
     pg.upload(os.path.join(FIX, "q2_open_document.ods"))
@@ -172,7 +172,7 @@ def t_errors(b):
     pg.upload(os.path.join(SAMPLES, "havlena-odeh-template.xlsx"))
     assert "no rows with numbers" in pg.text("#alert")
     pg.page.click("#alert button[data-act=example]")
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     pg.close()
 
 
@@ -182,7 +182,7 @@ def t_exclude(b):
     pg.page.uncheck("#calc tbody tr:nth-child(2) input[type=checkbox]")
     assert pg.fit_points() == 9
     assert pg.page.locator("#reset-points").is_visible()
-    assert pg.val("res-N") != "729.6"
+    assert pg.val("res-N") != "729.9"
     pg.page.click("#reset-points")
     assert pg.fit_points() == 10
     pg.page.locator("#chart-ho circle.hit").first.focus()
@@ -199,10 +199,13 @@ def t_exclude(b):
 @check("parameters, E_fw switch, columns and units drive the answer")
 def t_inputs(b):
     pg = Page(b)
+    axes = lambda: pg.page.locator("#chart-ho svg").text_content()
+    assert "Eg / [Eo + (1 + m) Efw]" in axes() and "F / [Eo + (1 + m) Efw], MMSTB" in axes(), axes()
     pg.page.uncheck("#efw")
     assert pg.val("res-N") == "705.3"
+    assert "Eg / Eo" in axes() and "F / Eo, MMSTB" in axes(), axes()
     pg.page.check("#efw")
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     for k in ("Swc", "Cw", "Cf"):
         pg.page.fill("#prm-" + k, "0")
         pg.page.press("#prm-" + k, "Enter")
@@ -211,7 +214,7 @@ def t_inputs(b):
     pg.page.click("#src-Cf .reset")
     pg.page.click("#src-Cw .reset")
     pg.page.click("#src-Swc .reset")
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     pg.page.fill("#prm-Boi", "abc")
     pg.page.press("#prm-Boi", "Enter")
     assert pg.page.get_attribute("#prm-Boi", "aria-invalid") == "true"
@@ -220,21 +223,21 @@ def t_inputs(b):
     # compressibility typed with a unit
     pg.page.fill("#prm-Cf", "4 x 10-6 1/psi")
     pg.page.press("#prm-Cf", "Enter")
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     # columns
     pg.page.select_option("#col-Bg", "-1")
     assert "Missing column" in pg.text("#alert")
     pg.page.select_option("#col-Bg", "3")
-    assert pg.page.locator("#alert").is_hidden() and pg.val("res-N") == "729.6"
+    assert pg.page.locator("#alert").is_hidden() and pg.val("res-N") == "729.9"
     pg.page.select_option("#unit-Gp", "MMMSCF")
-    assert pg.val("res-N") != "729.6"
+    assert pg.val("res-N") != "729.9"
     pg.page.select_option("#unit-Gp", "MMSCF")
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     # result units
     pg.page.select_option("#out-N", "STB")
-    assert pg.val("res-N") == "729,618,154" and pg.text("#res-N .u") == "STB"
+    assert pg.val("res-N") == "729,867,795" and pg.text("#res-N .u") == "STB"
     pg.page.select_option("#out-G", "MMSCF")
-    assert pg.val("res-G") == "−79,433"
+    assert pg.val("res-G") == "−79,526"
     pg.close()
 
 
@@ -288,15 +291,15 @@ def t_downloads(b):
     assert wb["Production"]["A3"].value == 2500
     # the example file reads back into the same answer
     pg.upload(p)
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     p = grab("#export-btn")
     wb = load_workbook(p)
     assert wb.sheetnames == ["Results", "Calculations", "Inputs", "Notes"]
     rows = {(r[0], r[2]): r for r in wb["Results"].iter_rows(values_only=True) if r and r[0]}
-    approx(rows[("N, oil initially in place", "STB")][1], 729.618e6)
-    approx(rows[("N, oil initially in place", "MMSTB")][1], 729.618)
-    approx(rows[("m, gas-cap to oil-zone volume ratio", "-")][1], -0.069788)
-    approx(rows[("G, gas-cap gas initially in place", "Bscf")][1], -79.4329)
+    approx(rows[("N, oil initially in place", "STB")][1], 729.868e6)
+    approx(rows[("N, oil initially in place", "MMSTB")][1], 729.868)
+    approx(rows[("m, gas-cap to oil-zone volume ratio", "-")][1], -0.069846)
+    approx(rows[("G, gas-cap gas initially in place", "Bscf")][1], -79.5258)
     approx(wb["Calculations"]["I3"].value, 12.151e6, 1e-3)
     p = grab("#csv-btn")
     text = open(p, encoding="utf-8-sig").read()
@@ -319,7 +322,7 @@ def t_influx(b):
     assert "(F − We)" in pg.page.locator("#chart-ho svg").text_content(), "y axis shows F − We"
     pg.page.fill("#aq-k", "0")
     pg.page.press("#aq-k", "Enter")
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     pg.page.check("input[name=aq][value=none]")
     assert pg.page.locator("#aq-pot").is_hidden()
     # a file with a W_e column is used straight away
@@ -363,7 +366,7 @@ def t_drop(b):
 def t_mobile(b):
     pg = Page(b, width=390, height=844)
     assert pg.page.evaluate("document.documentElement.scrollWidth") <= 390
-    assert pg.val("res-N") == "729.6"
+    assert pg.val("res-N") == "729.9"
     assert pg.page.locator("#sec-params").get_attribute("open") is None, "secondary sections start folded"
     shot(pg, "mobile", full=True)
     pg.close()

@@ -40,7 +40,7 @@ the file you load is read in the browser and never leaves your computer.
 ## Tests
 
 ```
-node --test tests/*.test.js     # 69 tests: units, file reading, table detection, calculation
+node --test tests/*.test.js     # 73 tests: units, file reading, table detection, calculation
 python3 tests/e2e.py            # 13 checks in a real browser (needs playwright and openpyxl)
 python3 tests/make_fixtures.py  # rebuilds samples/ and tests/fixtures/
 python3 tools/build.py          # rebuilds dist/havlena-odeh-analyzer.html

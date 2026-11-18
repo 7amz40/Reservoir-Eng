@@ -986,7 +986,7 @@
       ['G, gas-cap gas initially in place', R.G / 1e9, 'Bscf', R.ciG ? R.ciG[0] / 1e9 : null, R.ciG ? R.ciG[1] / 1e9 : null],
       ['R squared', fit.r2, '', null, null],
       ['', ''],
-      ['Method', '(F-We)/(Eo+Efw) = N + mN (Eg+Efw)/(Eo+Efw); N = intercept, m = slope/intercept, G = mN Boi/Bgi'],
+      ['Method', '(F-We)/[Eo+(1+m)Efw] = N + mN Eg/[Eo+(1+m)Efw], fitted again with the new m until m stops changing; N = intercept, m = slope/intercept, G = mN Boi/Bgi'],
       ['Efw included', state.includeEfw ? 'yes' : 'no'],
       ['Water influx', b.aquifer.mode === 'pot' ? 'pot aquifer, We = K (pi - p)' : b.aquifer.mode === 'column' ? 'We column from the file' : 'none'],
       ['K, pot aquifer constant (rb/psi)', b.aquifer.mode === 'pot' ? b.aquifer.K : null]

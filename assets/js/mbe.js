@@ -8,8 +8,11 @@
  *   Efw = Boi (Cw Swc + Cf) Δp / (1 − Swc)
  *   F   = N [Eo + m Eg + (1 + m) Efw] + We
  *
- * Unknown N and m (combination drive):  (F − We)/(Eo+Efw) = N + mN · (Eg+Efw)/(Eo+Efw)
+ * Unknown N and m (gas-cap or combination drive): with E = Eo + (1 + m) Efw,
+ *   (F − We)/E = N + mN · Eg/E
  *   intercept = N,  slope = mN,  m = slope / intercept,  G = mN Boi / Bgi
+ * Both axes contain m, so the fit is repeated with the new m until m stops changing.
+ * Without Efw this is the plot of F/Eo against Eg/Eo.
  * We: none, a column of the file, or a pot aquifer We = K (pi − p) with K found by trial and error.
  *
  * All inputs in base units (psia, STB, SCF, SCF/STB, rb/STB, rb/SCF, 1/psi, fraction).
@@ -180,9 +183,7 @@
       else if (potK) t.We = t.dP > 0 ? potK * t.dP : 0;
       else t.We = 0;
       t.Fnet = t.F - t.We;
-      t.denom = t.Eo + t.Efw;
-      t.x = (t.Eg + t.Efw) / t.denom;
-      t.y = t.Fnet / t.denom;
+      setAxes(t, 0); // the fit sets the axes again at its own m
 
       var reason = '';
       if (![t.p, t.Np, t.Gp, t.Bo, t.Rs, t.Bg].every(num)) reason = 'missing values';
@@ -190,8 +191,8 @@
       else if (r.Np <= 0) reason = 'initial point (Np = 0)';
       else if (!(t.dP > 0)) reason = 'pressure is not below p_i';
       else if (!num(t.We)) reason = 'W_e is missing';
-      else if (!(t.denom > 1e-12)) reason = 'E_o + E_fw is not positive';
-      else if (!num(t.x) || !num(t.y)) reason = 'cannot divide by E_o + E_fw';
+      else if (!(t.Eo > 0)) reason = 'E_o is not positive';
+      else if (!num(t.x) || !num(t.y)) reason = 'cannot divide by E_o + (1 + m) E_fw';
       else if (!(t.Fnet > 0)) reason = t.We > 0 ? 'W_e is larger than F' : 'F is not positive';
       t.usable = !reason;
       t.reason = reason;
@@ -199,6 +200,42 @@
       t.included = t.usable && !t.userExcluded;
       return t;
     });
+  }
+
+  /* ---------------- the straight line ---------------- */
+
+  /** Axes of the line for a given m: E = Eo + (1 + m) Efw, x = Eg / E, y = (F − We) / E. */
+  function setAxes(t, m) {
+    var f = num(m) ? Math.max(0, 1 + m) : 1;
+    t.denom = t.Eo + f * t.Efw;
+    t.x = t.Eg / t.denom;
+    t.y = t.Fnet / t.denom;
+  }
+
+  /**
+   * Fits y = N + mN x over the points given (all in the fit). Both axes contain m, so the fit is
+   * repeated with the new m until m stops changing. The start is the same line written with axes free of m,
+   * (F − We)/(Eo + Efw) = N + mN (Eg + Efw)/(Eo + Efw), which already gives N and m exactly on exact data.
+   * The points' x and y are left at the final m. Returns the linreg result plus mAxes and rounds.
+   */
+  function fitLine(pts) {
+    if (pts.length < 2) return null;
+    var free = linreg(pts.map(function (t) { return (t.Eg + t.Efw) / (t.Eo + t.Efw); }), pts.map(function (t) { return t.Fnet / (t.Eo + t.Efw); }));
+    var m = free && !free.degenerate && free.intercept > 0 ? free.slope / free.intercept : 0;
+    if (!num(m)) m = 0;
+    var dependsOnM = pts.some(function (t) { return t.Efw !== 0; });
+    var fit = null, used = m, rounds = 0;
+    for (rounds = 1; rounds <= 100; rounds++) {
+      used = m;
+      pts.forEach(function (t) { setAxes(t, used); });
+      fit = linreg(pts.map(function (t) { return t.x; }), pts.map(function (t) { return t.y; }));
+      if (!dependsOnM || !fit || fit.degenerate || !(fit.intercept > 0)) break;
+      var next = fit.slope / fit.intercept;
+      if (!num(next) || Math.abs(next - used) <= 1e-12 * Math.max(1, Math.abs(next))) break;
+      m = next;
+    }
+    if (fit) { fit.mAxes = used; fit.rounds = Math.min(rounds, 100); }
+    return fit;
   }
 
   /* ---------------- m evaluation (explorer) ---------------- */
@@ -267,7 +304,7 @@
       var pp = Object.assign({}, params, { Boi: params.Boi + jit(steps.Boi), Bgi: params.Bgi + jit(steps.Bgi), Rsi: params.Rsi + jit(steps.Rsi) });
       var inc = computeTerms(rr, pp, opts).filter(function (x) { return x.included; });
       if (inc.length < 2) continue;
-      var fit = linreg(inc.map(function (x) { return x.x; }), inc.map(function (x) { return x.y; }));
+      var fit = fitLine(inc);
       if (!fit || fit.degenerate || !(fit.intercept > 0)) continue;
       ms.push(fit.slope / fit.intercept);
       Ns.push(fit.intercept);
@@ -368,7 +405,8 @@
       return res;
     }
 
-    var fit = linreg(inc.map(function (t) { return t.x; }), inc.map(function (t) { return t.y; }));
+    var fit = fitLine(inc);
+    terms.forEach(function (tt) { if (!tt.included) setAxes(tt, fit ? fit.mAxes : 0); });
     if (!fit || fit.degenerate) {
       msgs.errors.push({ code: 'degenerate', text: 'All included points have the same x value, so the slope cannot be found. Include more points or check B_g and B_gi.' });
       return res;
@@ -471,7 +509,7 @@
         var shaky = inc.filter(function (tt) { return rc.xStd[tt.id] > 0.5 * xr; });
         if (shaky.length && inc.length - shaky.length >= 3) {
           var keep = inc.filter(function (tt) { return shaky.indexOf(tt) < 0; });
-          var f2 = linreg(keep.map(function (tt) { return tt.x; }), keep.map(function (tt) { return tt.y; }));
+          var f2 = fitLine(keep.map(function (tt) { return Object.assign({}, tt); }));
           var names = shaky.map(function (tt) { return Math.round(tt.p).toLocaleString('en-US'); });
           var list = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
           text += ' The point' + (shaky.length > 1 ? 's' : '') + ' at ' + list + ' psia move' + (shaky.length > 1 ? '' : 's') + ' the most';
@@ -484,8 +522,8 @@
       }
     }
 
-    var negDen = terms.filter(function (tt) { return tt.reason === 'E_o + E_fw is not positive'; }).length;
-    if (negDen) msgs.warnings.push({ code: 'eo', text: negDen + ' point' + (negDen > 1 ? 's have' : ' has') + ' E_o + E_fw ≤ 0 and cannot be plotted. Check B_oi and R_si.' });
+    var negDen = terms.filter(function (tt) { return tt.reason === 'E_o is not positive'; }).length;
+    if (negDen) msgs.warnings.push({ code: 'eo', text: negDen + ' point' + (negDen > 1 ? 's have' : ' has') + ' E_o ≤ 0 and cannot be plotted. Check B_oi and R_si.' });
     var negF = terms.filter(function (tt) { return tt.reason === 'F is not positive'; }).length;
     if (negF) msgs.warnings.push({ code: 'F', text: negF + ' point' + (negF > 1 ? 's have' : ' has') + ' F ≤ 0. Check the units of G_p and B_g.' });
 
@@ -499,6 +537,8 @@
     originFit: originFit,
     spearman: spearman,
     computeTerms: computeTerms,
+    setAxes: setAxes,
+    fitLine: fitLine,
     evaluateM: evaluateM,
     minValidM: minValidM,
     scanM: scanM,

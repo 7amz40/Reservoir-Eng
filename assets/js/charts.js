@@ -310,8 +310,8 @@
 
     graphPaper(f, x, y, T);
     axes(f, x, y, T, {
-      xTitle: d.efw ? '(*E*_g + *E*_fw) / (*E*_o + *E*_fw)' : '*E*_g / *E*_o',
-      yTitle: (d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / (*E*_o + *E*_fw)' : ' / *E*_o') + ', ' + d.yUnit
+      xTitle: d.efw ? '*E*_g / [*E*_o + (1 + *m*) *E*_fw]' : '*E*_g / *E*_o',
+      yTitle: (d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / [*E*_o + (1 + *m*) *E*_fw]' : ' / *E*_o') + ', ' + d.yUnit
     });
     // zero line for x when the domain starts left of 0
     if (x.domain()[0] < 0) {

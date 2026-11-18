@@ -294,7 +294,7 @@
 
     <section class="method" aria-labelledby="method-title">
       <h2 id="method-title">Method</h2>
-      <p>Havlena and Odeh (1963) wrote the material balance as a straight line. With both <var>N</var> and <var>m</var> unknown, a plot of <var>y</var> against <var>x</var> gives <var>N</var> as the intercept and <var>mN</var> as the slope. For a combination drive, the water influx <var>W</var><sub>e</sub> is taken off <var>F</var> first; for a pot aquifer, <var>K</var> is changed by trial and error until the points make a straight line, and the dashboard can also find the <var>K</var> that fits best by least squares.</p>
+      <p>Havlena and Odeh (1963) wrote the material balance as a straight line. With both <var>N</var> and <var>m</var> unknown, a plot of <var>y</var> against <var>x</var> gives <var>N</var> as the intercept and <var>mN</var> as the slope. Both axes hold (1 + <var>m</var>) <var>E</var><sub>fw</sub>, so the line is fitted again with the new <var>m</var> until <var>m</var> stops changing, which takes a few rounds. Without <var>E</var><sub>fw</sub> the plot is <var>F</var>/<var>E</var><sub>o</sub> against <var>E</var><sub>g</sub>/<var>E</var><sub>o</sub>. For a combination drive, the water influx <var>W</var><sub>e</sub> is taken off <var>F</var> first; for a pot aquifer, <var>K</var> is changed by trial and error until the points make a straight line, and the dashboard can also find the <var>K</var> that fits best by least squares.</p>
       <div class="eqs">
         <div class="eq">
           <span class="eq-name">Underground withdrawal</span>
@@ -318,7 +318,7 @@
         </div>
         <div class="eq">
           <span class="eq-name">Straight line</span>
-          <div class="eqn"><span class="frac"><span class="num"><var>F</var><span class="op">−</span><var>W</var><sub>e</sub></span><span class="den"><var>E</var><sub>o</sub><span class="op">+</span><var>E</var><sub>fw</sub></span></span><span class="op">=</span><var>N</var><span class="op">+</span><var>mN</var> <span class="frac"><span class="num"><var>E</var><sub>g</sub><span class="op">+</span><var>E</var><sub>fw</sub></span><span class="den"><var>E</var><sub>o</sub><span class="op">+</span><var>E</var><sub>fw</sub></span></span></div>
+          <div class="eqn"><span class="frac"><span class="num"><var>F</var><span class="op">−</span><var>W</var><sub>e</sub></span><span class="den"><var>E</var><sub>o</sub><span class="op">+</span>(1<span class="op">+</span><var>m</var>) <var>E</var><sub>fw</sub></span></span><span class="op">=</span><var>N</var><span class="op">+</span><var>mN</var> <span class="frac"><span class="num"><var>E</var><sub>g</sub></span><span class="den"><var>E</var><sub>o</sub><span class="op">+</span>(1<span class="op">+</span><var>m</var>) <var>E</var><sub>fw</sub></span></span></div>
         </div>
         <div class="eq">
           <span class="eq-name">Gas cap from the line</span>
