@@ -306,6 +306,41 @@ def t_downloads(b):
     pg.close()
 
 
+@check("water influx: W_e column, pot aquifer and the best K")
+def t_influx(b):
+    pg = Page(b)
+    # the example: the best pot aquifer keeps m negative
+    pg.page.check("input[name=aq][value=pot]")
+    assert pg.page.locator("#aq-pot").is_visible()
+    pg.page.click("#aq-best")
+    read = pg.text("#aq-read")
+    assert "K = 45,251 rb/psi" in read and "still negative" in read, read
+    assert "pot aquifer" in pg.text("#fitline")
+    assert "(F − We)" in pg.page.locator("#chart-ho svg").text_content(), "y axis shows F − We"
+    pg.page.fill("#aq-k", "0")
+    pg.page.press("#aq-k", "Enter")
+    assert pg.val("res-N") == "729.6"
+    pg.page.check("input[name=aq][value=none]")
+    assert pg.page.locator("#aq-pot").is_hidden()
+    # a file with a W_e column is used straight away
+    pg.upload(os.path.join(FIX, "synthetic_we_column.xlsx"))
+    assert pg.page.is_checked("input[name=aq][value=column]")
+    assert pg.val("res-N") == "120.0" and pg.val("res-m") == "0.300"
+    assert pg.page.locator("#chart-drive svg").count() == 1
+    assert "Water influx" in pg.text("#legend-drive")
+    # the same reservoir without the column: the dashboard finds K
+    pg.upload(os.path.join(FIX, "synthetic_pot_aquifer.xlsx"))
+    assert pg.page.is_checked("input[name=aq][value=none]")
+    assert pg.page.is_disabled("input[name=aq][value=column]")
+    assert pg.val("res-N") != "120.0"
+    pg.page.check("input[name=aq][value=pot]")
+    pg.page.click("#aq-best")
+    assert pg.val("res-N") == "120.0" and pg.val("res-m") == "0.300", (pg.val("res-N"), pg.val("res-m"))
+    assert "K = 60,000 rb/psi" in pg.text("#aq-read")
+    shot(pg, "desktop-influx", full=True)
+    pg.close()
+
+
 @check("drag and drop a file onto the page")
 def t_drop(b):
     pg = Page(b)

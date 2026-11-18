@@ -40,7 +40,7 @@ function run(wb, opts) {
 async function runFile(file, opts) { return run(await readFile(file), opts); }
 
 /** Exact gas-cap reservoir data from the MBE (same model as tests/make_fixtures.py). */
-function synthetic({ N = 150e6, m = 0.4, swc = 0.2, cw = 3e-6, cf = 5e-6, n = 9, pressures = null } = {}) {
+function synthetic({ N = 150e6, m = 0.4, swc = 0.2, cw = 3e-6, cf = 5e-6, n = 9, pressures = null, K = 0 } = {}) {
   const pi = 3000, T = 640;
   const z = p => 0.80 + 0.06 * Math.pow(p / 3000 - 0.5, 2) + 0.02 * (1 - p / 3000);
   const bg = p => 0.00504 * z(p) * T / p;
@@ -48,16 +48,17 @@ function synthetic({ N = 150e6, m = 0.4, swc = 0.2, cw = 3e-6, cf = 5e-6, n = 9,
   const bo = p => 1.30 - 1.1e-4 * (pi - p) - 6e-9 * Math.pow(pi - p, 2);
   const boi = bo(pi), bgi = bg(pi), rsi = rs(pi);
   const ps = pressures || Array.from({ length: n - 1 }, (_, i) => pi - 160 * (i + 1) - 6 * (i + 1) * (i + 1));
-  const rows = [{ p: pi, Np: 0, Gp: 0, Bo: boi, Rs: rsi, Bg: bgi }];
+  const rows = [{ p: pi, Np: 0, Gp: 0, Bo: boi, Rs: rsi, Bg: bgi, We: 0 }];
   for (const p of ps) {
     const Bo = bo(p), Rs = rs(p), Bg = bg(p), dp = pi - p;
     const eo = (Bo - boi) + (rsi - Rs) * Bg;
     const eg = boi * (Bg / bgi - 1);
     const efw = boi * (cw * swc + cf) * dp / (1 - swc);
-    const F = N * (eo + m * eg + (1 + m) * efw);
+    const We = K * dp;
+    const F = N * (eo + m * eg + (1 + m) * efw) + We;
     const Np = N * (6e-5 * dp + 1e-8 * dp * dp);
     const Rp = (F / Np - Bo) / Bg + Rs;
-    rows.push({ p, Np, Gp: Rp * Np, Bo, Rs, Bg });
+    rows.push({ p, Np, Gp: Rp * Np, Bo, Rs, Bg, We });
   }
   return { rows: rows.map((r, i) => Object.assign({ id: i, sheetRow: i + 2, Wp: 0, Bw: 1 }, r)), params: { pi, Boi: boi, Bgi: bgi, Rsi: rsi, Swc: swc, Cw: cw, Cf: cf } };
 }

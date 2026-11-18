@@ -64,7 +64,7 @@
   /** Escape, then turn B_g, p_i, E_fw ... into italic symbols with subscripts. */
   function rich(text) {
     return esc(text)
-      .replace(/\b([NmG])\b/g, '<var>$1</var>')
+      .replace(/\b([NmGK])\b/g, '<var>$1</var>')
       .replace(/\b([A-Za-z])_([A-Za-z]{1,3})\b/g, '<var>$1</var><sub>$2</sub>');
   }
   function minus(s) { return String(s).replace(/^-/, '−'); }
@@ -106,6 +106,8 @@
     mNow: null,
     out: { N: 'MMSTB', G: 'MMMSCF' },
     tableAll: false,
+    aquifer: { mode: 'auto', K: 0 }, // 'auto' = the file's W_e column when it has one, else none
+    aqNote: '',
     bundle: null,
     fileError: null
   };
@@ -122,13 +124,27 @@
     b.blocking = analysis.errors.some(function (e) { return BLOCKING[e.code]; });
     if (!b.blocking && analysis.production && analysis.production.rows.length) {
       b.inputs = P.buildInputs(analysis, { params: state.paramEdits });
+      b.aquifer = resolveAquifer(b.inputs);
       if (!b.inputs.messages.errors.length) {
-        var ids = b.inputs.rows.filter(function (r) { return state.excluded.has(r.sheetRow); }).map(function (r) { return r.id; });
-        b.result = E.analyze(b.inputs.rows, b.inputs.params, { includeEfw: state.includeEfw, excluded: ids, precision: b.inputs.precision });
+        b.result = E.analyze(b.inputs.rows, b.inputs.params, engineOpts(b));
       }
     }
     return b;
   }
+
+  function resolveAquifer(inputs) {
+    var mode = state.aquifer.mode;
+    if (mode === 'auto') mode = inputs && inputs.hasWe ? 'column' : 'none';
+    if (mode === 'column' && !(inputs && inputs.hasWe)) mode = 'none';
+    return { mode: mode, K: mode === 'pot' ? state.aquifer.K : 0 };
+  }
+
+  function engineOpts(b) {
+    var ids = b.inputs.rows.filter(function (r) { return state.excluded.has(r.sheetRow); }).map(function (r) { return r.id; });
+    return { includeEfw: state.includeEfw, excluded: ids, precision: b.inputs.precision, aquifer: b.aquifer };
+  }
+
+  function influxOn(b) { return !!(b.aquifer && b.aquifer.mode !== 'none'); }
 
   function recompute(opts) {
     opts = opts || {};
@@ -145,6 +161,7 @@
     renderAlert(b);
     renderSource(b);
     renderParams(b);
+    renderAquifer(b);
     renderColumns(b);
     renderLedger(b);
     renderNotes(b);
@@ -324,11 +341,73 @@
     $('efw').checked = state.includeEfw;
   }
 
+  /* ---------- water influx ---------- */
+  /** Top of the K slider: the K at which W_e would equal F at some point. */
+  function potKmax(b) {
+    var k = 0;
+    (b.result ? b.result.terms : []).forEach(function (t) {
+      if (t.Np > 0 && t.dP > 0 && t.F > 0) k = Math.max(k, t.F / t.dP);
+    });
+    if (!(k > 0)) k = 1e5;
+    var mag = Math.pow(10, Math.floor(Math.log10(k)));
+    return Math.ceil(k / mag) * mag;
+  }
+
+  function renderAquifer(b) {
+    var mode = b.aquifer ? b.aquifer.mode : 'none';
+    var hasWe = !!(b.inputs && b.inputs.hasWe);
+    document.querySelectorAll('input[name="aq"]').forEach(function (r) {
+      r.checked = r.value === mode;
+      r.disabled = !b.inputs || (r.value === 'column' && !hasWe);
+    });
+    var prod = b.analysis.production;
+    $('aq-col-note').innerHTML = hasWe
+      ? esc('Column ' + P.colLetter(prod.mapping.We) + ', “' + (prod.headers[prod.mapping.We].text || '') + '”')
+      : rich(b.inputs && b.inputs.weEmpty ? 'The W_e column in this file is empty.' : 'There is no W_e column in this file.');
+    $('aq-pot').hidden = mode !== 'pot';
+    if (mode !== 'pot') return;
+    var range = $('aq-range');
+    var max = Math.max(potKmax(b), state.aquifer.K || 0);
+    range.max = max;
+    range.step = max / 1000;
+    range.value = state.aquifer.K || 0;
+    var kin = $('aq-k');
+    if (document.activeElement !== kin) kin.value = fmtFixed(state.aquifer.K || 0, 0);
+    $('aq-read').innerHTML = state.aqNote ? rich(state.aqNote) : '';
+  }
+
+  function findBestK() {
+    var b = state.bundle;
+    if (!b || !b.inputs) return;
+    state.aquifer.mode = 'pot';
+    var opts = engineOpts(b);
+    var best = E.bestPotK(b.inputs.rows, b.inputs.params, opts);
+    if (!best) {
+      state.aqNote = 'At least three points are needed to find K.';
+      recompute({ noAnim: true });
+      return;
+    }
+    state.aquifer.K = Math.round(best.K);
+    var note = best.negative
+      ? 'The best fit would need K < 0, that is water leaving the reservoir, so K is set to 0.'
+      : 'Best fit by least squares on F: K = ' + fmtFixed(best.K, 0) + ' rb/psi.';
+    state.aqNote = note;
+    var r = recompute({ noAnim: true });
+    var R = r.result && r.result.results;
+    if (R && !best.negative) {
+      state.aqNote = note + (R.m < 0
+        ? ' m is still negative (' + fmtM(R.m) + '), so a pot aquifer does not explain these data.'
+        : ' The line then gives N = ' + fmtRes(R.N / 1e6) + ' MMSTB and m = ' + fmtM(R.m) + '.');
+      renderAquifer(r);
+    }
+  }
+
   /* ---------- columns and units ---------- */
   var COL_UI = [
     { f: 'p', name: 'Average reservoir pressure' }, { f: 'Np', name: 'Cumulative oil' }, { f: 'Gp', name: 'Cumulative gas' },
     { f: 'Rp', name: 'Cumulative GOR (instead of Gp)' }, { f: 'Bo', name: 'Oil FVF' }, { f: 'Rs', name: 'Solution GOR' },
-    { f: 'Bg', name: 'Gas FVF' }, { sub: 'Optional' }, { f: 'Wp', name: 'Cumulative water' }, { f: 'Bw', name: 'Water FVF' }
+    { f: 'Bg', name: 'Gas FVF' }, { sub: 'Optional' }, { f: 'Wp', name: 'Cumulative water' }, { f: 'Bw', name: 'Water FVF' },
+    { f: 'We', name: 'Cumulative water influx' }
   ];
 
   function renderColumns(b) {
@@ -441,7 +520,10 @@
     var a = R.N / N_DIV[nu], s = R.mN / N_DIV[nu];
     $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> ' + (s < 0 ? '−' : '+') + ' <strong class="n">' +
       esc(fmtRes(Math.abs(s))) + '</strong> <var>x</var> <span class="ledger-label">(' + esc(nu) + ')</span>';
-    $('fitline').innerHTML = 'R² = <strong>' + fit.r2.toFixed(3) + '</strong> from ' + plural(fit.n, 'point');
+    var aqText = '';
+    if (b.aquifer && b.aquifer.mode === 'pot') aqText = ', pot aquifer <var>K</var> = ' + esc(fmtFixed(b.aquifer.K, 0)) + ' rb/psi';
+    else if (b.aquifer && b.aquifer.mode === 'column') aqText = ', <var>W</var><sub>e</sub> from the file';
+    $('fitline').innerHTML = 'R² = <strong>' + fit.r2.toFixed(3) + '</strong> from ' + plural(fit.n, 'point') + aqText;
     var ci = function (pair, div, fmt) {
       return pair ? '95 % range: ' + fmt(pair[0] / div) + ' to ' + fmt(pair[1] / div) : '';
     };
@@ -520,7 +602,7 @@
 
   function hoPoints(b) {
     return b.result.terms.filter(function (t) { return t.usable; }).map(function (t) {
-      return { key: t.sheetRow, x: t.x, y: t.y, p: t.p, included: t.included, F: t.F, Eo: t.Eo, Eg: t.Eg, Efw: t.Efw };
+      return { key: t.sheetRow, x: t.x, y: t.y, p: t.p, included: t.included, F: t.F, Eo: t.Eo, Eg: t.Eg, Efw: t.Efw, We: t.We };
     });
   }
 
@@ -552,7 +634,7 @@
     C.hoPlot(ho, {
       points: hoPoints(b),
       fit: fitOk ? { a: R.N, b: R.mN } : null,
-      yDiv: div, yUnit: nu, efw: efw,
+      yDiv: div, yUnit: nu, efw: efw, influx: influxOn(b),
       labelsAll: state.labelsAll,
       Ntext: fitOk ? fmtRes(R.N / div) + ' ' + nu : '',
       mNtext: fitOk ? fmtRes(R.mN / div) + ' ' + nu : '',
@@ -565,7 +647,8 @@
 
     var inc = b.result.terms.filter(function (t) { return t.included; });
     C.originPlot(chk, {
-      points: fitOk ? inc.map(function (t) { return { key: t.sheetRow, p: t.p, Et: t.Et, F: t.F }; }) : [],
+      points: fitOk ? inc.map(function (t) { return { key: t.sheetRow, p: t.p, Et: t.Et, F: t.Fnet }; }) : [],
+      influx: influxOn(b),
       slope: fitOk ? R.N : NaN,
       slopeText: fitOk ? 'slope *N* = ' + fmtRes(R.N / div) + ' ' + nu : '',
       nDiv: div, nUnit: nu,
@@ -576,8 +659,9 @@
       emptyText: 'The check appears once N and m are found.'
     });
     C.driveBars(drv, {
-      rows: fitOk ? inc.map(function (t) { return { key: t.sheetRow, p: t.p, DDI: t.DDI, SDI: t.SDI, CDI: t.CDI }; }) : [],
+      rows: fitOk ? inc.map(function (t) { return { key: t.sheetRow, p: t.p, DDI: t.DDI, SDI: t.SDI, CDI: t.CDI, WDI: t.WDI }; }) : [],
       showWater: efw,
+      showInflux: influxOn(b),
       legendEl: $('legend-drive'),
       blockedText: negativeM(b) ? 'Not shown: the fitted m is ' + fmtM(R.m) + '. A negative gas cap would give a negative gas-cap drive index, which has no physical meaning. See the fit notes.' : ''
     });
@@ -671,16 +755,20 @@
       { g: 'Data', h: SYM.Rs, u: 'SCF/STB', v: function (t) { return fmtFixed(t.Rs, 1); } },
       { g: 'Data', h: SYM.Bg, u: 'rb/SCF', v: function (t) { return fmtSig(t.Bg, 4); } },
       { g: 'Expansion terms', h: 'Δ<var>p</var>', u: 'psi', v: function (t) { return fmtFixed(t.dP, 0); } },
-      { g: 'Expansion terms', h: '<var>F</var>', u: 'MM rb', v: function (t) { return fmtSig(t.F / 1e6, 5); } },
+      { g: 'Expansion terms', h: '<var>F</var>', u: 'MM rb', v: function (t) { return fmtSig(t.F / 1e6, 5); } }
+    ].concat(influxOn(b) ? [
+      { g: 'Expansion terms', h: '<var>W</var><sub>e</sub>', u: 'MM rb', v: function (t) { return isFinite(t.We) ? fmtSig(t.We / 1e6, 4) : '–'; } }
+    ] : []).concat([
       { g: 'Expansion terms', h: '<var>E</var><sub>o</sub>', u: 'rb/STB', v: function (t) { return fmtSig(t.Eo, 4); } },
       { g: 'Expansion terms', h: '<var>E</var><sub>g</sub>', u: 'rb/STB', v: function (t) { return fmtSig(t.Eg, 4); } },
       { g: 'Expansion terms', h: '<var>E</var><sub>fw</sub>', u: 'rb/STB', v: function (t) { return efw ? fmtSig(t.Efw, 3) : '0'; } },
       { g: 'Straight line', h: '<var>x</var>', u: '', v: function (t) { return t.usable ? fmtSig(t.x, 4) : '–'; } },
       { g: 'Straight line', h: '<var>y</var>', u: nu, v: function (t) { return t.usable ? fmtSig(t.y / div, 5) : '–'; } },
-      { g: 'Check at the fitted <var>m</var>', h: '<var>F</var>/<var>E</var><sub>t</sub>', u: nu, v: function (t) { return t.usable && isFinite(t.impliedN) ? fmtSig(t.impliedN / div, 5) : '–'; } },
+      { g: 'Check at the fitted <var>m</var>', h: influxOn(b) ? '(<var>F</var> − <var>W</var><sub>e</sub>)/<var>E</var><sub>t</sub>' : '<var>F</var>/<var>E</var><sub>t</sub>', u: nu, v: function (t) { return t.usable && isFinite(t.impliedN) ? fmtSig(t.impliedN / div, 5) : '–'; } },
       { g: 'Check at the fitted <var>m</var>', h: 'DDI', u: '%', v: function (t) { return di(t, 'DDI'); } },
       { g: 'Check at the fitted <var>m</var>', h: 'SDI', u: '%', v: function (t) { return di(t, 'SDI'); } }
-    ];
+    ]);
+    if (influxOn(b)) cols.push({ g: 'Check at the fitted <var>m</var>', h: 'WDI', u: '%', v: function (t) { return di(t, 'WDI'); } });
     if (efw) cols.push({ g: 'Check at the fitted <var>m</var>', h: 'CDI', u: '%', v: function (t) { return di(t, 'CDI'); } });
     var hideDI = negativeM(b);
     function di(t, k) {
@@ -769,6 +857,8 @@
     state.paramEdits = {};
     state.excluded = new Set();
     state.mNow = null;
+    state.aquifer = { mode: 'auto', K: 0 };
+    state.aqNote = '';
     state.tableAll = false;
     state.fileError = null;
     mRange.key = '';
@@ -860,15 +950,15 @@
 
   function calcRows(b) {
     var head = ['p (psia)', 'Np (STB)', 'Gp (SCF)', 'Rp (SCF/STB)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'dp (psi)',
-      'F (rb)', 'Eo (rb/STB)', 'Eg (rb/STB)', 'Efw (rb/STB)', 'x', 'y (STB)', 'F/Et (STB)', 'DDI', 'SDI', 'CDI', 'In fit', 'Note'];
+      'F (rb)', 'We (rb)', 'Eo (rb/STB)', 'Eg (rb/STB)', 'Efw (rb/STB)', 'x', 'y (STB)', '(F-We)/Et (STB)', 'DDI', 'SDI', 'WDI', 'CDI', 'In fit', 'Note'];
     var rows = [head];
     var hideDI = negativeM(b);
     b.result.terms.forEach(function (t) {
       var s = t.sumDI;
       var norm = function (k) { return !hideDI && t.usable && isFinite(t[k]) && isFinite(s) && s !== 0 ? t[k] / s : null; };
-      rows.push([t.p, t.Np, t.Gp, t.Np > 0 ? t.Rp : null, t.Bo, t.Rs, t.Bg, t.dP, t.F, t.Eo, t.Eg, t.Efw,
+      rows.push([t.p, t.Np, t.Gp, t.Np > 0 ? t.Rp : null, t.Bo, t.Rs, t.Bg, t.dP, t.F, isFinite(t.We) ? t.We : null, t.Eo, t.Eg, t.Efw,
         t.usable ? t.x : null, t.usable ? t.y : null, t.usable && isFinite(t.impliedN) ? t.impliedN : null,
-        norm('DDI'), norm('SDI'), norm('CDI'),
+        norm('DDI'), norm('SDI'), norm('WDI'), norm('CDI'),
         t.usable ? (t.included ? 'yes' : 'no') : 'n/a', t.reason || (t.userExcluded ? 'left out by user' : '')]);
     });
     return rows;
@@ -896,8 +986,10 @@
       ['G, gas-cap gas initially in place', R.G / 1e9, 'Bscf', R.ciG ? R.ciG[0] / 1e9 : null, R.ciG ? R.ciG[1] / 1e9 : null],
       ['R squared', fit.r2, '', null, null],
       ['', ''],
-      ['Method', 'F/(Eo+Efw) = N + mN (Eg+Efw)/(Eo+Efw); N = intercept, m = slope/intercept, G = mN Boi/Bgi'],
-      ['Efw included', state.includeEfw ? 'yes' : 'no']
+      ['Method', '(F-We)/(Eo+Efw) = N + mN (Eg+Efw)/(Eo+Efw); N = intercept, m = slope/intercept, G = mN Boi/Bgi'],
+      ['Efw included', state.includeEfw ? 'yes' : 'no'],
+      ['Water influx', b.aquifer.mode === 'pot' ? 'pot aquifer, We = K (pi - p)' : b.aquifer.mode === 'column' ? 'We column from the file' : 'none'],
+      ['K, pot aquifer constant (rb/psi)', b.aquifer.mode === 'pot' ? b.aquifer.K : null]
     ];
     var inputs = [['Parameter', 'Value', 'Unit', 'Source']];
     [['pi', 'psia'], ['Boi', 'rb/STB'], ['Bgi', 'rb/SCF'], ['Rsi', 'SCF/STB'], ['Swc', 'fraction'], ['Cw', '1/psi'], ['Cf', '1/psi']].forEach(function (p) {
@@ -908,7 +1000,7 @@
     var notes = [['Level', 'Note']].concat(collectMessages(b).map(function (m) { return [m.level, m.text.replace(/_/g, '')]; }));
     X.writeXlsx([
       { name: 'Results', headerRows: 0, colWidths: [38, 22, 10, 16, 16], rows: results },
-      { name: 'Calculations', headerRows: 1, colWidths: [10, 14, 16, 12, 11, 12, 12, 9, 16, 12, 12, 12, 10, 16, 16, 9, 9, 9, 8, 24], rows: calcRows(b) },
+      { name: 'Calculations', headerRows: 1, colWidths: [10, 14, 16, 12, 11, 12, 12, 9, 16, 14, 12, 12, 12, 10, 16, 16, 9, 9, 9, 9, 8, 24], rows: calcRows(b) },
       { name: 'Inputs', headerRows: 1, colWidths: [12, 14, 10, 34], rows: inputs },
       { name: 'Notes', headerRows: 1, colWidths: [10, 110], rows: notes }
     ]).then(function (bytes) {
@@ -1032,6 +1124,34 @@
     });
 
     $('efw').addEventListener('change', function () { state.includeEfw = this.checked; recompute({ noAnim: true }); });
+
+    document.querySelectorAll('input[name="aq"]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        if (!this.checked) return;
+        state.aquifer.mode = this.value;
+        state.aqNote = '';
+        recompute({ noAnim: true });
+      });
+    });
+    var aqTimer = null;
+    function setK(v, quiet) {
+      if (!(isFinite(v) && v >= 0)) return false;
+      state.aquifer.K = v;
+      state.aqNote = '';
+      recompute({ noAnim: true, quiet: quiet });
+      return true;
+    }
+    $('aq-k').addEventListener('input', function () {
+      var el = this;
+      clearTimeout(aqTimer);
+      aqTimer = setTimeout(function () { setK(U.parseNumber(el.value), true); }, 350);
+    });
+    $('aq-k').addEventListener('change', function () {
+      clearTimeout(aqTimer);
+      if (!setK(U.parseNumber(this.value), false)) this.value = fmtFixed(state.aquifer.K || 0, 0);
+    });
+    $('aq-range').addEventListener('input', function () { setK(+this.value, true); });
+    $('aq-best').addEventListener('click', findBestK);
     $('labels-all').addEventListener('change', function () { state.labelsAll = this.checked; renderCharts(state.bundle, { noAnim: true }); });
     $('reset-points').addEventListener('click', function () { state.excluded.clear(); recompute({ noAnim: true }); });
     $('out-N').addEventListener('change', function () { state.out.N = this.value; renderAll(state.bundle, { noAnim: true, quiet: true }); });

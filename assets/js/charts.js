@@ -19,7 +19,7 @@
       line: v('--line'), lineStrong: v('--line-strong'),
       surface: v('--surface'), paper: v('--paper'),
       gridMinor: v('--grid-minor'), gridMajor: v('--grid-major'),
-      oil: v('--oil'), gas: v('--gas'), water: v('--water'),
+      oil: v('--oil'), gas: v('--gas'), water: v('--water'), rock: v('--rock'),
       fontBody: v('--font-body') || 'sans-serif', fontMath: v('--font-math') || 'serif'
     };
   }
@@ -311,7 +311,7 @@
     graphPaper(f, x, y, T);
     axes(f, x, y, T, {
       xTitle: d.efw ? '(*E*_g + *E*_fw) / (*E*_o + *E*_fw)' : '*E*_g / *E*_o',
-      yTitle: (d.efw ? '*F* / (*E*_o + *E*_fw)' : '*F* / *E*_o') + ', ' + d.yUnit
+      yTitle: (d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / (*E*_o + *E*_fw)' : ' / *E*_o') + ', ' + d.yUnit
     });
     // zero line for x when the domain starts left of 0
     if (x.domain()[0] < 0) {
@@ -462,9 +462,10 @@
         { k: 'F', v: fmtSig(p.F / 1e6, 4) + ' MM rb' },
         { k: 'Eo', v: fmtSig(p.Eo, 4) + ' rb/STB' },
         { k: 'Eg', v: fmtSig(p.Eg, 4) + ' rb/STB' },
-        { k: 'Efw', v: fmtSig(p.Efw, 3) + ' rb/STB' },
+        { k: 'Efw', v: fmtSig(p.Efw, 3) + ' rb/STB' }
+      ].concat(d.influx ? [{ k: 'We', v: fmtSig(p.We / 1e6, 4) + ' MM rb' }] : []).concat([
         { foot: p.included ? 'In the fit. Click to leave it out.' : 'Left out. Click to add it back.' }
-      ];
+      ]);
     }
     function enter(p) {
       dots.filter(function (q) { return q.key === p.key; }).attr('r', 6.5);
@@ -508,7 +509,7 @@
     if (isFinite(d.slope)) ymax = Math.max(ymax, d.slope * x.domain()[1] / 1e6);
     var y = d3.scaleLinear().domain([0, ymax * 1.06]).nice().range([f.ih, 0]);
     hGrid(f, y, T);
-    axes(f, x, y, T, { xTitle: d.xTitle || '*E*_t, rb/STB', yTitle: '*F*, MM rb' });
+    axes(f, x, y, T, { xTitle: d.xTitle || '*E*_t, rb/STB', yTitle: (d.influx ? '*F* − *W*_e' : '*F*') + ', MM rb' });
     var plot = f.g.append('g').attr('clip-path', clip(f));
     if (isFinite(d.slope)) {
       plot.append('line').attr('x1', x(0)).attr('y1', y(0))
@@ -535,8 +536,8 @@
         showTip(el, f.m.l + x(p.Et), f.m.t + y(p.F / 1e6), [
           { head: d3.format(',')(Math.round(p.p)) + ' psia' },
           { k: 'Et', v: fmtSig(p.Et, 4) + ' rb/STB' },
-          { k: 'F', v: fmtSig(p.F / 1e6, 4) + ' MM rb' },
-          { k: 'F / Et', v: fmtSig(p.F / p.Et / (d.nDiv || 1e6), 4) + ' ' + (d.nUnit || 'MMSTB') }
+          { k: d.influx ? 'F − We' : 'F', v: fmtSig(p.F / 1e6, 4) + ' MM rb' },
+          { k: d.influx ? '(F − We) / Et' : 'F / Et', v: fmtSig(p.F / p.Et / (d.nDiv || 1e6), 4) + ' ' + (d.nUnit || 'MMSTB') }
         ]);
       })
       .on('pointerleave', function (ev, p) {
@@ -552,10 +553,11 @@
   function driveBars(el, d) {
     var T = tokens();
     var series = [
-      { k: 'DDI', name: 'Depletion drive', color: T.oil },
-      { k: 'SDI', name: 'Gas-cap drive', color: T.gas },
-      { k: 'CDI', name: 'Water and rock expansion', color: T.water }
-    ].filter(function (s) { return s.k !== 'CDI' || d.showWater; });
+      { k: 'DDI', name: 'Depletion drive', short: 'depletion', color: T.oil },
+      { k: 'SDI', name: 'Gas-cap drive', short: 'gas cap', color: T.gas },
+      { k: 'WDI', name: 'Water influx', short: 'influx', color: T.water },
+      { k: 'CDI', name: 'Water and rock expansion', short: 'expansion', color: T.rock }
+    ].filter(function (s) { return (s.k !== 'CDI' || d.showWater) && (s.k !== 'WDI' || d.showInflux); });
     if (d.blockedText) {
       if (d.legendEl) legend(d.legendEl, [], T);
       empty(el, d.blockedText);
@@ -647,7 +649,7 @@
         f.g.append('line').attr('x1', lx - 6).attr('x2', lx - 2).attr('y1', s.mid).attr('y2', yy).attr('stroke', T.lineStrong);
         f.g.append('text').attr('x', lx).attr('y', yy + 4).attr('fill', T.ink2).attr('font-size', 11.5)
           .style('font-variant-numeric', 'tabular-nums')
-          .text(minus(d3.format('.0%')(last[s.s.k])) + ' ' + s.s.name.split(' ')[0].toLowerCase());
+          .text(minus(d3.format('.0%')(last[s.s.k])) + ' ' + s.s.short);
       });
     }
 

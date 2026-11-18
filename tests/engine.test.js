@@ -173,3 +173,42 @@ test('rounding check stays quiet on precise data', async () => {
   assert.ok(info, 'a mild note for the second example');
   assert.ok(!q1.result.messages.warnings.some(m => m.code === 'rounding'));
 });
+
+test('combination drive: W_e from a column gives back N and m', () => {
+  const s = synthetic({ N: 120e6, m: 0.3, n: 10, K: 60000 });
+  const r = E.analyze(s.rows, s.params, { aquifer: { mode: 'column' } });
+  close(r.results.N, 120e6, 1e-9, 'N');
+  close(r.results.m, 0.3, 1e-8, 'm');
+  assert.ok(r.fit.r2 > 1 - 1e-12);
+  for (const t of r.terms.filter(t => t.included)) {
+    close(t.DDI + t.SDI + t.CDI + t.WDI, 1, 1e-9, 'drive indices with influx');
+    assert.ok(t.WDI > 0);
+  }
+  // ignoring the influx spoils the line
+  const none = E.analyze(s.rows, s.params, {});
+  assert.ok(Math.abs(none.results.N - 120e6) > 1e6);
+});
+
+test('combination drive: the best pot-aquifer K is found by least squares', () => {
+  const s = synthetic({ N: 120e6, m: 0.3, n: 10, K: 60000 });
+  const rows = s.rows.map(r => Object.assign({}, r, { We: NaN }));
+  const best = E.bestPotK(rows, s.params, {});
+  close(best.K, 60000, 1e-6, 'K');
+  close(best.N, 120e6, 1e-8, 'N');
+  close(best.m, 0.3, 1e-7, 'm');
+  assert.equal(best.negative, false);
+  const r = E.analyze(rows, s.params, { aquifer: { mode: 'pot', K: best.K } });
+  close(r.results.N, 120e6, 1e-6, 'N at best K');
+  close(r.results.m, 0.3, 1e-5, 'm at best K');
+  // data with no aquifer: the best K is zero, not negative
+  const plain = synthetic({ N: 150e6, m: 0.4 });
+  const b0 = E.bestPotK(plain.rows, plain.params, {});
+  assert.ok(b0.K < 1, 'K is about zero: ' + b0.K);
+});
+
+test('combination drive: too large an aquifer is reported per point', () => {
+  const s = synthetic({ N: 120e6, m: 0.3, n: 10 });
+  const r = E.analyze(s.rows, s.params, { aquifer: { mode: 'pot', K: 1e9 } });
+  assert.ok(r.terms.filter(t => t.Np > 0).every(t => t.reason === 'W_e is larger than F'));
+  assert.equal(r.ok, false);
+});

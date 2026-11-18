@@ -114,6 +114,12 @@
     bw: [
       { id: 'rb/STB', label: 'rb/STB', factor: 1 }
     ],
+    rvol: [
+      { id: 'rb', label: 'rb', factor: 1 },
+      { id: 'Mrb', label: 'Mrb', factor: 1e3 },
+      { id: 'MMrb', label: 'MMrb', factor: 1e6 },
+      { id: 'rm3', label: 'rm³', factor: 6.28981 }
+    ],
     comp: [
       { id: '1/psi', label: 'psi⁻¹', factor: 1 },
       { id: '1e-6/psi', label: '10⁻⁶ psi⁻¹', factor: 1e-6 },
@@ -131,7 +137,7 @@
 
   var DEFAULTS = {
     pressure: 'psia', oil: 'MMSTB', gas: 'MMSCF', gor: 'SCF/STB',
-    bo: 'rb/STB', bg: 'rb/SCF', bw: 'rb/STB', comp: '1/psi', frac: 'fraction', ratio: '-'
+    bo: 'rb/STB', bg: 'rb/SCF', bw: 'rb/STB', rvol: 'MMrb', comp: '1/psi', frac: 'fraction', ratio: '-'
   };
 
   function listUnits(kind) { return (CATALOG[kind] || []).slice(); }
@@ -231,6 +237,12 @@
         if (isRb) return res(perM ? 'rb/MSCF' : 'rb/SCF', typo ? 'gas FVF is per SCF; "/STB" read as "/SCF"' : '');
         break;
       }
+      case 'rvol':
+        if (has(k, ['mmrb', 'mmbbl', 'mmrbbl', '10^6', '1e6', 'million'])) return res('MMrb');
+        if (has(k, ['mrb', 'mbbl', '10^3', '1e3', 'thousand'])) return res('Mrb');
+        if (has(k, ['rm3', 'm3'])) return res('rm3');
+        if (has(k, ['rb', 'bbl', 'barrel'])) return res('rb');
+        break;
       case 'comp':
         if (has(k, ['10-6', '10^-6', '1e-6', 'e-6', 'microsip', 'μsip', 'µsip'])) return res('1e-6/psi');
         if (has(k, ['kpa'])) return res('1/kPa');
@@ -252,7 +264,7 @@
     var k = unitKey(text);
     if (!k || k.length > 24) return false;
     if (/^(psi[ag]?|bar|kpa|mpa|atm|%|percent|fraction|frac|v\/v|-)$/.test(k)) return true;
-    if (/^(m{0,3}|t|b)?(stb|scf|bbl|cf|bo|mcf|scm|sm3|m3)$/.test(k)) return true;
+    if (/^(m{0,3}|t|b)?(stb|scf|bbl|rb|cf|bo|mcf|scm|sm3|m3|rm3)$/.test(k)) return true;
     if (/^(rb|bbl|ft3|cf|m3|rm3|scf|mscf|mcf|sm3)\/(stb|scf|bbl|mscf|mcf|sm3|m3)$/.test(k)) return true;
     if (/^(1\/psi|psi-1|psi\^-1|\/psi|1\/bar|bar-1|1\/kpa)$/.test(k)) return true;
     if (/^10\^?-?\d+(\/psi|psi-1|stb|scf)?$/.test(k)) return true;

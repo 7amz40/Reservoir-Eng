@@ -228,3 +228,33 @@ test('rounding steps of the inputs are found and described', async () => {
   close(q1.inputs.precision.steps.Bg, 1e-8 / 5.615, 1e-6, 'Bg step in rb/SCF');
   assert.equal(q1.inputs.precision.note, '');
 });
+
+test('a W_e column is found, with its unit', async () => {
+  const r = await runFile(path.join(FIX, 'synthetic_we_column.xlsx'));
+  assert.equal(r.inputs.hasWe, true);
+  assert.equal(r.analysis.units.We, 'MMrb');
+  close(r.inputs.rows[3].We, 60000 * (3000 - r.inputs.rows[3].p), 1e-6, 'We converted to rb');
+  for (const h of ['We', 'W_e (MMrb)', 'Cumulative water influx', 'Water influx (rb)', 'Cum. influx']) {
+    const m = P.matchField(P.splitHeader(h));
+    assert.ok(m && m.field === 'We', h);
+  }
+  assert.equal(P.matchField(P.splitHeader('Cumulative water produced')).field, 'Wp');
+});
+
+test('a W_e column with no numbers is not used', async () => {
+  const { X, synthetic } = require('./helpers');
+  const s = synthetic({ n: 8 });
+  const lines = ['p (psia),Np (STB),Gp (SCF),Bo (rb/STB),Rs (SCF/STB),Bg (rb/SCF),We (rb)'];
+  for (const r of s.rows) lines.push([r.p, r.Np, r.Gp, r.Bo, r.Rs, r.Bg, ''].join(','));
+  lines.push('');
+  for (const k of ['pi', 'Boi', 'Bgi', 'Rsi', 'Swc', 'Cw', 'Cf']) lines.push(k + ',' + s.params[k]);
+  const buf = Buffer.from(lines.join('\n'), 'utf8');
+  const wb = await X.readWorkbook(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), 'empty-we.csv');
+  const r = run(wb);
+  assert.equal(r.analysis.production.mapping.We, 6, 'the column is still found');
+  assert.equal(r.inputs.hasWe, false);
+  assert.equal(r.inputs.weEmpty, true);
+  assert.ok(r.inputs.messages.infos.some(m => m.code === 'we-empty' && /column G\) has no numbers/.test(m.text)));
+  close(r.result.results.N, 150e6, 1e-9, 'N');
+  close(r.result.results.m, 0.4, 1e-9, 'm');
+});

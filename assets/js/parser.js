@@ -80,6 +80,14 @@
       contains: [['cum', 'water'], ['water', 'produced'], ['water', 'production']],
       neg: ['rate', 'cut', 'influx', 'daily', 'fvf', 'saturation', 'compress']
     },
+    We: {
+      label: 'Cumulative water influx', symbol: 'W_e', kind: 'rvol', required: false, optional: true,
+      exact: ['we', 'wecum', 'waterinflux', 'cumwaterinflux', 'cumulativewaterinflux', 'influx', 'aquiferinflux',
+        'cumulativeinflux', 'cuminflux', 'waterencroachment', 'cumulativewaterencroachment'],
+      tokens: ['we'],
+      contains: [['water', 'influx'], ['aquifer', 'influx'], ['influx'], ['encroachment']],
+      neg: ['rate', 'index', 'daily']
+    },
     Bw: {
       label: 'Water formation volume factor', symbol: 'B_w', kind: 'bw', required: false, optional: true,
       exact: ['bw', 'waterfvf', 'fvfwater', 'waterformationvolumefactor', 'watervolumefactor'],
@@ -88,7 +96,7 @@
       neg: ['initial']
     }
   };
-  var FIELD_ORDER = ['p', 'Np', 'Gp', 'Rp', 'Bo', 'Rs', 'Bg', 'Wp', 'Bw'];
+  var FIELD_ORDER = ['p', 'Np', 'Gp', 'Rp', 'Bo', 'Rs', 'Bg', 'Wp', 'Bw', 'We'];
   var CORE_FIELDS = ['p', 'Np', 'Bo', 'Rs', 'Bg'];
 
   var PARAMS = {
@@ -530,6 +538,11 @@
     units.Rp = fromText('Rp') || { id: 'SCF/STB', source: 'assumed', text: '' };
     units.Bo = fromText('Bo') || { id: 'rb/STB', source: 'assumed', text: '' };
     units.Bw = fromText('Bw') || { id: 'rb/STB', source: 'assumed', text: '' };
+    units.We = fromText('We');
+    if (!units.We) {
+      var maxWe = Math.max.apply(null, rows.map(function (r) { return Math.abs(r.We); }).filter(isFinite).concat([0]));
+      units.We = { id: maxWe > 0 && maxWe < 1e4 ? 'MMrb' : 'rb', source: 'assumed', text: '' };
+    }
 
     // Bg: ratio p*Bg separates rb/SCF (~1.8-4.2) from ft3/SCF (~10-24) for usual reservoir T and z
     var pB = rows.map(function (r) { return U.toBase('pressure', units.p.id, r.p) * r.Bg; }).filter(function (v) { return isFinite(v) && v > 0; });
@@ -695,6 +708,7 @@
       else o.Gp = (o.Np === 0) ? 0 : NaN;
       o.Wp = (prod.mapping.Wp >= 0 && isFinite(r.Wp)) ? U.toBase('oil', u.Wp, r.Wp) : 0;
       o.Bw = (prod.mapping.Bw >= 0 && isFinite(r.Bw)) ? U.toBase('bw', u.Bw, r.Bw) : 1;
+      o.We = (prod.mapping.We >= 0 && isFinite(r.We)) ? U.toBase('rvol', u.We, r.We) : NaN;
       return o;
     });
 
@@ -829,8 +843,18 @@
       }
     }
 
+    // A W_e column with no numbers in it is treated as no column at all.
+    var weMapped = prod.mapping.We >= 0;
+    var hasWe = weMapped && rows.some(function (r) { return isFinite(r.We); });
+    if (weMapped && !hasWe) {
+      msgs.infos.push({ code: 'we-empty', text: 'The W_e column (column ' + colLetter(prod.mapping.We) + ') has no numbers, so it is not used.' });
+    }
+
     var precision = roundingSteps(analysis, info);
-    return { rows: rows, params: P, paramInfo: info, initialRow: initialRow, refRow: refRow, messages: msgs, precision: precision };
+    return {
+      rows: rows, params: P, paramInfo: info, initialRow: initialRow, refRow: refRow, messages: msgs, precision: precision,
+      hasWe: hasWe, weEmpty: weMapped && !hasWe
+    };
   }
 
   /* ---------------- rounding of the inputs ---------------- */

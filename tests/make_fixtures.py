@@ -67,8 +67,9 @@ Q1_ROWS = [
 ]
 
 
-def synthetic(N=150e6, m=0.4, swc=0.20, cw=3e-6, cf=5e-6, n=9, pressures=None):
-    """Exact gas-cap reservoir data built from the MBE itself: the analysis must give back N and m."""
+def synthetic(N=150e6, m=0.4, swc=0.20, cw=3e-6, cf=5e-6, n=9, pressures=None, K=0.0, with_we=False):
+    """Exact gas-cap reservoir data built from the MBE itself: the analysis must give back N and m.
+    K > 0 adds a pot aquifer, We = K (pi - p) in rb, to the withdrawal F."""
     pi, T = 3000.0, 640.0
 
     def z(p):
@@ -84,7 +85,7 @@ def synthetic(N=150e6, m=0.4, swc=0.20, cw=3e-6, cf=5e-6, n=9, pressures=None):
         return 1.30 - 1.1e-4 * (pi - p) - 6e-9 * (pi - p) ** 2
 
     boi, bgi, rsi = bo(pi), bg(pi), rs(pi)
-    rows = [[pi, 0.0, 0.0, boi, rsi, bgi]]
+    rows = [[pi, 0.0, 0.0, boi, rsi, bgi] + ([0.0] if with_we else [])]
     if pressures is None:
         pressures = [pi - 160.0 * k - 6.0 * k * k for k in range(1, n)]
     for k, p in enumerate(pressures, start=1):
@@ -93,11 +94,12 @@ def synthetic(N=150e6, m=0.4, swc=0.20, cw=3e-6, cf=5e-6, n=9, pressures=None):
         eo = (Bo - boi) + (rsi - Rs) * Bg
         eg = boi * (Bg / bgi - 1)
         efw = boi * (cw * swc + cf) * dp / (1 - swc)
-        F = N * (eo + m * eg + (1 + m) * efw)
+        We = K * dp
+        F = N * (eo + m * eg + (1 + m) * efw) + We
         Np = N * (6e-5 * dp + 1e-8 * dp * dp)
         Rp = (F / Np - Bo) / Bg + Rs
         assert Rp > Rs, "synthetic data: Rp must exceed Rs (p=%g)" % p
-        rows.append([p, Np / 1e6, Rp * Np / 1e6, Bo, Rs, Bg])
+        rows.append([p, Np / 1e6, Rp * Np / 1e6, Bo, Rs, Bg] + ([We / 1e6] if with_we else []))
     params = dict(pi=pi, Boi=boi, Bgi=bgi, Rsi=rsi, Swc=swc, Cw=cw, Cf=cf)
     return rows, params
 
@@ -388,6 +390,27 @@ def make_fixtures():
     write_params(ws2, [("pi", p["pi"], "psia"), ("Boi", p["Boi"], "rb/STB"), ("Bgi", p["Bgi"], "rb/SCF"), ("Rsi", p["Rsi"], "SCF/STB"),
                        ("Swc", p["Swc"], ""), ("Cw", p["Cw"], "1/psi"), ("Cf", p["Cf"], "1/psi")])
     save(wb, FIX, "synthetic_N80_m025.xlsx")
+
+    # combination drive: a pot aquifer (K = 60,000 rb/psi) with the influx given as a column (MMrb)
+    rows, p = synthetic(N=120e6, m=0.3, swc=0.2, cw=3e-6, cf=5e-6, n=10, K=60000.0, with_we=True)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Production"
+    write_table(ws, ["p (psia)", "Np (MMSTB)", "Gp (MMSCF)", "Bo (rb/STB)", "Rs (SCF/STB)", "Bg (rb/SCF)", "We (MMrb)"], rows)
+    ws2 = wb.create_sheet("Initial")
+    write_params(ws2, [("pi", p["pi"], "psia"), ("Boi", p["Boi"], "rb/STB"), ("Bgi", p["Bgi"], "rb/SCF"), ("Rsi", p["Rsi"], "SCF/STB"),
+                       ("Swc", p["Swc"], ""), ("Cw", p["Cw"], "1/psi"), ("Cf", p["Cf"], "1/psi")])
+    save(wb, FIX, "synthetic_we_column.xlsx")
+
+    # the same reservoir without the We column: the pot-aquifer search must find K = 60,000 rb/psi
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Production"
+    write_table(ws, ["p (psia)", "Np (MMSTB)", "Gp (MMSCF)", "Bo (rb/STB)", "Rs (SCF/STB)", "Bg (rb/SCF)"], [r[:6] for r in rows])
+    ws2 = wb.create_sheet("Initial")
+    write_params(ws2, [("pi", p["pi"], "psia"), ("Boi", p["Boi"], "rb/STB"), ("Bgi", p["Bgi"], "rb/SCF"), ("Rsi", p["Rsi"], "SCF/STB"),
+                       ("Swc", p["Swc"], ""), ("Cw", p["Cw"], "1/psi"), ("Cf", p["Cf"], "1/psi")])
+    save(wb, FIX, "synthetic_pot_aquifer.xlsx")
 
     # large file: 400 rows
     rows, p = synthetic(N=250e6, m=0.6, swc=0.18, cw=3e-6, cf=4e-6, pressures=[3000.0 - 6.0 * k for k in range(1, 400)])

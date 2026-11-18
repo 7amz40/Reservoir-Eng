@@ -19,6 +19,7 @@
   --oil: #1E8A50;
   --gas: #DA4624;
   --water: #336CB5;
+  --rock: #A0469A;
   --oil-soft: #E2F2E8;
   --gas-soft: #FBE6E0;
 
@@ -64,6 +65,7 @@
     --oil: #40905E;
     --gas: #E14D2C;
     --water: #4E87D3;
+    --rock: #A9539F;
     --oil-soft: #173426;
     --gas-soft: #3A1E17;
     --warn: #F0B357;
@@ -96,6 +98,7 @@
   --oil: #40905E;
   --gas: #E14D2C;
   --water: #4E87D3;
+  --rock: #A9539F;
   --oil-soft: #173426;
   --gas-soft: #3A1E17;
   --warn: #F0B357;
@@ -348,6 +351,18 @@ a { color: var(--focus); }
 .switch input:checked { background: var(--oil); }
 .switch input:checked::after { transform: translateX(14px); }
 .switch small { display: block; color: var(--muted); font-size: 12px; }
+
+/* water influx */
+.aq-opts { display: grid; gap: 9px; }
+.radio { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; line-height: 1.35; cursor: pointer; }
+.radio input { margin: 2px 0 0; width: 15px; height: 15px; flex: none; accent-color: var(--ink); }
+.radio small { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.radio input:disabled, .radio input:disabled + span { cursor: not-allowed; color: var(--muted); }
+.aq-pot { display: grid; gap: 8px; margin-top: 12px; padding-top: 6px; border-top: 1px solid var(--line); }
+.aq-pot .prm { padding: 6px 0 0; }
+.aq-pot input[type="range"] { width: 100%; height: 24px; accent-color: var(--water); }
+.aq-pot .btn-quiet { justify-self: start; }
+.aq-read { font-size: 12.5px; color: var(--ink-2); line-height: 1.45; }
 
 /* columns and units */
 .colmap { display: grid; grid-template-columns: 44px minmax(0, 1fr) 96px; gap: 6px 8px; align-items: center; }

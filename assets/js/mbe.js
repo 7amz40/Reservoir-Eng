@@ -6,10 +6,11 @@
  *   Eo  = (Bo − Boi) + (Rsi − Rs) Bg
  *   Eg  = Boi (Bg / Bgi − 1)
  *   Efw = Boi (Cw Swc + Cf) Δp / (1 − Swc)
- *   F   = N [Eo + m Eg + (1 + m) Efw]
+ *   F   = N [Eo + m Eg + (1 + m) Efw] + We
  *
- * Unknown N and m:  F/(Eo+Efw) = N + mN · (Eg+Efw)/(Eo+Efw)
+ * Unknown N and m (combination drive):  (F − We)/(Eo+Efw) = N + mN · (Eg+Efw)/(Eo+Efw)
  *   intercept = N,  slope = mN,  m = slope / intercept,  G = mN Boi / Bgi
+ * We: none, a column of the file, or a pot aquifer We = K (pi − p) with K found by trial and error.
  *
  * All inputs in base units (psia, STB, SCF, SCF/STB, rb/STB, rb/SCF, 1/psi, fraction).
  * Works in the browser (global HOEngine) and in Node (module.exports).
@@ -149,11 +150,14 @@
   /**
    * rows:   [{id, sheetRow, p, Np, Gp, Bo, Rs, Bg, Wp, Bw}] in base units
    * params: {pi, Boi, Bgi, Rsi, Swc, Cw, Cf}
-   * opts:   {includeEfw: bool (default true), excluded: array or Set of row ids}
+   * opts:   {includeEfw: bool (default true), excluded: array or Set of row ids,
+   *          aquifer: {mode: 'none' | 'column' | 'pot', K: rb/psi}}
    */
   function computeTerms(rows, params, opts) {
     opts = opts || {};
     var includeEfw = opts.includeEfw !== false;
+    var aq = opts.aquifer || { mode: 'none' };
+    var potK = aq.mode === 'pot' && num(aq.K) && aq.K > 0 ? aq.K : 0;
     var excluded = opts.excluded instanceof Set ? opts.excluded : new Set(opts.excluded || []);
     var P = params || {};
     var swc = num(P.Swc) ? P.Swc : 0, cw = num(P.Cw) ? P.Cw : 0, cf = num(P.Cf) ? P.Cf : 0;
@@ -171,18 +175,24 @@
       t.Eg = P.Boi * (r.Bg / P.Bgi - 1);
       t.Efw = efwFactor * t.dP;
       if (!num(t.Efw)) t.Efw = 0;
+      // cumulative water influx, rb
+      if (aq.mode === 'column') t.We = num(r.We) ? r.We : (r.Np === 0 ? 0 : NaN);
+      else if (potK) t.We = t.dP > 0 ? potK * t.dP : 0;
+      else t.We = 0;
+      t.Fnet = t.F - t.We;
       t.denom = t.Eo + t.Efw;
       t.x = (t.Eg + t.Efw) / t.denom;
-      t.y = t.F / t.denom;
+      t.y = t.Fnet / t.denom;
 
       var reason = '';
       if (![t.p, t.Np, t.Gp, t.Bo, t.Rs, t.Bg].every(num)) reason = 'missing values';
       else if (!num(t.F) || !num(t.Eo) || !num(t.Eg)) reason = 'check the reservoir parameters';
       else if (r.Np <= 0) reason = 'initial point (Np = 0)';
       else if (!(t.dP > 0)) reason = 'pressure is not below p_i';
+      else if (!num(t.We)) reason = 'W_e is missing';
       else if (!(t.denom > 1e-12)) reason = 'E_o + E_fw is not positive';
       else if (!num(t.x) || !num(t.y)) reason = 'cannot divide by E_o + E_fw';
-      else if (!(t.F > 0)) reason = 'F is not positive';
+      else if (!(t.Fnet > 0)) reason = t.We > 0 ? 'W_e is larger than F' : 'F is not positive';
       t.usable = !reason;
       t.reason = reason;
       t.userExcluded = excluded.has(r.id);
@@ -193,13 +203,14 @@
 
   /* ---------------- m evaluation (explorer) ---------------- */
 
-  /** For a given m, build Et and the through-origin fit F = N·Et; spread of the implied N = F/Et. */
+  /** For a given m, build Et and the through-origin fit F − We = N·Et; spread of the implied N = (F − We)/Et. */
   function evaluateM(terms, m) {
     var pts = [];
     terms.forEach(function (t) {
       if (!t.included) return;
       var Et = t.Eo + m * t.Eg + (1 + m) * t.Efw;
-      pts.push({ id: t.id, F: t.F, Et: Et, impliedN: Et > 0 ? t.F / Et : NaN, p: t.p });
+      var Fn = num(t.Fnet) ? t.Fnet : t.F;
+      pts.push({ id: t.id, F: Fn, Et: Et, impliedN: Et > 0 ? Fn / Et : NaN, p: t.p });
     });
     var valid = pts.filter(function (q) { return q.Et > 0 && num(q.impliedN); });
     var res = { m: m, points: pts, n: pts.length, valid: valid.length === pts.length && pts.length > 0 };
@@ -275,6 +286,56 @@
     };
   }
 
+  /* ---------------- pot aquifer ---------------- */
+
+  /** Solve a 3 × 3 linear system by Gaussian elimination with partial pivoting. */
+  function solve3(A, b) {
+    var M = A.map(function (row, i) { return row.concat([b[i]]); });
+    for (var c = 0; c < 3; c++) {
+      var piv = c;
+      for (var r = c + 1; r < 3; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+      if (Math.abs(M[piv][c]) < 1e-300) return null;
+      var tmp = M[c]; M[c] = M[piv]; M[piv] = tmp;
+      for (var r2 = c + 1; r2 < 3; r2++) {
+        var f = M[r2][c] / M[c][c];
+        for (var k = c; k < 4; k++) M[r2][k] -= f * M[c][k];
+      }
+    }
+    var x = [0, 0, 0];
+    for (var i = 2; i >= 0; i--) {
+      var s = M[i][3];
+      for (var j = i + 1; j < 3; j++) s -= M[i][j] * x[j];
+      x[i] = s / M[i][i];
+    }
+    return x;
+  }
+
+  /**
+   * Best pot-aquifer constant K (rb/psi) for We = K (pi − p): least squares on
+   *   F = N (Eo + Efw) + mN (Eg + Efw) + K (pi − p)
+   * over the points in the fit. A negative K (water leaving the reservoir) is not physical, so K = 0 then.
+   */
+  function bestPotK(rows, params, opts) {
+    var o = Object.assign({}, opts || {}, { aquifer: { mode: 'none' } });
+    var inc = computeTerms(rows, params, o).filter(function (t) { return t.included; });
+    if (inc.length < 3) return null;
+    // scale the columns so the normal equations stay well conditioned
+    var cols = inc.map(function (t) { return [t.Eo + t.Efw, t.Eg + t.Efw, t.dP]; });
+    var sc = [0, 1, 2].map(function (j) { return Math.max.apply(null, cols.map(function (c) { return Math.abs(c[j]); })) || 1; });
+    var A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], b = [0, 0, 0];
+    inc.forEach(function (t, i) {
+      var c = cols[i].map(function (v, j) { return v / sc[j]; });
+      for (var r = 0; r < 3; r++) {
+        b[r] += c[r] * t.F;
+        for (var k = 0; k < 3; k++) A[r][k] += c[r] * c[k];
+      }
+    });
+    var x = solve3(A, b);
+    if (!x) return null;
+    var N = x[0] / sc[0], mN = x[1] / sc[1], K = x[2] / sc[2];
+    return { K: Math.max(0, K), Kraw: K, negative: K < 0, N: N, m: mN / N, n: inc.length };
+  }
+
   /* ---------------- full analysis ---------------- */
 
   function analyze(rows, params, opts) {
@@ -340,14 +401,15 @@
       tt.yFit = N + mN * tt.x;
       tt.resid = tt.y - tt.yFit;
       tt.Et = tt.Eo + m * tt.Eg + (1 + m) * tt.Efw;
-      tt.impliedN = tt.Et > 0 ? tt.F / tt.Et : NaN;
+      tt.impliedN = tt.Et > 0 ? tt.Fnet / tt.Et : NaN;
       var Fm = tt.F;
       if (Fm > 0 && num(tt.Et)) {
         tt.DDI = N * tt.Eo / Fm;
         tt.SDI = N * m * tt.Eg / Fm;
         tt.CDI = N * (1 + m) * tt.Efw / Fm;
-        tt.sumDI = tt.DDI + tt.SDI + tt.CDI;
-      } else { tt.DDI = tt.SDI = tt.CDI = tt.sumDI = NaN; }
+        tt.WDI = num(tt.We) ? tt.We / Fm : 0;
+        tt.sumDI = tt.DDI + tt.SDI + tt.CDI + tt.WDI;
+      } else { tt.DDI = tt.SDI = tt.CDI = tt.WDI = tt.sumDI = NaN; }
     });
 
     // validation: F vs Et through the origin
@@ -368,7 +430,8 @@
       if (withinNoise) {
         msgs.infos.push({ code: 'm-zero', text: 'm is slightly below zero (' + sgn(m.toFixed(3)) + ' ± ' + (t * R.seM).toFixed(3) + '), within the uncertainty of the fit, so the data show no clear gas cap. The drive indices are hidden while m is negative.' + noCapText });
       } else {
-        msgs.warnings.push({ code: 'm-neg', text: 'The slope of the line is negative, so m < 0 and G < 0. A gas cap cannot be negative, so the drive indices are hidden. Common causes are rounded or noisy data, or a drive this model leaves out, such as water influx.' + noCapText });
+        var causes = (opts.aquifer && opts.aquifer.mode !== 'none') ? 'rounded or noisy data, or a water influx model that does not fit' : 'rounded or noisy data, or a drive this model leaves out, such as water influx';
+        msgs.warnings.push({ code: 'm-neg', text: 'The slope of the line is negative, so m < 0 and G < 0. A gas cap cannot be negative, so the drive indices are hidden. Common causes are ' + causes + '.' + noCapText });
       }
     }
     if (fit.n >= 3 && fit.r2 < 0.9) {
@@ -385,7 +448,9 @@
       var rho = spearman(inc.map(function (tt) { return tt.Np; }), imp);
       var spread = (Math.max.apply(null, imp) - Math.min.apply(null, imp)) / N;
       if (rho > 0.8 && spread > 0.03) {
-        msgs.infos.push({ code: 'influx', text: 'F / E_t keeps rising as oil is produced. This is a typical sign of water influx, which this model does not include.' });
+        msgs.infos.push({ code: 'influx', text: (opts.aquifer && opts.aquifer.mode !== 'none')
+          ? '(F − W_e) / E_t still rises as oil is produced: the water influx may be too small.'
+          : 'F / E_t keeps rising as oil is produced. This is a typical sign of water influx: try a pot aquifer under Water influx.' });
       }
     }
     // how much does rounding in the inputs move the answer?
@@ -438,6 +503,7 @@
     minValidM: minValidM,
     scanM: scanM,
     roundingCheck: roundingCheck,
+    bestPotK: bestPotK,
     analyze: analyze
   };
 });
