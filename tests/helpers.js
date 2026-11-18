@@ -33,7 +33,7 @@ function run(wb, opts) {
   const out = { analysis };
   if (analysis.errors.some(e => ['no-table', 'missing-columns', 'no-rows', 'empty'].includes(e.code))) return out;
   out.inputs = P.buildInputs(analysis, { params: opts.params || {} });
-  out.result = E.analyze(out.inputs.rows, out.inputs.params, { includeEfw: opts.includeEfw !== false, excluded: opts.excluded || [] });
+  out.result = E.analyze(out.inputs.rows, out.inputs.params, { includeEfw: opts.includeEfw !== false, excluded: opts.excluded || [], precision: out.inputs.precision });
   return out;
 }
 

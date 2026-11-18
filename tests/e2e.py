@@ -102,8 +102,18 @@ def t_example(b):
     assert pg.page.locator("#calc tbody tr").count() == 11
     assert "Example" in pg.text("#source")
     assert pg.page.locator("#res-m .res-flag").count() == 1, "negative m is flagged"
+    assert pg.page.locator("#res-G .res-flag").count() == 1, "negative G is flagged"
     notes = pg.text("#notes")
     assert "negative" in notes and "R² = 0.618" in notes
+    assert "2,500 and 2,290 psia" in notes, "rounding check names the sensitive points"
+    # drive indices are hidden while m < 0, and come back once the two sensitive points are left out
+    assert "Not shown" in pg.text("#chart-drive") and pg.page.locator("#chart-drive svg").count() == 0
+    pg.page.click("#notes button[data-rows]")
+    assert pg.val("res-m") == "0.00517" and pg.val("res-N") == "522.6"
+    assert pg.page.locator("#chart-drive svg").count() == 1
+    assert pg.page.locator("#res-G .res-flag").count() == 0
+    pg.page.click("#reset-points")
+    assert pg.val("res-N") == "729.6"
     shot(pg, "desktop-light", full=True)
     pg.close()
 

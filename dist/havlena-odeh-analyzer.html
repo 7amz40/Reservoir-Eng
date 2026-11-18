@@ -499,6 +499,7 @@ main {
 .note[data-level="info"] svg { color: var(--muted); }
 .note[data-level="ok"] svg { color: var(--oil); }
 .note[data-level="error"] { color: var(--ink); }
+.note .note-act { display: flex; margin-top: 8px; height: 28px; font-size: 12.5px; }
 .stats { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; margin: 0; font-size: 13px; }
 .stats dt { color: var(--muted); }
 .stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
@@ -2657,10 +2658,79 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
     }
 
-    return { rows: rows, params: P, paramInfo: info, initialRow: initialRow, refRow: refRow, messages: msgs };
+    var precision = roundingSteps(analysis, info);
+    return { rows: rows, params: P, paramInfo: info, initialRow: initialRow, refRow: refRow, messages: msgs, precision: precision };
+  }
+
+  /* ---------------- rounding of the inputs ---------------- */
+
+  /** Decimal places a number is written with (0.0018 -> 4), or null when it carries full precision. */
+  function decimalsOf(v) {
+    if (typeof v !== 'number' || !isFinite(v)) return null;
+    for (var d = 0; d <= 10; d++) {
+      var s = v * Math.pow(10, d);
+      if (Math.abs(s - Math.round(s)) < Math.max(1e-7, Math.abs(s) * 1e-13)) return d;
+    }
+    return null;
+  }
+
+  /** Last-digit step of a column in base units, or 0 when the values carry full precision. */
+  function columnStep(values, kind, unit) {
+    var dec = 0, any = false;
+    for (var i = 0; i < values.length; i++) {
+      var v = values[i];
+      if (!isFinite(v) || v === 0) continue;
+      var d = decimalsOf(v);
+      if (d === null) return { step: 0, decimals: null };
+      dec = Math.max(dec, d); any = true;
+    }
+    if (!any) return { step: 0, decimals: null };
+    var raw = Math.pow(10, -dec);
+    return { step: Math.abs(U.toBase(kind, unit, raw) - U.toBase(kind, unit, 0)), decimals: dec, raw: raw };
+  }
+
+  /**
+   * How finely B_o, R_s and B_g (and B_oi, B_gi, R_si) are written in the file. The engine uses this to test how
+   * much the answer moves when the inputs change only within their last digit.
+   */
+  function roundingSteps(analysis, info) {
+    var prod = analysis.production, u = analysis.units || {};
+    var steps = {}, cols = {};
+    [['Bo', 'bo'], ['Rs', 'gor'], ['Bg', 'bg']].forEach(function (c) {
+      var vals = prod.rows.map(function (r) { return r[c[0]]; });
+      cols[c[0]] = columnStep(vals, c[1], u[c[0]]);
+      steps[c[0]] = cols[c[0]].step;
+    });
+    // A single number such as 1.3 may really be 1.3000 (trailing zeros are not stored), so a parameter is taken
+    // to be at least as precise as its column.
+    [['Boi', 'Bo'], ['Bgi', 'Bg'], ['Rsi', 'Rs']].forEach(function (c) {
+      var inf = info[c[0]] || {};
+      if (inf.source === 'derived') steps[c[0]] = steps[c[1]];
+      else if (inf.source === 'file') {
+        var kind = PARAM_BASE[c[0]].kind, unit = inf.unitId || PARAM_BASE[c[0]].unit;
+        var d = decimalsOf(typeof inf.raw === 'number' ? inf.raw : U.parseNumber(inf.raw));
+        var own = d === null ? 0 : Math.abs(U.toBase(kind, unit, Math.pow(10, -d)) - U.toBase(kind, unit, 0));
+        steps[c[0]] = Math.min(own, steps[c[1]]);
+      } else steps[c[0]] = 0;
+    });
+    // a short description of B_g when it has very few significant figures
+    var note = '';
+    var bg = cols.Bg;
+    if (bg.decimals !== null && bg.step > 0) {
+      var vals = prod.rows.map(function (r) { return r.Bg; }).filter(function (v) { return isFinite(v) && v > 0; });
+      var sig = vals.map(function (v) { return bg.decimals + Math.floor(Math.log10(Math.abs(v))) + 1; });
+      var sMin = Math.min.apply(null, sig), sMax = Math.max.apply(null, sig);
+      if (sMax <= 3) {
+        var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+        note = 'B_g is given with only ' + (sMin === sMax ? sMin : sMin + ' or ' + sMax) + ' significant figure' + (sMax > 1 ? 's' : '') +
+          ' (' + lo.toFixed(bg.decimals) + ' to ' + hi.toFixed(bg.decimals) + ' ' + U.label('bg', u.Bg) + ')';
+      }
+    }
+    return { steps: steps, note: note };
   }
 
   return {
+    decimalsOf: decimalsOf,
     FIELDS: FIELDS,
     FIELD_ORDER: FIELD_ORDER,
     CORE_FIELDS: CORE_FIELDS,
@@ -2808,6 +2878,24 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return fit && !fit.degenerate ? fit.r : NaN;
   }
 
+  function quantile(sorted, q) {
+    if (!sorted.length) return NaN;
+    var pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  }
+
+  /** Small seeded random generator, so the rounding check gives the same numbers every time. */
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function sgn(s) { return String(s).replace(/^-/, '\u2212'); }
+
   /* ---------------- terms ---------------- */
 
   function num(v) { return typeof v === 'number' && isFinite(v); }
@@ -2903,6 +2991,44 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return out;
   }
 
+  /* ---------------- rounding check ---------------- */
+
+  /**
+   * Re-runs the fit many times with B_o, R_s, B_g (and B_oi, B_gi, R_si) moved at random within their last digit.
+   * steps: full step of the last digit of each input, in base units (0 = exact).
+   * Returns the 5 %, 50 % and 95 % values of m and N, and how much each point's x moves.
+   */
+  function roundingCheck(rows, params, opts, steps, trials) {
+    trials = trials || 400;
+    var rand = mulberry32(20261119);
+    var jit = function (step) { return step > 0 ? (rand() - 0.5) * step : 0; };
+    var ms = [], Ns = [], xs = {};
+    for (var t = 0; t < trials; t++) {
+      var rr = rows.map(function (r) {
+        return Object.assign({}, r, { Bo: r.Bo + jit(steps.Bo), Rs: r.Rs + jit(steps.Rs), Bg: r.Bg + jit(steps.Bg) });
+      });
+      var pp = Object.assign({}, params, { Boi: params.Boi + jit(steps.Boi), Bgi: params.Bgi + jit(steps.Bgi), Rsi: params.Rsi + jit(steps.Rsi) });
+      var inc = computeTerms(rr, pp, opts).filter(function (x) { return x.included; });
+      if (inc.length < 2) continue;
+      var fit = linreg(inc.map(function (x) { return x.x; }), inc.map(function (x) { return x.y; }));
+      if (!fit || fit.degenerate || !(fit.intercept > 0)) continue;
+      ms.push(fit.slope / fit.intercept);
+      Ns.push(fit.intercept);
+      inc.forEach(function (x) { (xs[x.id] = xs[x.id] || []).push(x.x); });
+    }
+    ms.sort(function (a, b) { return a - b; });
+    Ns.sort(function (a, b) { return a - b; });
+    var xStd = {};
+    Object.keys(xs).forEach(function (id) { xStd[id] = std(xs[id]); });
+    return {
+      trials: ms.length,
+      m: [quantile(ms, 0.05), quantile(ms, 0.5), quantile(ms, 0.95)],
+      N: [quantile(Ns, 0.05), quantile(Ns, 0.5), quantile(Ns, 0.95)],
+      shareNegative: ms.filter(function (v) { return v < 0; }).length / Math.max(1, ms.length),
+      xStd: xStd
+    };
+  }
+
   /* ---------------- full analysis ---------------- */
 
   function analyze(rows, params, opts) {
@@ -2991,10 +3117,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     }
     if (N > 0 && m < 0) {
       var withinNoise = fit.n >= 3 && num(R.seM) && Math.abs(m) <= t * R.seM;
+      var noCap = evaluateM(terms, 0);
+      var noCapText = num(noCap.N) && noCap.N > 0 ? ' With no gas cap (m = 0), the best line through the origin gives N = ' + (noCap.N / 1e6).toFixed(1) + ' MMSTB.' : '';
       if (withinNoise) {
-        msgs.infos.push({ code: 'm-zero', text: 'm is slightly below zero (' + m.toFixed(3) + ' ± ' + (t * R.seM).toFixed(3) + '), within the uncertainty of the fit. The data show no clear gas cap.' });
+        msgs.infos.push({ code: 'm-zero', text: 'm is slightly below zero (' + sgn(m.toFixed(3)) + ' ± ' + (t * R.seM).toFixed(3) + '), within the uncertainty of the fit, so the data show no clear gas cap. The drive indices are hidden while m is negative.' + noCapText });
       } else {
-        msgs.warnings.push({ code: 'm-neg', text: 'The slope is negative, so m < 0. A gas cap cannot be negative. This usually comes from noisy or rounded data (for example B_g given to few digits) or from a drive the model leaves out, such as water influx. Try leaving out the early points.' });
+        msgs.warnings.push({ code: 'm-neg', text: 'The slope of the line is negative, so m < 0 and G < 0. A gas cap cannot be negative, so the drive indices are hidden. Common causes are rounded or noisy data, or a drive this model leaves out, such as water influx.' + noCapText });
       }
     }
     if (fit.n >= 3 && fit.r2 < 0.9) {
@@ -3014,6 +3142,37 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         msgs.infos.push({ code: 'influx', text: 'F / E_t keeps rising as oil is produced. This is a typical sign of water influx, which this model does not include.' });
       }
     }
+    // how much does rounding in the inputs move the answer?
+    var steps = opts.precision && opts.precision.steps;
+    if (steps && N > 0 && fit.n >= 3 && Object.keys(steps).some(function (k) { return steps[k] > 0; })) {
+      var trials = opts.roundingTrials || Math.max(80, Math.min(400, Math.round(4000 / Math.max(1, inc.length))));
+      var rc = roundingCheck(rows, P, opts, steps, trials);
+      res.rounding = rc;
+      var mSpan = rc.m[2] - rc.m[0], nSpan = (rc.N[2] - rc.N[0]) / N;
+      var wide = (rc.m[0] < 0 && rc.m[2] > 0) || nSpan > 0.3 || mSpan > Math.max(0.2, Math.abs(m));
+      if (rc.trials >= 50 && (wide || mSpan > 0.05 || nSpan > 0.1)) {
+        var note = opts.precision.note;
+        var text = (note ? note + ', and the answer' : 'The answer') + ' depends ' + (wide ? 'strongly' : 'somewhat') + ' on ' + (note ? 'that rounding' : 'rounding in the data') +
+          '. Moving B_o, R_s and B_g only within their last digit gives m from ' + sgn(rc.m[0].toFixed(3)) + ' to ' + sgn(rc.m[2].toFixed(3)) +
+          ' and N from ' + (rc.N[0] / 1e6).toFixed(0) + ' to ' + (rc.N[2] / 1e6).toFixed(0) + ' MMSTB.';
+        // the points whose x moves by more than half the spread of x are the ones to question first
+        var xr = fit.xMax - fit.xMin;
+        var shaky = inc.filter(function (tt) { return rc.xStd[tt.id] > 0.5 * xr; });
+        if (shaky.length && inc.length - shaky.length >= 3) {
+          var keep = inc.filter(function (tt) { return shaky.indexOf(tt) < 0; });
+          var f2 = linreg(keep.map(function (tt) { return tt.x; }), keep.map(function (tt) { return tt.y; }));
+          var names = shaky.map(function (tt) { return Math.round(tt.p).toLocaleString('en-US'); });
+          var list = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+          text += ' The point' + (shaky.length > 1 ? 's' : '') + ' at ' + list + ' psia move' + (shaky.length > 1 ? '' : 's') + ' the most';
+          if (f2 && !f2.degenerate && f2.intercept > 0) {
+            text += '; without ' + (shaky.length > 1 ? 'them' : 'it') + ', N = ' + (f2.intercept / 1e6).toFixed(1) + ' MMSTB and m = ' + sgn((f2.slope / f2.intercept).toFixed(3)) + '.';
+          } else text += '.';
+          rc.shaky = shaky.map(function (tt) { return tt.id; });
+        }
+        (wide ? msgs.warnings : msgs.infos).push({ code: 'rounding', text: text });
+      }
+    }
+
     var negDen = terms.filter(function (tt) { return tt.reason === 'E_o + E_fw is not positive'; }).length;
     if (negDen) msgs.warnings.push({ code: 'eo', text: negDen + ' point' + (negDen > 1 ? 's have' : ' has') + ' E_o + E_fw ≤ 0 and cannot be plotted. Check B_oi and R_si.' });
     var negF = terms.filter(function (tt) { return tt.reason === 'F is not positive'; }).length;
@@ -3032,6 +3191,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     evaluateM: evaluateM,
     minValidM: minValidM,
     scanM: scanM,
+    roundingCheck: roundingCheck,
     analyze: analyze
   };
 });
@@ -3596,6 +3756,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       { k: 'SDI', name: 'Gas-cap drive', color: T.gas },
       { k: 'CDI', name: 'Water and rock expansion', color: T.water }
     ].filter(function (s) { return s.k !== 'CDI' || d.showWater; });
+    if (d.blockedText) {
+      if (d.legendEl) legend(d.legendEl, [], T);
+      empty(el, d.blockedText);
+      return;
+    }
     if (d.legendEl) legend(d.legendEl, series.map(function (s) { return { type: 'rect', fill: s.color, html: s.name }; }), T);
     var rows = d.rows.filter(function (r) { return series.every(function (s) { return isFinite(r[s.k]); }); });
     if (!rows.length) { empty(el, d.emptyText || 'Drive indices appear once N and m are found.'); return; }
@@ -3876,7 +4041,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   /** Escape, then turn B_g, p_i, E_fw ... into italic symbols with subscripts. */
   function rich(text) {
-    return esc(text).replace(/\b([A-Za-z])_([A-Za-z]{1,3})\b/g, '<var>$1</var><sub>$2</sub>');
+    return esc(text)
+      .replace(/\b([NmG])\b/g, '<var>$1</var>')
+      .replace(/\b([A-Za-z])_([A-Za-z]{1,3})\b/g, '<var>$1</var><sub>$2</sub>');
   }
   function minus(s) { return String(s).replace(/^-/, '−'); }
   function fmtFixed(v, d) {
@@ -3935,7 +4102,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       b.inputs = P.buildInputs(analysis, { params: state.paramEdits });
       if (!b.inputs.messages.errors.length) {
         var ids = b.inputs.rows.filter(function (r) { return state.excluded.has(r.sheetRow); }).map(function (r) { return r.id; });
-        b.result = E.analyze(b.inputs.rows, b.inputs.params, { includeEfw: state.includeEfw, excluded: ids });
+        b.result = E.analyze(b.inputs.rows, b.inputs.params, { includeEfw: state.includeEfw, excluded: ids, precision: b.inputs.precision });
       }
     }
     return b;
@@ -4258,7 +4425,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     };
     setRes('res-N', fmtRes(R.N / N_DIV[nu]), nu, ci(R.ciN, N_DIV[nu], fmtRes), R.N <= 0 ? 'Not physical: see the fit notes' : '');
     setRes('res-m', fmtM(R.m), '', ci(R.ciM, 1, fmtM), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
-    setRes('res-G', fmtRes(R.G / G_DIV[gu]), G_LABEL[gu], ci(R.ciG, G_DIV[gu], fmtRes), '');
+    setRes('res-G', fmtRes(R.G / G_DIV[gu]), G_LABEL[gu], ci(R.ciG, G_DIV[gu], fmtRes), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
   }
 
   /* ---------- fit notes and statistics ---------- */
@@ -4268,7 +4435,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       (list || []).forEach(function (m) {
         if (seen[m.text]) return;
         seen[m.text] = 1;
-        out.push({ level: level, text: m.text });
+        out.push({ level: level, text: m.text, code: m.code });
       });
     }
     var a = b.analysis;
@@ -4290,9 +4457,22 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   function renderNotes(b) {
     var msgs = collectMessages(b);
+    // the rounding check can name the points that move the most: offer to leave them out in one click
+    var shakyRows = [];
+    if (b.result && b.result.rounding && b.result.rounding.shaky) {
+      var ids = b.result.rounding.shaky;
+      shakyRows = b.result.terms.filter(function (t) { return ids.indexOf(t.id) >= 0 && t.included; });
+      if (shakyRows.length !== ids.length) shakyRows = [];
+    }
     $('notes').innerHTML = msgs.length ? msgs.map(function (m) {
+      var act = '';
+      if (m.code === 'rounding' && shakyRows.length) {
+        var names = shakyRows.map(function (t) { return fmtFixed(t.p, 0); });
+        act = '<button type="button" class="btn-quiet note-act" data-rows="' + shakyRows.map(function (t) { return t.sheetRow; }).join(',') + '">Leave out ' +
+          (names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0]) + ' psia</button>';
+      }
       return '<li class="note" data-level="' + m.level + '">' + ICON[m.level === 'ok' ? 'ok' : m.level] +
-        '<span><span class="sr-only">' + ({ error: 'Error: ', warning: 'Warning: ', info: 'Note: ', ok: '' })[m.level] + '</span>' + rich(m.text) + '</span></li>';
+        '<span><span class="sr-only">' + ({ error: 'Error: ', warning: 'Warning: ', info: 'Note: ', ok: '' })[m.level] + '</span>' + rich(m.text) + act + '</span></li>';
     }).join('') : '<li class="note" data-level="info">' + ICON.info + '<span>No notes.</span></li>';
 
     var st = $('stats');
@@ -4320,6 +4500,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return b.result.terms.filter(function (t) { return t.usable; }).map(function (t) {
       return { key: t.sheetRow, x: t.x, y: t.y, p: t.p, included: t.included, F: t.F, Eo: t.Eo, Eg: t.Eg, Efw: t.Efw };
     });
+  }
+
+  /** A negative m has no physical meaning, so the drive indices are hidden while it lasts. */
+  function negativeM(b) {
+    return hasFit(b) && b.result.results.N > 0 && b.result.results.m < 0;
   }
 
   function anyEfw(b) {
@@ -4371,7 +4556,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     C.driveBars(drv, {
       rows: fitOk ? inc.map(function (t) { return { key: t.sheetRow, p: t.p, DDI: t.DDI, SDI: t.SDI, CDI: t.CDI }; }) : [],
       showWater: efw,
-      legendEl: $('legend-drive')
+      legendEl: $('legend-drive'),
+      blockedText: negativeM(b) ? 'Not shown: the fitted m is ' + fmtM(R.m) + '. A negative gas cap would give a negative gas-cap drive index, which has no physical meaning. See the fit notes.' : ''
     });
     renderExplorer(b, opts);
   }
@@ -4474,8 +4660,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       { g: 'Check at the fitted <var>m</var>', h: 'SDI', u: '%', v: function (t) { return di(t, 'SDI'); } }
     ];
     if (efw) cols.push({ g: 'Check at the fitted <var>m</var>', h: 'CDI', u: '%', v: function (t) { return di(t, 'CDI'); } });
+    var hideDI = negativeM(b);
     function di(t, k) {
-      if (!t.usable || !isFinite(t[k]) || !isFinite(t.sumDI) || t.sumDI === 0) return '–';
+      if (hideDI || !t.usable || !isFinite(t[k]) || !isFinite(t.sumDI) || t.sumDI === 0) return '–';
       return fmtFixed(100 * t[k] / t.sumDI, 1);
     }
     var groups = [];
@@ -4511,7 +4698,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     tbl.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
       cb.addEventListener('change', function () { toggleRow(+this.getAttribute('data-row'), true); });
     });
-    var fh = '<span>Drive indices are scaled to add up to 100 % at each pressure. Values are in field units.</span>';
+    var fh = '<span>' + (hideDI ? 'Drive indices are left blank because the fitted <var>m</var> is negative.' : 'Drive indices are scaled to add up to 100 % at each pressure.') + ' Values are in field units.</span>';
     if (terms.length > TABLE_LIMIT) {
       fh += '<button class="btn-quiet" type="button" id="table-more">' + (state.tableAll ? 'Show the first ' + TABLE_LIMIT + ' rows' : 'Show all ' + terms.length + ' rows') + '</button>';
     }
@@ -4653,9 +4840,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var head = ['p (psia)', 'Np (STB)', 'Gp (SCF)', 'Rp (SCF/STB)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'dp (psi)',
       'F (rb)', 'Eo (rb/STB)', 'Eg (rb/STB)', 'Efw (rb/STB)', 'x', 'y (STB)', 'F/Et (STB)', 'DDI', 'SDI', 'CDI', 'In fit', 'Note'];
     var rows = [head];
+    var hideDI = negativeM(b);
     b.result.terms.forEach(function (t) {
       var s = t.sumDI;
-      var norm = function (k) { return t.usable && isFinite(t[k]) && isFinite(s) && s !== 0 ? t[k] / s : null; };
+      var norm = function (k) { return !hideDI && t.usable && isFinite(t[k]) && isFinite(s) && s !== 0 ? t[k] / s : null; };
       rows.push([t.p, t.Np, t.Gp, t.Np > 0 ? t.Rp : null, t.Bo, t.Rs, t.Bg, t.dP, t.F, t.Eo, t.Eg, t.Efw,
         t.usable ? t.x : null, t.usable ? t.y : null, t.usable && isFinite(t.impliedN) ? t.impliedN : null,
         norm('DDI'), norm('SDI'), norm('CDI'),
@@ -4802,6 +4990,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('png-ho').addEventListener('click', function () { exportPNG('chart-ho', 'havlena-odeh-plot.png'); });
     $('png-check').addEventListener('click', function () { exportPNG('chart-check', 'F-vs-Et-check.png'); });
     $('png-drive').addEventListener('click', function () { exportPNG('chart-drive', 'drive-indices.png'); });
+
+    $('notes').addEventListener('click', function (ev) {
+      var btn = ev.target.closest('button[data-rows]');
+      if (!btn) return;
+      btn.getAttribute('data-rows').split(',').forEach(function (r) { state.excluded.add(+r); });
+      recompute({ noAnim: true });
+      var reset = $('reset-points');
+      if (reset && !reset.hidden) reset.focus();
+    });
 
     $('alert').addEventListener('click', function (ev) {
       var btn = ev.target.closest('button[data-act]');

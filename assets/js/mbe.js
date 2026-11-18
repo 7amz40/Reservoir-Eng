@@ -124,6 +124,24 @@
     return fit && !fit.degenerate ? fit.r : NaN;
   }
 
+  function quantile(sorted, q) {
+    if (!sorted.length) return NaN;
+    var pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  }
+
+  /** Small seeded random generator, so the rounding check gives the same numbers every time. */
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function sgn(s) { return String(s).replace(/^-/, '\u2212'); }
+
   /* ---------------- terms ---------------- */
 
   function num(v) { return typeof v === 'number' && isFinite(v); }
@@ -219,6 +237,44 @@
     return out;
   }
 
+  /* ---------------- rounding check ---------------- */
+
+  /**
+   * Re-runs the fit many times with B_o, R_s, B_g (and B_oi, B_gi, R_si) moved at random within their last digit.
+   * steps: full step of the last digit of each input, in base units (0 = exact).
+   * Returns the 5 %, 50 % and 95 % values of m and N, and how much each point's x moves.
+   */
+  function roundingCheck(rows, params, opts, steps, trials) {
+    trials = trials || 400;
+    var rand = mulberry32(20261119);
+    var jit = function (step) { return step > 0 ? (rand() - 0.5) * step : 0; };
+    var ms = [], Ns = [], xs = {};
+    for (var t = 0; t < trials; t++) {
+      var rr = rows.map(function (r) {
+        return Object.assign({}, r, { Bo: r.Bo + jit(steps.Bo), Rs: r.Rs + jit(steps.Rs), Bg: r.Bg + jit(steps.Bg) });
+      });
+      var pp = Object.assign({}, params, { Boi: params.Boi + jit(steps.Boi), Bgi: params.Bgi + jit(steps.Bgi), Rsi: params.Rsi + jit(steps.Rsi) });
+      var inc = computeTerms(rr, pp, opts).filter(function (x) { return x.included; });
+      if (inc.length < 2) continue;
+      var fit = linreg(inc.map(function (x) { return x.x; }), inc.map(function (x) { return x.y; }));
+      if (!fit || fit.degenerate || !(fit.intercept > 0)) continue;
+      ms.push(fit.slope / fit.intercept);
+      Ns.push(fit.intercept);
+      inc.forEach(function (x) { (xs[x.id] = xs[x.id] || []).push(x.x); });
+    }
+    ms.sort(function (a, b) { return a - b; });
+    Ns.sort(function (a, b) { return a - b; });
+    var xStd = {};
+    Object.keys(xs).forEach(function (id) { xStd[id] = std(xs[id]); });
+    return {
+      trials: ms.length,
+      m: [quantile(ms, 0.05), quantile(ms, 0.5), quantile(ms, 0.95)],
+      N: [quantile(Ns, 0.05), quantile(Ns, 0.5), quantile(Ns, 0.95)],
+      shareNegative: ms.filter(function (v) { return v < 0; }).length / Math.max(1, ms.length),
+      xStd: xStd
+    };
+  }
+
   /* ---------------- full analysis ---------------- */
 
   function analyze(rows, params, opts) {
@@ -307,10 +363,12 @@
     }
     if (N > 0 && m < 0) {
       var withinNoise = fit.n >= 3 && num(R.seM) && Math.abs(m) <= t * R.seM;
+      var noCap = evaluateM(terms, 0);
+      var noCapText = num(noCap.N) && noCap.N > 0 ? ' With no gas cap (m = 0), the best line through the origin gives N = ' + (noCap.N / 1e6).toFixed(1) + ' MMSTB.' : '';
       if (withinNoise) {
-        msgs.infos.push({ code: 'm-zero', text: 'm is slightly below zero (' + m.toFixed(3) + ' ± ' + (t * R.seM).toFixed(3) + '), within the uncertainty of the fit. The data show no clear gas cap.' });
+        msgs.infos.push({ code: 'm-zero', text: 'm is slightly below zero (' + sgn(m.toFixed(3)) + ' ± ' + (t * R.seM).toFixed(3) + '), within the uncertainty of the fit, so the data show no clear gas cap. The drive indices are hidden while m is negative.' + noCapText });
       } else {
-        msgs.warnings.push({ code: 'm-neg', text: 'The slope is negative, so m < 0. A gas cap cannot be negative. This usually comes from noisy or rounded data (for example B_g given to few digits) or from a drive the model leaves out, such as water influx. Try leaving out the early points.' });
+        msgs.warnings.push({ code: 'm-neg', text: 'The slope of the line is negative, so m < 0 and G < 0. A gas cap cannot be negative, so the drive indices are hidden. Common causes are rounded or noisy data, or a drive this model leaves out, such as water influx.' + noCapText });
       }
     }
     if (fit.n >= 3 && fit.r2 < 0.9) {
@@ -330,6 +388,37 @@
         msgs.infos.push({ code: 'influx', text: 'F / E_t keeps rising as oil is produced. This is a typical sign of water influx, which this model does not include.' });
       }
     }
+    // how much does rounding in the inputs move the answer?
+    var steps = opts.precision && opts.precision.steps;
+    if (steps && N > 0 && fit.n >= 3 && Object.keys(steps).some(function (k) { return steps[k] > 0; })) {
+      var trials = opts.roundingTrials || Math.max(80, Math.min(400, Math.round(4000 / Math.max(1, inc.length))));
+      var rc = roundingCheck(rows, P, opts, steps, trials);
+      res.rounding = rc;
+      var mSpan = rc.m[2] - rc.m[0], nSpan = (rc.N[2] - rc.N[0]) / N;
+      var wide = (rc.m[0] < 0 && rc.m[2] > 0) || nSpan > 0.3 || mSpan > Math.max(0.2, Math.abs(m));
+      if (rc.trials >= 50 && (wide || mSpan > 0.05 || nSpan > 0.1)) {
+        var note = opts.precision.note;
+        var text = (note ? note + ', and the answer' : 'The answer') + ' depends ' + (wide ? 'strongly' : 'somewhat') + ' on ' + (note ? 'that rounding' : 'rounding in the data') +
+          '. Moving B_o, R_s and B_g only within their last digit gives m from ' + sgn(rc.m[0].toFixed(3)) + ' to ' + sgn(rc.m[2].toFixed(3)) +
+          ' and N from ' + (rc.N[0] / 1e6).toFixed(0) + ' to ' + (rc.N[2] / 1e6).toFixed(0) + ' MMSTB.';
+        // the points whose x moves by more than half the spread of x are the ones to question first
+        var xr = fit.xMax - fit.xMin;
+        var shaky = inc.filter(function (tt) { return rc.xStd[tt.id] > 0.5 * xr; });
+        if (shaky.length && inc.length - shaky.length >= 3) {
+          var keep = inc.filter(function (tt) { return shaky.indexOf(tt) < 0; });
+          var f2 = linreg(keep.map(function (tt) { return tt.x; }), keep.map(function (tt) { return tt.y; }));
+          var names = shaky.map(function (tt) { return Math.round(tt.p).toLocaleString('en-US'); });
+          var list = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+          text += ' The point' + (shaky.length > 1 ? 's' : '') + ' at ' + list + ' psia move' + (shaky.length > 1 ? '' : 's') + ' the most';
+          if (f2 && !f2.degenerate && f2.intercept > 0) {
+            text += '; without ' + (shaky.length > 1 ? 'them' : 'it') + ', N = ' + (f2.intercept / 1e6).toFixed(1) + ' MMSTB and m = ' + sgn((f2.slope / f2.intercept).toFixed(3)) + '.';
+          } else text += '.';
+          rc.shaky = shaky.map(function (tt) { return tt.id; });
+        }
+        (wide ? msgs.warnings : msgs.infos).push({ code: 'rounding', text: text });
+      }
+    }
+
     var negDen = terms.filter(function (tt) { return tt.reason === 'E_o + E_fw is not positive'; }).length;
     if (negDen) msgs.warnings.push({ code: 'eo', text: negDen + ' point' + (negDen > 1 ? 's have' : ' has') + ' E_o + E_fw ≤ 0 and cannot be plotted. Check B_oi and R_si.' });
     var negF = terms.filter(function (tt) { return tt.reason === 'F is not positive'; }).length;
@@ -348,6 +437,7 @@
     evaluateM: evaluateM,
     minValidM: minValidM,
     scanM: scanM,
+    roundingCheck: roundingCheck,
     analyze: analyze
   };
 });

@@ -63,7 +63,9 @@
   }
   /** Escape, then turn B_g, p_i, E_fw ... into italic symbols with subscripts. */
   function rich(text) {
-    return esc(text).replace(/\b([A-Za-z])_([A-Za-z]{1,3})\b/g, '<var>$1</var><sub>$2</sub>');
+    return esc(text)
+      .replace(/\b([NmG])\b/g, '<var>$1</var>')
+      .replace(/\b([A-Za-z])_([A-Za-z]{1,3})\b/g, '<var>$1</var><sub>$2</sub>');
   }
   function minus(s) { return String(s).replace(/^-/, '−'); }
   function fmtFixed(v, d) {
@@ -122,7 +124,7 @@
       b.inputs = P.buildInputs(analysis, { params: state.paramEdits });
       if (!b.inputs.messages.errors.length) {
         var ids = b.inputs.rows.filter(function (r) { return state.excluded.has(r.sheetRow); }).map(function (r) { return r.id; });
-        b.result = E.analyze(b.inputs.rows, b.inputs.params, { includeEfw: state.includeEfw, excluded: ids });
+        b.result = E.analyze(b.inputs.rows, b.inputs.params, { includeEfw: state.includeEfw, excluded: ids, precision: b.inputs.precision });
       }
     }
     return b;
@@ -445,7 +447,7 @@
     };
     setRes('res-N', fmtRes(R.N / N_DIV[nu]), nu, ci(R.ciN, N_DIV[nu], fmtRes), R.N <= 0 ? 'Not physical: see the fit notes' : '');
     setRes('res-m', fmtM(R.m), '', ci(R.ciM, 1, fmtM), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
-    setRes('res-G', fmtRes(R.G / G_DIV[gu]), G_LABEL[gu], ci(R.ciG, G_DIV[gu], fmtRes), '');
+    setRes('res-G', fmtRes(R.G / G_DIV[gu]), G_LABEL[gu], ci(R.ciG, G_DIV[gu], fmtRes), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
   }
 
   /* ---------- fit notes and statistics ---------- */
@@ -455,7 +457,7 @@
       (list || []).forEach(function (m) {
         if (seen[m.text]) return;
         seen[m.text] = 1;
-        out.push({ level: level, text: m.text });
+        out.push({ level: level, text: m.text, code: m.code });
       });
     }
     var a = b.analysis;
@@ -477,9 +479,22 @@
 
   function renderNotes(b) {
     var msgs = collectMessages(b);
+    // the rounding check can name the points that move the most: offer to leave them out in one click
+    var shakyRows = [];
+    if (b.result && b.result.rounding && b.result.rounding.shaky) {
+      var ids = b.result.rounding.shaky;
+      shakyRows = b.result.terms.filter(function (t) { return ids.indexOf(t.id) >= 0 && t.included; });
+      if (shakyRows.length !== ids.length) shakyRows = [];
+    }
     $('notes').innerHTML = msgs.length ? msgs.map(function (m) {
+      var act = '';
+      if (m.code === 'rounding' && shakyRows.length) {
+        var names = shakyRows.map(function (t) { return fmtFixed(t.p, 0); });
+        act = '<button type="button" class="btn-quiet note-act" data-rows="' + shakyRows.map(function (t) { return t.sheetRow; }).join(',') + '">Leave out ' +
+          (names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0]) + ' psia</button>';
+      }
       return '<li class="note" data-level="' + m.level + '">' + ICON[m.level === 'ok' ? 'ok' : m.level] +
-        '<span><span class="sr-only">' + ({ error: 'Error: ', warning: 'Warning: ', info: 'Note: ', ok: '' })[m.level] + '</span>' + rich(m.text) + '</span></li>';
+        '<span><span class="sr-only">' + ({ error: 'Error: ', warning: 'Warning: ', info: 'Note: ', ok: '' })[m.level] + '</span>' + rich(m.text) + act + '</span></li>';
     }).join('') : '<li class="note" data-level="info">' + ICON.info + '<span>No notes.</span></li>';
 
     var st = $('stats');
@@ -507,6 +522,11 @@
     return b.result.terms.filter(function (t) { return t.usable; }).map(function (t) {
       return { key: t.sheetRow, x: t.x, y: t.y, p: t.p, included: t.included, F: t.F, Eo: t.Eo, Eg: t.Eg, Efw: t.Efw };
     });
+  }
+
+  /** A negative m has no physical meaning, so the drive indices are hidden while it lasts. */
+  function negativeM(b) {
+    return hasFit(b) && b.result.results.N > 0 && b.result.results.m < 0;
   }
 
   function anyEfw(b) {
@@ -558,7 +578,8 @@
     C.driveBars(drv, {
       rows: fitOk ? inc.map(function (t) { return { key: t.sheetRow, p: t.p, DDI: t.DDI, SDI: t.SDI, CDI: t.CDI }; }) : [],
       showWater: efw,
-      legendEl: $('legend-drive')
+      legendEl: $('legend-drive'),
+      blockedText: negativeM(b) ? 'Not shown: the fitted m is ' + fmtM(R.m) + '. A negative gas cap would give a negative gas-cap drive index, which has no physical meaning. See the fit notes.' : ''
     });
     renderExplorer(b, opts);
   }
@@ -661,8 +682,9 @@
       { g: 'Check at the fitted <var>m</var>', h: 'SDI', u: '%', v: function (t) { return di(t, 'SDI'); } }
     ];
     if (efw) cols.push({ g: 'Check at the fitted <var>m</var>', h: 'CDI', u: '%', v: function (t) { return di(t, 'CDI'); } });
+    var hideDI = negativeM(b);
     function di(t, k) {
-      if (!t.usable || !isFinite(t[k]) || !isFinite(t.sumDI) || t.sumDI === 0) return '–';
+      if (hideDI || !t.usable || !isFinite(t[k]) || !isFinite(t.sumDI) || t.sumDI === 0) return '–';
       return fmtFixed(100 * t[k] / t.sumDI, 1);
     }
     var groups = [];
@@ -698,7 +720,7 @@
     tbl.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
       cb.addEventListener('change', function () { toggleRow(+this.getAttribute('data-row'), true); });
     });
-    var fh = '<span>Drive indices are scaled to add up to 100 % at each pressure. Values are in field units.</span>';
+    var fh = '<span>' + (hideDI ? 'Drive indices are left blank because the fitted <var>m</var> is negative.' : 'Drive indices are scaled to add up to 100 % at each pressure.') + ' Values are in field units.</span>';
     if (terms.length > TABLE_LIMIT) {
       fh += '<button class="btn-quiet" type="button" id="table-more">' + (state.tableAll ? 'Show the first ' + TABLE_LIMIT + ' rows' : 'Show all ' + terms.length + ' rows') + '</button>';
     }
@@ -840,9 +862,10 @@
     var head = ['p (psia)', 'Np (STB)', 'Gp (SCF)', 'Rp (SCF/STB)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'dp (psi)',
       'F (rb)', 'Eo (rb/STB)', 'Eg (rb/STB)', 'Efw (rb/STB)', 'x', 'y (STB)', 'F/Et (STB)', 'DDI', 'SDI', 'CDI', 'In fit', 'Note'];
     var rows = [head];
+    var hideDI = negativeM(b);
     b.result.terms.forEach(function (t) {
       var s = t.sumDI;
-      var norm = function (k) { return t.usable && isFinite(t[k]) && isFinite(s) && s !== 0 ? t[k] / s : null; };
+      var norm = function (k) { return !hideDI && t.usable && isFinite(t[k]) && isFinite(s) && s !== 0 ? t[k] / s : null; };
       rows.push([t.p, t.Np, t.Gp, t.Np > 0 ? t.Rp : null, t.Bo, t.Rs, t.Bg, t.dP, t.F, t.Eo, t.Eg, t.Efw,
         t.usable ? t.x : null, t.usable ? t.y : null, t.usable && isFinite(t.impliedN) ? t.impliedN : null,
         norm('DDI'), norm('SDI'), norm('CDI'),
@@ -989,6 +1012,15 @@
     $('png-ho').addEventListener('click', function () { exportPNG('chart-ho', 'havlena-odeh-plot.png'); });
     $('png-check').addEventListener('click', function () { exportPNG('chart-check', 'F-vs-Et-check.png'); });
     $('png-drive').addEventListener('click', function () { exportPNG('chart-drive', 'drive-indices.png'); });
+
+    $('notes').addEventListener('click', function (ev) {
+      var btn = ev.target.closest('button[data-rows]');
+      if (!btn) return;
+      btn.getAttribute('data-rows').split(',').forEach(function (r) { state.excluded.add(+r); });
+      recompute({ noAnim: true });
+      var reset = $('reset-points');
+      if (reset && !reset.hidden) reset.focus();
+    });
 
     $('alert').addEventListener('click', function (ev) {
       var btn = ev.target.closest('button[data-act]');

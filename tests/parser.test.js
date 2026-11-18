@@ -204,3 +204,27 @@ test('synthetic fixtures give back the N and m they were built with', async () =
   close(r.result.results.N, 250e6, 1e-7);
   close(r.result.results.m, 0.6, 1e-6);
 });
+
+test('decimalsOf reads how finely a number is written', () => {
+  assert.equal(P.decimalsOf(0.0009), 4);
+  assert.equal(P.decimalsOf(0.0018), 4);
+  assert.equal(P.decimalsOf(1.404), 3);
+  assert.equal(P.decimalsOf(650), 0);
+  assert.equal(P.decimalsOf(0.00488505), 8);
+  assert.equal(P.decimalsOf(0.0009146173819283), null);
+  assert.equal(P.decimalsOf(NaN), null);
+});
+
+test('rounding steps of the inputs are found and described', async () => {
+  const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  const s = r.inputs.precision.steps;
+  close(s.Bg, 1e-4, 1e-9, 'Bg step');
+  close(s.Bo, 1e-3, 1e-9, 'Bo step');
+  close(s.Rs, 1, 1e-9, 'Rs step');
+  close(s.Bgi, 1e-4, 1e-9, 'Bgi step');
+  assert.match(r.inputs.precision.note, /only 1 or 2 significant figures \(0\.0009 to 0\.0018 rb\/SCF\)/);
+  // a ft3/SCF column: the step is converted to rb/SCF
+  const q1 = await runFile(path.join(SAMPLES, 'havlena-odeh-example-2.xlsx'));
+  close(q1.inputs.precision.steps.Bg, 1e-8 / 5.615, 1e-6, 'Bg step in rb/SCF');
+  assert.equal(q1.inputs.precision.note, '');
+});

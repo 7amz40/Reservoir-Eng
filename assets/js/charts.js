@@ -556,6 +556,11 @@
       { k: 'SDI', name: 'Gas-cap drive', color: T.gas },
       { k: 'CDI', name: 'Water and rock expansion', color: T.water }
     ].filter(function (s) { return s.k !== 'CDI' || d.showWater; });
+    if (d.blockedText) {
+      if (d.legendEl) legend(d.legendEl, [], T);
+      empty(el, d.blockedText);
+      return;
+    }
     if (d.legendEl) legend(d.legendEl, series.map(function (s) { return { type: 'rect', fill: s.color, html: s.name }; }), T);
     var rows = d.rows.filter(function (r) { return series.every(function (s) { return isFinite(r[s.k]); }); });
     if (!rows.length) { empty(el, d.emptyText || 'Drive indices appear once N and m are found.'); return; }

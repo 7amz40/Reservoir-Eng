@@ -829,10 +829,79 @@
       }
     }
 
-    return { rows: rows, params: P, paramInfo: info, initialRow: initialRow, refRow: refRow, messages: msgs };
+    var precision = roundingSteps(analysis, info);
+    return { rows: rows, params: P, paramInfo: info, initialRow: initialRow, refRow: refRow, messages: msgs, precision: precision };
+  }
+
+  /* ---------------- rounding of the inputs ---------------- */
+
+  /** Decimal places a number is written with (0.0018 -> 4), or null when it carries full precision. */
+  function decimalsOf(v) {
+    if (typeof v !== 'number' || !isFinite(v)) return null;
+    for (var d = 0; d <= 10; d++) {
+      var s = v * Math.pow(10, d);
+      if (Math.abs(s - Math.round(s)) < Math.max(1e-7, Math.abs(s) * 1e-13)) return d;
+    }
+    return null;
+  }
+
+  /** Last-digit step of a column in base units, or 0 when the values carry full precision. */
+  function columnStep(values, kind, unit) {
+    var dec = 0, any = false;
+    for (var i = 0; i < values.length; i++) {
+      var v = values[i];
+      if (!isFinite(v) || v === 0) continue;
+      var d = decimalsOf(v);
+      if (d === null) return { step: 0, decimals: null };
+      dec = Math.max(dec, d); any = true;
+    }
+    if (!any) return { step: 0, decimals: null };
+    var raw = Math.pow(10, -dec);
+    return { step: Math.abs(U.toBase(kind, unit, raw) - U.toBase(kind, unit, 0)), decimals: dec, raw: raw };
+  }
+
+  /**
+   * How finely B_o, R_s and B_g (and B_oi, B_gi, R_si) are written in the file. The engine uses this to test how
+   * much the answer moves when the inputs change only within their last digit.
+   */
+  function roundingSteps(analysis, info) {
+    var prod = analysis.production, u = analysis.units || {};
+    var steps = {}, cols = {};
+    [['Bo', 'bo'], ['Rs', 'gor'], ['Bg', 'bg']].forEach(function (c) {
+      var vals = prod.rows.map(function (r) { return r[c[0]]; });
+      cols[c[0]] = columnStep(vals, c[1], u[c[0]]);
+      steps[c[0]] = cols[c[0]].step;
+    });
+    // A single number such as 1.3 may really be 1.3000 (trailing zeros are not stored), so a parameter is taken
+    // to be at least as precise as its column.
+    [['Boi', 'Bo'], ['Bgi', 'Bg'], ['Rsi', 'Rs']].forEach(function (c) {
+      var inf = info[c[0]] || {};
+      if (inf.source === 'derived') steps[c[0]] = steps[c[1]];
+      else if (inf.source === 'file') {
+        var kind = PARAM_BASE[c[0]].kind, unit = inf.unitId || PARAM_BASE[c[0]].unit;
+        var d = decimalsOf(typeof inf.raw === 'number' ? inf.raw : U.parseNumber(inf.raw));
+        var own = d === null ? 0 : Math.abs(U.toBase(kind, unit, Math.pow(10, -d)) - U.toBase(kind, unit, 0));
+        steps[c[0]] = Math.min(own, steps[c[1]]);
+      } else steps[c[0]] = 0;
+    });
+    // a short description of B_g when it has very few significant figures
+    var note = '';
+    var bg = cols.Bg;
+    if (bg.decimals !== null && bg.step > 0) {
+      var vals = prod.rows.map(function (r) { return r.Bg; }).filter(function (v) { return isFinite(v) && v > 0; });
+      var sig = vals.map(function (v) { return bg.decimals + Math.floor(Math.log10(Math.abs(v))) + 1; });
+      var sMin = Math.min.apply(null, sig), sMax = Math.max.apply(null, sig);
+      if (sMax <= 3) {
+        var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+        note = 'B_g is given with only ' + (sMin === sMax ? sMin : sMin + ' or ' + sMax) + ' significant figure' + (sMax > 1 ? 's' : '') +
+          ' (' + lo.toFixed(bg.decimals) + ' to ' + hi.toFixed(bg.decimals) + ' ' + U.label('bg', u.Bg) + ')';
+      }
+    }
+    return { steps: steps, note: note };
   }
 
   return {
+    decimalsOf: decimalsOf,
     FIELDS: FIELDS,
     FIELD_ORDER: FIELD_ORDER,
     CORE_FIELDS: CORE_FIELDS,

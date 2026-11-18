@@ -487,6 +487,7 @@ main {
 .note[data-level="info"] svg { color: var(--muted); }
 .note[data-level="ok"] svg { color: var(--oil); }
 .note[data-level="error"] { color: var(--ink); }
+.note .note-act { display: flex; margin-top: 8px; height: 28px; font-size: 12.5px; }
 .stats { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; margin: 0; font-size: 13px; }
 .stats dt { color: var(--muted); }
 .stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }

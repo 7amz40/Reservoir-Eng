@@ -144,3 +144,32 @@ test('the two example data sets match the reference answers', () => {
   close(q.results.m, REF.q1.m, 1e-12);
   close(q.results.G, REF.q1.G, 1e-12);
 });
+
+test('rounding check: the example data cannot pin down m', async () => {
+  const { runFile, SAMPLES } = require('./helpers');
+  const path = require('path');
+  const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  const rc = r.result.rounding;
+  assert.ok(rc && rc.trials >= 300);
+  assert.ok(rc.m[0] < 0 && rc.m[2] > 0, 'the range of m crosses zero');
+  const msg = r.result.messages.warnings.find(m => m.code === 'rounding');
+  assert.ok(msg, 'rounding warning');
+  assert.match(msg.text, /2,500 and 2,290 psia/);
+  assert.match(msg.text, /N = 522\.6 MMSTB and m = 0\.005/);
+  const neg = r.result.messages.warnings.find(m => m.code === 'm-neg');
+  assert.match(neg.text, /N = 530\.2 MMSTB/);
+  // the same numbers every time (seeded)
+  const again = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  assert.deepEqual(again.result.rounding.m, rc.m);
+});
+
+test('rounding check stays quiet on precise data', async () => {
+  const { runFile, SAMPLES } = require('./helpers');
+  const path = require('path');
+  const r = await runFile(path.join(SAMPLES, 'known_answer_N150_m040.xlsx'));
+  assert.ok(![...r.result.messages.warnings, ...r.result.messages.infos].some(m => m.code === 'rounding'));
+  const q1 = await runFile(path.join(SAMPLES, 'havlena-odeh-example-2.xlsx'));
+  const info = q1.result.messages.infos.find(m => m.code === 'rounding');
+  assert.ok(info, 'a mild note for the second example');
+  assert.ok(!q1.result.messages.warnings.some(m => m.code === 'rounding'));
+});
