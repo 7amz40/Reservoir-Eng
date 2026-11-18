@@ -1,6 +1,6 @@
 # Havlena–Odeh analyzer
 
-An interactive dashboard for PNGE 4412 Reservoir Engineering, HW 2, question 2.
+An interactive dashboard for PNGE 4412 Reservoir Engineering at Sultan Qaboos University.
 It reads production and PVT data from an Excel file and finds, with the Havlena–Odeh
 straight-line method:
 
@@ -8,7 +8,7 @@ straight-line method:
 - *m*, the ratio of the initial gas-cap volume to the oil-zone volume
 - *G*, the gas-cap gas initially in place
 
-It opens with the example data from the homework (page 3) already loaded.
+It opens with an example data set already loaded.
 
 ## Open it
 
@@ -26,8 +26,9 @@ the file you load is read in the browser and never leaves your computer.
 | `assets/js/parser.js` | Finds the table, the columns, the units and the initial parameters |
 | `assets/js/mbe.js` | Material balance terms, the straight-line fit, *N*, *m*, *G*, drive indices |
 | `assets/js/charts.js`, `assets/js/app.js` | Charts and the dashboard itself |
+| `assets/img/` | Sultan Qaboos University logo |
 | `assets/vendor/` | d3 7.9.0 and JSZip 3.10.1, with their licences |
-| `samples/` | The HW example, a blank template, the HW question 1 data, and a file with a known answer |
+| `samples/` | The example data set, a blank template, a second example, and a file with a known answer |
 | `tests/` | Unit tests, browser tests and the test workbooks |
 | `tools/build.py` | Rebuilds the single-file version in `dist/` |
 
@@ -42,6 +43,6 @@ python3 tools/build.py          # rebuilds dist/havlena-odeh-analyzer.html
 
 The fixtures cover many file layouts (two sheets, parameters below or beside the table,
 units rows, shuffled and long headers, `Rp` instead of `Gp`, numbers stored as text,
-percent and SI units, CSV) and they all give the same answer for the HW example.
+percent and SI units, CSV) and they all give the same answer for the example data.
 Exact synthetic data built from the material balance check that the method gives back
 the *N* and *m* used to build them.

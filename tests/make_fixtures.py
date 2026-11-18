@@ -27,7 +27,8 @@ BOLD = Font(bold=True)
 
 # ---------------------------------------------------------------- data
 
-# HW 2, question 2 (page 3). Columns in the order of the handout.
+# Example data set: a gas-cap oil reservoir. Q2_HEADER keeps a "Bg (rb/STB)" label slip on purpose,
+# because the reader must treat it as rb/SCF; the sample file uses the correct label.
 Q2_HEADER = ["P (psia)", "Rs (SCF/STB)", "Bo (rb/STB)", "Bg (rb/STB)", "Np (MMSTB)", "Gp (MMSCF)"]
 Q2_ROWS = [
     [2740, 650, 1.404, 0.0009, 0.00, 0],
@@ -53,7 +54,7 @@ Q2_PARAMS = [
     ("Porosity", 0.25, "fraction"),
 ]
 
-# HW 2, question 1 (page 1).
+# Second example: gas-cap reservoir with Bg in ft3/SCF and Gp in MMMSCF.
 Q1_HEADER = ["Pressure (psia)", "Np (MMSTB)", "Gp (MMMSCF)", "Bo (bbl/STB)", "Rs (SCF/STB)", "Bg (cuft/SCF)"]
 Q1_ROWS = [
     [3300, 0, 0, 1.2511, 510, 0.00488505],
@@ -166,9 +167,10 @@ def two_sheet_book(header, rows, params, prod_name="Production", init_name="Init
 def make_samples():
     os.makedirs(SAMPLES, exist_ok=True)
 
-    # 1. HW example (question 2, page 3)
-    wb = two_sheet_book(Q2_HEADER, Q2_ROWS, Q2_PARAMS)
-    save(wb, SAMPLES, "HW2_Q2_example.xlsx")
+    # 1. Example data set (the one the dashboard opens with)
+    header = [h.replace("Bg (rb/STB)", "Bg (rb/SCF)") for h in Q2_HEADER]
+    wb = two_sheet_book(header, Q2_ROWS, Q2_PARAMS)
+    save(wb, SAMPLES, "havlena-odeh-example.xlsx")
 
     # 2. Blank template
     wb = Workbook()
@@ -180,15 +182,15 @@ def make_samples():
     ws2 = wb.create_sheet("Initial")
     write_params(ws2, [(l, None, u) for (l, _, u) in Q2_PARAMS[:7]])
     autosize(ws2, [32, 14, 12])
-    save(wb, SAMPLES, "HW2_template.xlsx")
+    save(wb, SAMPLES, "havlena-odeh-template.xlsx")
 
-    # 3. Question 1 data (gas-cap reservoir, Bg in ft3/SCF, Gp in MMMSCF, no Swc/Cw/Cf)
+    # 3. Second example (gas-cap reservoir, Bg in ft3/SCF, Gp in MMMSCF, no Swc/Cw/Cf)
     wb = Workbook()
     ws = wb.active
     ws.title = "Production"
     write_table(ws, Q1_HEADER, Q1_ROWS)
     autosize(ws, [16] * 6)
-    save(wb, SAMPLES, "HW2_Q1_data.xlsx")
+    save(wb, SAMPLES, "havlena-odeh-example-2.xlsx")
 
     # 4. Known-answer check: exact synthetic data, N = 150 MMSTB, m = 0.40
     rows, p = synthetic()
@@ -346,7 +348,7 @@ def make_fixtures():
                        ("Swc", 0.05, ""), ("Cw", 3e-6, "1/psi"), ("Cf", 4e-6, "1/psi")])
     save(wb, FIX, "q2_no_units_field.xlsx")
 
-    # SI units: bar, Sm3, Sm3/Sm3, rm3/Sm3 (same reservoir as Q2)
+    # SI units: bar, Sm3, Sm3/Sm3, rm3/Sm3 (same reservoir as the example)
     wb = Workbook()
     ws = wb.active
     ws.title = "Production"

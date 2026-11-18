@@ -17,6 +17,7 @@
 
 <header class="appbar">
   <div class="brand">
+    <span class="brand-org"><!--BRAND-START--><img class="brand-crest" src="assets/img/squ-crest.png" width="35" height="44" alt="Sultan Qaboos University"><!--BRAND-END--></span>
     <svg class="brand-mark" viewBox="0 0 34 34" aria-hidden="true">
       <rect x=".5" y=".5" width="33" height="33" rx="7" style="fill:var(--paper);stroke:var(--line-strong)"/>
       <path d="M7 6v21h21" style="fill:none;stroke:var(--ink)" stroke-width="1.6" stroke-linecap="round"/>
@@ -27,8 +28,8 @@
       <path d="M7 18.7l2.8 2.8-2.8 2.8-2.8-2.8z" style="fill:var(--ink);stroke:var(--paper)" stroke-width="1"/>
     </svg>
     <div class="brand-text">
+      <p class="course"><strong>PNGE 4412</strong> Reservoir Engineering</p>
       <h1>Havlena–Odeh analyzer</h1>
-      <p>Find <var>N</var>, <var>m</var> and <var>G</var> of a gas-cap oil reservoir from production and PVT data</p>
     </div>
   </div>
   <div class="appbar-tools">
@@ -61,7 +62,7 @@
         <div class="side-actions">
           <button class="btn-quiet" type="button" id="use-example">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-            Load the HW example
+            Load the example
           </button>
           <button class="btn-quiet" type="button" id="dl-template" data-download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
@@ -313,8 +314,14 @@
 </div>
 
 <footer class="foot">
-  <span>PNGE 4412 Reservoir Engineering, HW 2, Question 2</span>
-  <span>Runs in your browser. Files are read on this device and never uploaded.</span>
+  <div class="foot-course">
+    <!--BRAND-START--><img class="foot-logo" src="assets/img/squ-logo.png" width="101" height="64" alt="Sultan Qaboos University"><!--BRAND-END-->
+    <div>
+      <p><strong>PNGE 4412</strong> Reservoir Engineering</p>
+      <!--BRAND-START--><p>Department of Petroleum and Chemical Engineering, Sultan Qaboos University</p><!--BRAND-END-->
+    </div>
+  </div>
+  <p class="foot-note">Runs in your browser. Files are read on this device and never uploaded.</p>
 </footer>
 
 <div class="drop-overlay" id="drop-overlay" hidden><div>Drop the file to analyze it</div></div>

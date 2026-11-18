@@ -12,10 +12,10 @@
   if (PREVIEW) document.documentElement.classList.add('is-preview');
 
   /* ------------------------------------------------------------------
-   * Example data: HW 2, question 2 (page 3), with the initial parameters on a second sheet
+   * Example data set: a gas-cap oil reservoir, with the initial parameters on a second sheet
    * ------------------------------------------------------------------ */
   var EX_PROD = [
-    ['P (psia)', 'Rs (SCF/STB)', 'Bo (rb/STB)', 'Bg (rb/STB)', 'Np (MMSTB)', 'Gp (MMSCF)'],
+    ['P (psia)', 'Rs (SCF/STB)', 'Bo (rb/STB)', 'Bg (rb/SCF)', 'Np (MMSTB)', 'Gp (MMSCF)'],
     [2740, 650, 1.404, 0.0009, 0, 0],
     [2500, 592, 1.374, 0.0010, 7.88, 5988.8],
     [2290, 545, 1.349, 0.0011, 18.42, 15565],
@@ -42,7 +42,7 @@
   function clone(rows) { return rows.map(function (r) { return r.slice(); }); }
   function exampleSource() {
     return {
-      kind: 'example', name: 'HW 2 example (page 3)', fileName: 'HW2_Q2_example.xlsx',
+      kind: 'example', name: 'Example data', fileName: 'havlena-odeh-example.xlsx',
       wb: { format: 'example', sheets: [{ name: 'Production', rows: clone(EX_PROD) }, { name: 'Initial', rows: clone(EX_INIT) }] }
     };
   }
@@ -185,7 +185,7 @@
       (list.length ? '<ul>' + list.map(function (t) { return '<li>' + rich(t) + '</li>'; }).join('') + '</ul>' : '') +
       '<div class="alert-actions">' +
       '<button class="btn-quiet" type="button" data-act="template" data-download>Download the blank template</button>' +
-      (state.source.kind !== 'example' ? '<button class="btn-quiet" type="button" data-act="example">Load the HW example</button>' : '') +
+      (state.source.kind !== 'example' ? '<button class="btn-quiet" type="button" data-act="example">Load the example</button>' : '') +
       (state.fileError ? '<button class="btn-quiet" type="button" data-act="dismiss">Dismiss</button>' : '') +
       '</div></div>';
     el.hidden = false;
@@ -826,14 +826,14 @@
           ['Connate water saturation, Swc', null, 'fraction', 'Swc, Cw and Cf can be left empty: then Efw = 0'],
           ['Water compressibility, Cw', null, '1/psi', ''],
           ['Formation compressibility, Cf', null, '1/psi', '']] }
-    ]).then(function (bytes) { download('HW2_template.xlsx', bytes, XLSX_MIME); });
+    ]).then(function (bytes) { download('havlena-odeh-template.xlsx', bytes, XLSX_MIME); });
   }
 
   function downloadExample() {
     X.writeXlsx([
       { name: 'Production', headerRows: 1, colWidths: [12, 14, 13, 13, 13, 13], rows: clone(EX_PROD) },
       { name: 'Initial', headerRows: 1, colWidths: [32, 14, 12], rows: clone(EX_INIT) }
-    ]).then(function (bytes) { download('HW2_Q2_example.xlsx', bytes, XLSX_MIME); });
+    ]).then(function (bytes) { download('havlena-odeh-example.xlsx', bytes, XLSX_MIME); });
   }
 
   function calcRows(b) {
@@ -890,7 +890,7 @@
       { name: 'Notes', headerRows: 1, colWidths: [10, 110], rows: notes }
     ]).then(function (bytes) {
       var base = String(state.source.fileName || 'data').replace(/\.[^.]+$/, '');
-      download(base + '_Havlena-Odeh_results.xlsx', bytes, XLSX_MIME);
+      download(base + (/havlena-odeh/i.test(base) ? '_results.xlsx' : '_Havlena-Odeh_results.xlsx'), bytes, XLSX_MIME);
     });
   }
 

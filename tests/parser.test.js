@@ -72,7 +72,7 @@ const SAME_AS_Q2 = [
 ];
 
 for (const f of SAME_AS_Q2) {
-  test('layout ' + f + ' gives the HW example answer', async () => {
+  test('layout ' + f + ' gives the example answer', async () => {
     const r = await runFile(path.join(FIX, f));
     assert.deepEqual(r.analysis.errors, [], 'no parse errors');
     assert.equal(r.inputs.messages.errors.length, 0, 'no input errors');
@@ -93,7 +93,7 @@ for (const f of SAME_AS_Q2) {
   });
 }
 
-test('the HW 1 data in the handout layout (two-row header) gives the Q1 answer', async () => {
+test('the second example, also with a two-row header, gives its answer', async () => {
   for (const f of ['q1_two_row_header.xlsx', 'q1_simple.xlsx']) {
     const r = await runFile(path.join(FIX, f));
     assert.equal(r.analysis.production.headerSpan, f.startsWith('q1_two') ? 2 : 1, f);
@@ -154,7 +154,7 @@ test('errors: no table, empty file, missing column, one point', async () => {
   assert.equal(r.analysis.warnings.filter(w => w.code === 'skipped').length, 0, 'no per-row noise for a missing column');
   r = await runFile(path.join(FIX, 'err_one_point.xlsx'));
   assert.equal(r.result.messages.errors[0].code, 'points');
-  r = await runFile(path.join(SAMPLES, 'HW2_template.xlsx'));
+  r = await runFile(path.join(SAMPLES, 'havlena-odeh-template.xlsx'));
   assert.equal(r.analysis.errors[0].code, 'no-rows');
 });
 

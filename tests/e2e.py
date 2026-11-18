@@ -90,7 +90,7 @@ def shot(pg, name, full=False):
 
 # ------------------------------------------------------------------ checks
 
-@check("opens with the HW example and its answer")
+@check("opens with the example data and its answer")
 def t_example(b):
     pg = Page(b)
     assert pg.page.locator("#alert").is_hidden()
@@ -108,7 +108,7 @@ def t_example(b):
     pg.close()
 
 
-@check("every Q2 layout fixture gives the same answer")
+@check("every layout of the example gives the same answer")
 def t_layouts(b):
     pg = Page(b)
     for f in sorted(os.listdir(FIX)):
@@ -122,7 +122,7 @@ def t_layouts(b):
     pg.close()
 
 
-@check("HW 1 data, the known-answer sample and a 400-row file")
+@check("second example, known-answer sample and a 400-row file")
 def t_other_data(b):
     pg = Page(b)
     pg.upload(os.path.join(FIX, "q1_two_row_header.xlsx"))
@@ -159,7 +159,7 @@ def t_errors(b):
     shot(pg, "desktop-error")
     pg.upload(os.path.join(FIX, "err_no_table.xlsx"))
     assert "No production table" in pg.text("#alert")
-    pg.upload(os.path.join(SAMPLES, "HW2_template.xlsx"))
+    pg.upload(os.path.join(SAMPLES, "havlena-odeh-template.xlsx"))
     assert "no rows with numbers" in pg.text("#alert")
     pg.page.click("#alert button[data-act=example]")
     assert pg.val("res-N") == "729.6"

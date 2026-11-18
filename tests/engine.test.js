@@ -116,7 +116,7 @@ test('minValidM and scanM bracket the answer', () => {
   assert.ok(Math.abs(best.m - 0.4) <= 0.0051, 'scan minimum at ' + best.m);
 });
 
-test('HW 2 example and HW 1 data match the reference answers', () => {
+test('the two example data sets match the reference answers', () => {
   const q2rows = [
     [2740, 650, 1.404, 0.0009, 0.00, 0], [2500, 592, 1.374, 0.0010, 7.88, 5988.8], [2290, 545, 1.349, 0.0011, 18.42, 15565],
     [2109, 507, 1.329, 0.0012, 29.15, 26818], [1949, 471, 1.316, 0.0013, 40.69, 39673], [1818, 442, 1.303, 0.0014, 50.14, 51394],
@@ -129,7 +129,7 @@ test('HW 2 example and HW 1 data match the reference answers', () => {
   close(r.results.m, REF.q2.m, 1e-12);
   close(r.results.G, REF.q2.G, 1e-12);
   close(r.fit.r2, REF.q2.r2, 1e-12);
-  // the rounded handout data give a negative slope and a poor fit: both are flagged
+  // the rounded example data give a negative slope and a poor fit: both are flagged
   assert.ok(r.messages.warnings.some(m => m.code === 'm-neg'));
   assert.ok(r.messages.warnings.some(m => m.code === 'r2'));
   const r2 = E.analyze(q2rows, prm, { includeEfw: false });

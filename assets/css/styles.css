@@ -211,13 +211,18 @@ a { color: var(--focus); }
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
-.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .brand-mark { width: 34px; height: 34px; flex: none; }
+.brand-org { display: flex; align-items: center; flex: none; padding-right: 14px; border-right: 1px solid var(--line); }
+.brand-org:empty { display: none; }
+.brand-org:not(:empty) + .brand-mark { display: none; }
+.brand-crest { display: block; width: auto; height: 44px; }
 .brand-text { min-width: 0; }
 .brand h1 {
   font-family: var(--font-display); font-weight: 600; font-size: 21px; line-height: 1.1; letter-spacing: 0.005em;
 }
-.brand p { font-size: 13px; color: var(--muted); line-height: 1.3; }
+.brand .course { font-size: 12.5px; color: var(--ink-2); line-height: 1.3; margin-bottom: 2px; }
+.brand .course strong, .foot strong { font-weight: 600; color: var(--ink); letter-spacing: 0.02em; }
 .appbar-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
 /* ---------- shell ---------- */
@@ -548,7 +553,14 @@ footer.foot {
   padding: 18px var(--gutter-r) 26px var(--gutter);
   border-top: 1px solid var(--line);
   font-size: 12.5px; color: var(--muted);
-  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
+}
+.foot-course { display: flex; align-items: center; gap: 14px; }
+.foot-course p + p { margin-top: 2px; }
+.foot-logo {
+  display: block; flex: none; width: auto; height: 64px;
+  padding: 6px 8px; box-sizing: content-box;
+  background: #FFFFFF; border: 1px solid var(--line); border-radius: 8px;
 }
 
 /* drag overlay */
@@ -595,7 +607,9 @@ footer.foot {
   body { font-size: 14.5px; }
   .panel-head { grid-template-columns: minmax(0, 1fr); }
   .panel-tools { justify-content: flex-start; }
-  .brand p { display: none; }
+  .brand .course { font-size: 12px; }
+  .brand-crest { height: 40px; }
+  .brand-org { padding-right: 12px; }
   .appbar .btn span { display: none; }
   .appbar .btn { padding: 0 10px; }
   .ledger-grid { grid-template-columns: minmax(0, 1fr); }

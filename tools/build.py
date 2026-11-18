@@ -2,9 +2,10 @@
 Builds single-file versions of the dashboard from index.html and assets/.
 
     python3 tools/build.py            -> dist/havlena-odeh-analyzer.html (everything inline, works offline)
-    python3 tools/build.py --preview  -> dist/preview.html (libraries from cdnjs, downloads hidden;
+    python3 tools/build.py --preview  -> dist/preview.html (libraries from cdnjs, no university logo;
                                          used for the hosted preview page)
 """
+import base64
 import os
 import re
 import sys
@@ -28,6 +29,22 @@ def between(text, start, end):
     return text[i + len(start):j]
 
 
+def inline_images(html):
+    """Turn src="assets/img/x.png" into data URIs so the single file needs nothing else."""
+    def repl(m):
+        path = m.group(1)
+        with open(os.path.join(ROOT, path), "rb") as f:
+            data = base64.b64encode(f.read()).decode("ascii")
+        mime = "image/svg+xml" if path.endswith(".svg") else "image/png"
+        return 'src="data:%s;base64,%s"' % (mime, data)
+    return re.sub(r'src="(assets/img/[^"]+)"', repl, html)
+
+
+def strip_brand(html):
+    """Remove the university logo and name (marked with BRAND comments)."""
+    return re.sub(r"<!--BRAND-START-->.*?<!--BRAND-END-->", "", html, flags=re.S)
+
+
 def script(code):
     # keep "</script" inside the code from closing the tag
     return "<script>\n" + code.replace("</script", "<\\/script") + "\n</script>"
@@ -36,6 +53,7 @@ def script(code):
 def build(preview):
     html = read("index.html")
     body = between(html, "<!--BODY-START-->", "<!--BODY-END-->").strip()
+    body = strip_brand(body) if preview else inline_images(body)
     head = between(html, "<head>", "</head>")
     title = re.search(r"<title>.*?</title>", head, re.S).group(0)
     desc = re.search(r'<meta name="description"[^>]*>', head).group(0)

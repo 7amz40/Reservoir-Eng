@@ -2,7 +2,7 @@
   "name": "havlena-odeh-analyzer",
   "version": "1.0.0",
   "private": true,
-  "description": "Havlena–Odeh straight-line material balance dashboard (PNGE 4412, HW 2, question 2)",
+  "description": "Havlena–Odeh straight-line material balance dashboard for PNGE 4412 Reservoir Engineering, Sultan Qaboos University",
   "scripts": {
     "test": "node --test tests/*.test.js",
     "test:e2e": "python3 tests/e2e.py",
