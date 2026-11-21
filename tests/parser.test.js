@@ -258,3 +258,91 @@ test('a W_e column with no numbers is not used', async () => {
   close(r.result.results.N, 150e6, 1e-9, 'N');
   close(r.result.results.m, 0.4, 1e-9, 'm');
 });
+
+/* ---------- time column and undersaturated tables ---------- */
+
+async function csvBook(lines, name = 'book.csv') {
+  const { X } = require('./helpers');
+  const buf = Buffer.from(lines.join('\n'), 'utf8');
+  return X.readWorkbook(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), name);
+}
+function tableLines(s, cols) {
+  const out = [cols.map(c => c[0]).join(',')];
+  s.rows.forEach((r, i) => out.push(cols.map(c => c[1](r, i)).join(',')));
+  return out;
+}
+const PARAM_LINES = s => ['', 'pi,' + s.params.pi, 'Boi,' + s.params.Boi, 'Bgi,' + s.params.Bgi, 'Rsi,' + s.params.Rsi, 'Swc,' + s.params.Swc, 'Cw,' + s.params.Cw, 'Cf,' + s.params.Cf];
+const BASE_COLS = [['p (psia)', r => r.p], ['Np (STB)', r => r.Np], ['Gp (SCF)', r => r.Gp], ['Bo (rb/STB)', r => r.Bo], ['Rs (SCF/STB)', r => r.Rs], ['Bg (rb/SCF)', r => r.Bg]];
+
+test('a time column in years is read and converted to days', async () => {
+  const { synthetic } = require('./helpers');
+  const s = synthetic({ n: 6 });
+  const wb = await csvBook(tableLines(s, [['Time (years)', (r, i) => i]].concat(BASE_COLS)).concat(PARAM_LINES(s)));
+  const r = run(wb);
+  assert.equal(r.analysis.production.mapping.t, 0);
+  assert.equal(r.analysis.units.t, 'year');
+  assert.equal(r.inputs.hasTime, true);
+  assert.equal(r.inputs.rows[3].t, 3 * 365.25);
+});
+
+test('dates in a time column become days', async () => {
+  const { synthetic } = require('./helpers');
+  const s = synthetic({ n: 4 });
+  const dates = ['1990-01-01', '1991-01-01', '1992-01-01', '1993-01-01'];
+  const wb = await csvBook(tableLines(s, [['Date', (r, i) => dates[i]]].concat(BASE_COLS)).concat(PARAM_LINES(s)));
+  const r = run(wb);
+  assert.equal(r.inputs.hasTime, true);
+  close(r.inputs.rows[1].t - r.inputs.rows[0].t, 365, 1e-9, 'one year of days');
+});
+
+test('a temperature column is not taken as time, and an empty time column is not used', async () => {
+  const { synthetic } = require('./helpers');
+  const s = synthetic({ n: 4 });
+  const wbT = await csvBook(tableLines(s, BASE_COLS.concat([['T (°F)', () => 180]])).concat(PARAM_LINES(s)));
+  assert.equal(run(wbT).analysis.production.mapping.t, -1);
+  const wbE = await csvBook(tableLines(s, BASE_COLS.concat([['t (years)', () => '']])).concat(PARAM_LINES(s)));
+  const rE = run(wbE);
+  assert.equal(rE.inputs.hasTime, false);
+  assert.ok(rE.inputs.messages.infos.some(m => m.code === 't-gap'));
+});
+
+test('a table without R_s, B_g and G_p is read as undersaturated oil', async () => {
+  const { synthetic } = require('./helpers');
+  const s = synthetic({ m: 0, undersaturated: true, n: 6 });
+  const lines = tableLines(s, [['p (psia)', r => r.p], ['Np (STB)', r => r.Np], ['Bo (rb/STB)', r => r.Bo]])
+    .concat(['', 'pi,' + s.params.pi, 'Boi,' + s.params.Boi, 'Swc,' + s.params.Swc, 'Cw,' + s.params.Cw, 'Cf,' + s.params.Cf]);
+  const r = run(await csvBook(lines));
+  assert.equal(r.analysis.errors.length, 0);
+  assert.ok(r.analysis.infos.some(m => m.code === 'no-gas'));
+  assert.equal(r.inputs.noGas, true);
+  assert.equal(r.inputs.paramInfo.Bgi.source, 'not-needed');
+  const row = r.inputs.rows[2];
+  assert.equal(row.Rs, r.inputs.params.Rsi);
+  assert.equal(row.Gp, row.Np * r.inputs.params.Rsi);
+  // F = Np Bo, Eo = Bo − Boi, and no gas cap
+  const t = r.result.terms[2];
+  close(t.F, row.Np * row.Bo, 1e-12, 'F');
+  close(t.Eo, row.Bo - r.inputs.params.Boi, 1e-12, 'Eo');
+  assert.equal(t.Eg, 0);
+});
+
+test('R_s without B_g and G_p is reported as missing columns', async () => {
+  const { synthetic } = require('./helpers');
+  const s = synthetic({ n: 4 });
+  const lines = tableLines(s, [['p (psia)', r => r.p], ['Np (STB)', r => r.Np], ['Bo (rb/STB)', r => r.Bo], ['Rs (SCF/STB)', r => r.Rs]]).concat(PARAM_LINES(s));
+  const r = run(await csvBook(lines));
+  const err = r.analysis.errors.find(e => e.code === 'missing-columns');
+  assert.ok(err);
+  assert.deepEqual(err.fields.sort(), ['Bg', 'Gp']);
+});
+
+test('month-only dates are read, and a time column that never changes is not used', () => {
+  const { P: Parser } = require('./helpers');
+  return (async () => {
+    const r = await runFile(path.join(FIX, 'q2_shuffled_long_headers.xlsx'));
+    assert.equal(r.inputs.hasTime, true);
+    const t = r.inputs.rows.map(x => x.t);
+    close(t[1] - t[0], 31, 1e-9, 'January has 31 days');
+    close(t[2] - t[1], 28, 1e-9, 'February 2015 has 28 days');
+  })();
+});

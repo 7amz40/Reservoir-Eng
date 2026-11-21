@@ -88,6 +88,14 @@
       contains: [['water', 'influx'], ['aquifer', 'influx'], ['influx'], ['encroachment']],
       neg: ['rate', 'index', 'daily']
     },
+    t: {
+      label: 'Time', symbol: 't', kind: 'time', required: false, optional: true,
+      exact: ['t', 'time', 'date', 'year', 'years', 'yr', 'yrs', 'days', 'day', 'months', 'month', 'elapsedtime', 'productiontime',
+        'timeyears', 'timeyear', 'timedays', 'timemonths', 'tyears', 'tdays', 'tyr', 'productiondate', 'timesincestart', 'timeyr'],
+      tokens: ['time', 'date'],
+      contains: [['time'], ['date']],
+      neg: ['rate', 'temperature', 'temp', 'step', 'travel', 'tdi']
+    },
     Bw: {
       label: 'Water formation volume factor', symbol: 'B_w', kind: 'bw', required: false, optional: true,
       exact: ['bw', 'waterfvf', 'fvfwater', 'waterformationvolumefactor', 'watervolumefactor'],
@@ -96,8 +104,11 @@
       neg: ['initial']
     }
   };
-  var FIELD_ORDER = ['p', 'Np', 'Gp', 'Rp', 'Bo', 'Rs', 'Bg', 'Wp', 'Bw', 'We'];
+  var FIELD_ORDER = ['p', 'Np', 'Gp', 'Rp', 'Bo', 'Rs', 'Bg', 'Wp', 'Bw', 'We', 't'];
   var CORE_FIELDS = ['p', 'Np', 'Bo', 'Rs', 'Bg'];
+  // p, Np and Bo are always needed; R_s, B_g and G_p (or R_p) come together, or not at all for undersaturated oil
+  var REQUIRED_FIELDS = ['p', 'Np', 'Bo'];
+  var GAS_FIELDS = ['Rs', 'Bg', 'Gp'];
 
   var PARAMS = {
     pi: {
@@ -306,6 +317,19 @@
 
   /* ---------------- production table ---------------- */
 
+  /** A date written as text, as an Excel day number (days since 1899-12-30), or NaN. Month-only dates mean the 1st. */
+  function dateDays(text) {
+    var t = String(text).trim(), m;
+    if ((m = t.match(/^(\d{4})[-\/.](\d{1,2})$/))) return Date.UTC(+m[1], +m[2] - 1, 1) / 86400000 + 25569;   // 2015-01
+    if ((m = t.match(/^(\d{1,2})[-\/.](\d{4})$/))) return Date.UTC(+m[2], +m[1] - 1, 1) / 86400000 + 25569;   // 01/2015
+    if (!DATE_TEXT.test(t)) return NaN;
+    var ms = Date.parse(t);
+    return isFinite(ms) ? ms / 86400000 + 25569 : NaN;
+  }
+
+  // dates written as text: 1990-01-01, 1/1/1990, 1.1.1990, Jan 1, 1990, 1 Jan 1990, Jan 1990, Jan-90
+  var DATE_TEXT = /^\s*(\d{4}[-\/.]\d{1,2}[-\/.]\d{1,2}|\d{1,2}[-\/.]\d{1,2}[-\/.]\d{2,4}|[A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}[-\s][A-Za-z]{3,9}\.?[-\s]\d{2,4}|[A-Za-z]{3,9}\.?[-\s]\d{2,4})\s*$/;
+
   function unitTextFromCell(v) {
     if (typeof v !== 'string') return '';
     var t = U.cleanText(v).replace(/^[\(\[\{]\s*|\s*[\)\]\}]$/g, '');
@@ -325,6 +349,7 @@
       headers.push({ index: c, text: txt.trim(), label: txt.trim() || ('Column ' + (c + 1)) });
     }
 
+    if (auto.t && /^(°|º|deg)|^\s*(f|r|c|k)\s*$|fahrenheit|rankine|celsius|kelvin/i.test(auto.t.info.unit || '')) delete auto.t;
     var mapping = {}, mappingSource = {};
     FIELD_ORDER.forEach(function (f) {
       if (mappingOverride && Object.prototype.hasOwnProperty.call(mappingOverride, f)) {
@@ -363,6 +388,10 @@
       FIELD_ORDER.forEach(function (f) {
         var idx = mapping[f];
         if (idx === undefined || idx < 0) { rec[f] = NaN; return; }
+        if (f === 't' && typeof row[idx] === 'string') {
+          var day = dateDays(row[idx]);
+          if (isFinite(day)) { rec[f] = day; inlineUnits.t = 'date'; return; }
+        }
         var parsed = U.parseNumberWithUnit(row[idx]);
         rec[f] = parsed ? parsed.value : NaN;
         if (parsed && parsed.unit && !inlineUnits[f]) inlineUnits[f] = parsed.unit;
@@ -538,6 +567,14 @@
     units.Rp = fromText('Rp') || { id: 'SCF/STB', source: 'assumed', text: '' };
     units.Bo = fromText('Bo') || { id: 'rb/STB', source: 'assumed', text: '' };
     units.Bw = fromText('Bw') || { id: 'rb/STB', source: 'assumed', text: '' };
+    units.t = fromText('t');
+    if (!units.t || prod.inlineUnits.t === 'date') {
+      var tv = rows.map(function (r) { return r.t; }).filter(isFinite);
+      var maxT = Math.max.apply(null, tv.concat([0]));
+      var hdrT = (prod.mapping.t >= 0 && prod.headers[prod.mapping.t] ? prod.headers[prod.mapping.t].text : '').toLowerCase();
+      if (prod.inlineUnits.t === 'date' || /date/.test(hdrT) || maxT > 20000) units.t = { id: 'day', source: 'inferred', text: '' };
+      else if (!units.t) units.t = { id: 'year', source: 'assumed', text: '' };
+    }
     units.We = fromText('We');
     if (!units.We) {
       var maxWe = Math.max.apply(null, rows.map(function (r) { return Math.abs(r.We); }).filter(isFinite).concat([0]));
@@ -615,8 +652,14 @@
     prod.sheetIndex = chosen.sheetIndex;
     res.production = prod;
 
-    var missing = CORE_FIELDS.filter(function (f) { return prod.mapping[f] < 0; });
-    if (prod.mapping.Gp < 0 && prod.mapping.Rp < 0) missing.push('Gp');
+    var missing = REQUIRED_FIELDS.filter(function (f) { return prod.mapping[f] < 0; });
+    var gasHave = { Rs: prod.mapping.Rs >= 0, Bg: prod.mapping.Bg >= 0, Gp: prod.mapping.Gp >= 0 || prod.mapping.Rp >= 0 };
+    var gasCount = GAS_FIELDS.filter(function (f) { return gasHave[f]; }).length;
+    if (gasCount > 0 && gasCount < 3) GAS_FIELDS.forEach(function (f) { if (!gasHave[f]) missing.push(f); });
+    res.noGas = gasCount === 0;
+    if (res.noGas && !missing.length) {
+      res.infos.push({ code: 'no-gas', text: 'There are no R_s, B_g or G_p columns, so the oil is taken as undersaturated (above its bubble point): all gas produced is solution gas and there is no gas cap.' });
+    }
     if (missing.length && !res.errors.length) {
       res.errors.push({
         code: 'missing-columns', fields: missing,
@@ -709,8 +752,10 @@
       o.Wp = (prod.mapping.Wp >= 0 && isFinite(r.Wp)) ? U.toBase('oil', u.Wp, r.Wp) : 0;
       o.Bw = (prod.mapping.Bw >= 0 && isFinite(r.Bw)) ? U.toBase('bw', u.Bw, r.Bw) : 1;
       o.We = (prod.mapping.We >= 0 && isFinite(r.We)) ? U.toBase('rvol', u.We, r.We) : NaN;
+      o.t = (prod.mapping.t >= 0 && isFinite(r.t)) ? U.toBase('time', u.t || 'year', r.t) : NaN;
       return o;
     });
+    var noGas = !!analysis.noGas;
 
     // keep the time order: sort by cumulative oil (stable), so unsorted tables give the same answer
     var order = rows.map(function (r, i) { return i; });
@@ -783,6 +828,7 @@
       var fp = fileParam(k, spec[2], spec[3]);
       if (isFinite(userParams[k])) setParam(k, userParams[k], 'user');
       else if (fp) setParam(k, fp.value, 'file', fp);
+      else if (noGas && k !== 'Boi') setParam(k, k === 'Bgi' ? 1 : 0, 'not-needed'); // no free gas: the value cancels out
       else if (refRow) setParam(k, refRow[col], 'derived', { from: 'row ' + refRow.sheetRow + ' (p = ' + U.fmt(refRow.p, 0) + ' psia)' });
       else {
         setParam(k, NaN, 'missing');
@@ -810,6 +856,11 @@
       else if (fp) setParam(k, fp.value, 'file', fp);
       else setParam(k, NaN, 'missing');
     });
+
+    if (noGas) {
+      // above the bubble point: R_s = R_si, B_g plays no part, and all gas produced is solution gas (R_p = R_s)
+      rows.forEach(function (r) { r.Rs = P.Rsi; r.Bg = P.Bgi; r.Gp = r.Np * P.Rsi; });
+    }
 
     // sanity checks
     if (isFinite(P.Swc) && (P.Swc < 0 || P.Swc >= 1)) msgs.errors.push({ text: 'S_wc must be a fraction between 0 and 1, now ' + U.fmtAuto(P.Swc) + '. For 20 %, type 0.2 or 20%.' });
@@ -850,10 +901,32 @@
       msgs.infos.push({ code: 'we-empty', text: 'The W_e column (column ' + colLetter(prod.mapping.We) + ') has no numbers, so it is not used.' });
     }
 
+    // a time column with no numbers is treated as no column
+    var tMapped = prod.mapping.t >= 0;
+    var tRows = rows.filter(function (r) { return r.Np > 0; });
+    var hasTime = tMapped && tRows.length > 0 && tRows.every(function (r) { return isFinite(r.t); });
+    var tVals = rows.map(function (r) { return r.t; }).filter(isFinite);
+    var tFlat = hasTime && !(Math.max.apply(null, tVals) > Math.min.apply(null, tVals));
+    if (tFlat) {
+      hasTime = false;
+      msgs.infos.push({ code: 't-flat', text: 'The time column (column ' + colLetter(prod.mapping.t) + ') has the same value on every row, so it is not used.' });
+    } else if (tMapped && !hasTime) {
+      var someT = rows.some(function (r) { return isFinite(r.t); });
+      msgs.infos.push({ code: 't-gap', text: someT ? 'The time column (column ' + colLetter(prod.mapping.t) + ') has gaps, so it is not used.' : 'The time column (column ' + colLetter(prod.mapping.t) + ') has no numbers, so it is not used.' });
+    }
+    if (hasTime) {
+      for (var qt = 1; qt < rows.length; qt++) {
+        if (isFinite(rows[qt].t) && isFinite(rows[qt - 1].t) && rows[qt].t < rows[qt - 1].t) {
+          msgs.warnings.push({ code: 't-order', text: 'Time goes down at row ' + rows[qt].sheetRow + ' while N_p goes up. Check the time column.' });
+          break;
+        }
+      }
+    }
+
     var precision = roundingSteps(analysis, info);
     return {
       rows: rows, params: P, paramInfo: info, initialRow: initialRow, refRow: refRow, messages: msgs, precision: precision,
-      hasWe: hasWe, weEmpty: weMapped && !hasWe
+      hasWe: hasWe, weEmpty: weMapped && !hasWe, hasTime: hasTime, noGas: noGas
     };
   }
 
@@ -929,6 +1002,7 @@
     FIELDS: FIELDS,
     FIELD_ORDER: FIELD_ORDER,
     CORE_FIELDS: CORE_FIELDS,
+    REQUIRED_FIELDS: REQUIRED_FIELDS,
     PARAMS: PARAMS,
     PARAM_ORDER: PARAM_ORDER,
     PARAM_BASE: PARAM_BASE,

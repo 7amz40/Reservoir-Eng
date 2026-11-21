@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Havlena–Odeh Analyzer</title>
-  <meta name="description" content="Material balance dashboard: reads production and PVT data from Excel and finds N, m and G with the Havlena–Odeh straight-line method.">
+  <meta name="description" content="Material balance dashboard: reads production and PVT data from Excel, finds the drive mechanism with Havlena–Odeh diagnostics, and gives N, m, G and the water influx.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect x='.5' y='.5' width='33' height='33' rx='7' fill='%23FAFCF9' stroke='%23BFCCC6'/%3E%3Cpath d='M7 6v21h21' fill='none' stroke='%2313221E' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M7 21.5L28 10' stroke='%2313221E' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='14' cy='17.6' r='2.4' fill='%231E8A50'/%3E%3Ccircle cx='20' cy='14.6' r='2.4' fill='%231E8A50'/%3E%3Ccircle cx='25' cy='11.4' r='2.4' fill='%231E8A50'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,7 +53,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/></svg>
           <p class="drop-title">Drop an Excel file here</p>
           <p class="drop-sub">or <span class="linklike">choose a file</span></p>
-          <p class="drop-hint" id="drop-hint">.xlsx or .csv with columns <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub>, <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub></p>
+          <p class="drop-hint" id="drop-hint">.xlsx or .csv with columns <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub>, <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub>, and time if you have it</p>
         </div>
         <input type="file" id="file" class="sr-only" tabindex="-1" aria-hidden="true" accept=".xlsx,.xlsm,.csv,.txt,.xls,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
 
@@ -80,6 +80,8 @@
             <li>A table with a header row: pressure <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub> (or <var>R</var><sub>p</sub>), <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub> and <var>B</var><sub>g</sub>, in any order. Units in the header, like “Np (MMSTB)”, are read.</li>
             <li>The initial parameters <var>p</var><sub>i</sub>, <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub>, <var>R</var><sub>si</sub>, <var>S</var><sub>wc</sub>, <var>C</var><sub>w</sub>, <var>C</var><sub>f</sub> as label and value pairs, on a second sheet or beside or below the table.</li>
             <li>If <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub> or <var>R</var><sub>si</sub> are missing, they are read from the table row at <var>p</var><sub>i</sub>.</li>
+            <li>Optional columns: time (<var>t</var> in years, months or days, or dates), water produced <var>W</var><sub>p</sub>, and water influx <var>W</var><sub>e</sub> if you know it. Time lets the dashboard test steady- and unsteady-state aquifers.</li>
+            <li>For oil above its bubble point, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub> and <var>G</var><sub>p</sub> can be left out.</li>
             <li>The file stays on your computer. Nothing is uploaded.</li>
           </ul>
         </details>
@@ -98,22 +100,48 @@
       </div>
     </details>
 
-    <details class="side-sec" id="sec-aq" open>
-      <summary>Water influx <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+    <details class="side-sec" id="sec-drive" open>
+      <summary>Drive mechanism <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
       <div class="side-body">
-        <p class="side-note">For a combination drive, the water influx <var>W</var><sub>e</sub> is taken off <var>F</var> before the line is fitted.</p>
-        <div class="aq-opts" role="radiogroup" aria-label="Water influx">
-          <label class="radio"><input type="radio" name="aq" value="none"> <span>No water influx</span></label>
-          <label class="radio"><input type="radio" name="aq" value="column"> <span><var>W</var><sub>e</sub> from a column in the file<small id="aq-col-note"></small></span></label>
-          <label class="radio"><input type="radio" name="aq" value="pot"> <span>Pot aquifer, <var>W</var><sub>e</sub> = <var>K</var> (<var>p</var><sub>i</sub> − <var>p</var>)<small>Change <var>K</var> until the points make a straight line, or let the dashboard find it.</small></span></label>
+        <p class="side-note">The dashboard tries every mechanism and keeps the one the data support. Pick one to see its results instead.</p>
+        <div class="aq-opts" role="radiogroup" aria-label="Drive mechanism">
+          <label class="radio"><input type="radio" name="mech" value="auto" checked> <span>Find it from the data<small id="mech-found"></small></span></label>
+          <label class="radio"><input type="radio" name="mech" value="depletion"> <span>Depletion (solution gas, rock and fluid expansion)</span></label>
+          <label class="radio"><input type="radio" name="mech" value="gascap"> <span>Gas cap</span></label>
+          <label class="radio"><input type="radio" name="mech" value="water"> <span>Water drive</span></label>
+          <label class="radio"><input type="radio" name="mech" value="combination"> <span>Gas cap and water drive</span></label>
         </div>
-        <div class="aq-pot" id="aq-pot" hidden>
-          <div class="prm">
-            <label for="aq-k"><span class="sym"><var>K</var></span> <span class="nm">Aquifer constant</span></label>
-            <div class="prm-input"><input id="aq-k" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"><span class="unit">rb/psi</span></div>
+        <div class="aq-box" id="aq-box">
+          <label class="field-l" for="aq-model">Aquifer model</label>
+          <select id="aq-model">
+            <option value="auto">Best fit of the models below</option>
+            <option value="pot">Pot aquifer</option>
+            <option value="steady">Steady state (Schilthuis)</option>
+            <option value="veh">Unsteady state (van Everdingen–Hurst)</option>
+            <option value="column">From the file (W_e column)</option>
+          </select>
+          <p class="field-note" id="aq-note"></p>
+          <div class="aq-pot" id="aq-pot" hidden>
+            <div class="prm">
+              <label for="aq-k"><span class="sym"><var>K</var></span> <span class="nm">Pot aquifer constant</span></label>
+              <div class="prm-input"><input id="aq-k" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="fitted"><span class="unit">rb/psi</span></div>
+            </div>
+            <input type="range" id="aq-range" min="0" max="100000" step="100" value="0" aria-label="Pot aquifer constant K, rb/psi">
+            <button class="btn-quiet" type="button" id="aq-best">Fit <var>K</var> again</button>
           </div>
-          <input type="range" id="aq-range" min="0" max="100000" step="100" value="0" aria-label="Aquifer constant K, rb/psi">
-          <button class="btn-quiet" type="button" id="aq-best">Find the best <var>K</var></button>
+          <div class="aq-veh" id="aq-veh" hidden>
+            <label class="field-l" for="aq-red">Aquifer size, <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub></label>
+            <select id="aq-red"></select>
+          </div>
+          <div class="aq-time" id="aq-time" hidden>
+            <label class="field-l" for="aq-steps">Time between rows</label>
+            <select id="aq-steps">
+              <option value="auto">Equal steps, only if needed</option>
+              <option value="steps">Equal steps</option>
+              <option value="none">Unknown</option>
+            </select>
+            <p class="field-note">The file has no time column. Steady- and unsteady-state aquifers need time.</p>
+          </div>
           <p class="aq-read" id="aq-read" aria-live="polite"></p>
         </div>
       </div>
@@ -147,6 +175,16 @@
   <main id="main" tabindex="-1">
     <div class="alert" id="alert" role="alert" hidden></div>
 
+    <section class="verdict" id="verdict" aria-labelledby="verdict-title" aria-live="polite">
+      <div class="verdict-main">
+        <p class="verdict-k" id="verdict-k">Drive mechanism, found from the data</p>
+        <h2 class="verdict-title" id="verdict-title">–</h2>
+        <p class="verdict-sub" id="verdict-sub"></p>
+        <div class="shares" id="shares"></div>
+      </div>
+      <ul class="evidence" id="evidence" aria-label="How the mechanism was found"></ul>
+    </section>
+
     <section class="ledger" id="ledger" aria-labelledby="ledger-title">
       <h2 class="sr-only" id="ledger-title">Results</h2>
       <div class="ledger-line">
@@ -171,6 +209,12 @@
           <div class="res-top"><span class="res-sym">G</span><span class="res-name">Gas-cap gas initially in place</span></div>
           <div class="res-val"><span class="val">–</span><span class="u"></span></div>
           <div class="res-how"><var>G</var> = <var>mN</var> <var>B</var><sub>oi</sub> / <var>B</var><sub>gi</sub></div>
+          <div class="res-ci"></div>
+        </div>
+        <div class="res" id="res-We" hidden>
+          <div class="res-top"><span class="res-sym">W<sub>e</sub></span><span class="res-name">Water influx at the last step</span></div>
+          <div class="res-val"><span class="val">–</span><span class="u"></span></div>
+          <div class="res-how" id="res-We-how"></div>
           <div class="res-ci"></div>
         </div>
       </div>
@@ -209,6 +253,29 @@
       </div>
     </section>
 
+    <section class="panel" id="panel-diag" aria-labelledby="diag-title">
+      <div class="panel-head">
+        <div>
+          <h2 id="diag-title">How the mechanism was found</h2>
+          <p class="panel-sub">With depletion alone, <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>) is the same at every step: an apparent <var>N</var>. A gas cap or an aquifer makes it drift. Each mechanism is then fitted the Havlena–Odeh way and kept only if it makes physical sense and fits <var>F</var>.</p>
+        </div>
+        <div class="panel-tools">
+          <button class="btn-quiet" type="button" id="png-app" data-download>PNG</button>
+        </div>
+      </div>
+      <div class="diag-grid">
+        <div>
+          <p class="mini-h">Apparent <var>N</var> at each step</p>
+          <ul class="legend" id="legend-app"></ul>
+          <div class="chart" id="chart-app"></div>
+        </div>
+        <div class="models-wrap">
+          <p class="mini-h">Models tried <span>(misfit = root mean square of the relative error in <var>F</var>)</span></p>
+          <div class="table-wrap"><table class="models" id="models"></table></div>
+        </div>
+      </div>
+    </section>
+
     <div class="pair">
       <section class="panel" aria-labelledby="check-title">
         <div class="panel-head">
@@ -230,7 +297,7 @@
         <div class="panel-head">
           <div>
             <h2 id="drive-title">Drive indices</h2>
-            <p class="panel-sub">Share of the production supported by each mechanism, at the fitted <var>N</var> and <var>m</var>.</p>
+            <p class="panel-sub">Share of the production supported by each mechanism, from the fitted <var>N</var>, <var>m</var> and <var>W</var><sub>e</sub>.</p>
           </div>
           <div class="panel-tools">
             <button class="btn-quiet" type="button" id="png-drive" data-download>PNG</button>
@@ -294,7 +361,12 @@
 
     <section class="method" aria-labelledby="method-title">
       <h2 id="method-title">Method</h2>
-      <p>Havlena and Odeh (1963) wrote the material balance as a straight line. With both <var>N</var> and <var>m</var> unknown, a plot of <var>y</var> against <var>x</var> gives <var>N</var> as the intercept and <var>mN</var> as the slope. Both axes hold (1 + <var>m</var>) <var>E</var><sub>fw</sub>, so the line is fitted again with the new <var>m</var> until <var>m</var> stops changing, which takes a few rounds. Without <var>E</var><sub>fw</sub> the plot is <var>F</var>/<var>E</var><sub>o</sub> against <var>E</var><sub>g</sub>/<var>E</var><sub>o</sub>. For a combination drive, the water influx <var>W</var><sub>e</sub> is taken off <var>F</var> first; for a pot aquifer, <var>K</var> is changed by trial and error until the points make a straight line, and the dashboard can also find the <var>K</var> that fits best by least squares.</p>
+      <p>Havlena and Odeh (1963) wrote the material balance as a straight line, one for each drive mechanism (Week 7, slides 35 to 41). The dashboard uses them to find the mechanism in three steps.</p>
+      <ol class="method-steps">
+        <li><strong>Depletion check.</strong> With depletion alone, the apparent <var>N</var> = <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>) is the same at every step. If it drifts, more energy is acting.</li>
+        <li><strong>Fit every mechanism.</strong> Depletion: <var>F</var> against <var>E</var><sub>t</sub> through the origin. Gas cap: the straight line below, with <var>N</var> as the intercept and <var>mN</var> as the slope. Water drive: <var>F</var>/<var>E</var><sub>t</sub> against <var>W</var><sub>e</sub>/<var>E</var><sub>t</sub>, a line of slope 1 that meets the axis at <var>N</var>, with a pot, steady-state or unsteady-state aquifer. Gas cap and water drive together. The aquifer constants are found by least squares, which does the trial and error for you; you can also set them by hand.</li>
+        <li><strong>Keep what the data support.</strong> A model counts only if <var>N</var>, <var>m</var> and the aquifer constant are positive, each mechanism in it supplies at least 2 % of <var>F</var>, and their signs survive rounding the table within its last digit (90 % of 120 trials). Of those, the one with the lowest AICc (Akaike’s criterion, corrected for few points) on the relative misfit of <var>F</var> wins; within 2 of it, the one with fewer constants wins. Without a time column, steady- and unsteady-state aquifers are tried only when nothing simpler fits, with the rows taken as equal time steps.</li>
+      </ol>
       <div class="eqs">
         <div class="eq">
           <span class="eq-name">Underground withdrawal</span>
@@ -329,11 +401,27 @@
           <div class="eqn wrap"><span class="part"><span class="word">DDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N</var> <var>E</var><sub>o</sub></span><span class="den"><var>F</var></span></span></span><span class="gap"></span><span class="part"><span class="word">SDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N m</var> <var>E</var><sub>g</sub></span><span class="den"><var>F</var></span></span></span><span class="gap"></span><span class="part"><span class="word">CDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N</var> (1<span class="op">+</span><var>m</var>) <var>E</var><sub>fw</sub></span><span class="den"><var>F</var></span></span></span><span class="gap"></span><span class="part"><span class="word">WDI</span><span class="op">=</span><span class="frac"><span class="num"><var>W</var><sub>e</sub></span><span class="den"><var>F</var></span></span></span></div>
         </div>
         <div class="eq">
+          <span class="eq-name">Depletion (slide 37)</span>
+          <div class="eqn"><var>F</var><span class="op">=</span><var>N</var> <var>E</var><sub>t</sub>,<span class="gap"></span><var>E</var><sub>t</sub><span class="op">=</span><var>E</var><sub>o</sub><span class="op">+</span><var>m</var> <var>E</var><sub>g</sub><span class="op">+</span>(1<span class="op">+</span><var>m</var>) <var>E</var><sub>fw</sub></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Water drive (slide 41)</span>
+          <div class="eqn"><span class="frac"><span class="num"><var>F</var></span><span class="den"><var>E</var><sub>t</sub></span></span><span class="op">=</span><var>N</var><span class="op">+</span><span class="frac"><span class="num"><var>W</var><sub>e</sub></span><span class="den"><var>E</var><sub>t</sub></span></span></div>
+        </div>
+        <div class="eq">
           <span class="eq-name">Pot aquifer</span>
           <div class="eqn"><var>W</var><sub>e</sub><span class="op">=</span><var>K</var> (<var>p</var><sub>i</sub><span class="op">−</span><var>p</var>),<span class="gap"></span><var>K</var><span class="op">=</span>(<var>c</var><sub>w</sub><span class="op">+</span><var>c</var><sub>f</sub>) <var>W</var><sub>i</sub> <var>f</var></div>
         </div>
+        <div class="eq">
+          <span class="eq-name">Steady state (Schilthuis)</span>
+          <div class="eqn"><var>W</var><sub>e</sub><span class="op">=</span><var>C</var> ∫<sub>0</sub><sup><var>t</var></sup> (<var>p</var><sub>i</sub><span class="op">−</span><var>p</var>) d<var>t</var></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Unsteady state (van Everdingen–Hurst, radial)</span>
+          <div class="eqn wrap"><span class="part"><var>W</var><sub>e</sub><span class="op">=</span><var>U</var> Σ Δ<var>p</var><sub><var>j</var></sub> <var>W</var><sub>D</sub>(<var>t</var><sub>D</sub><span class="op">−</span><var>t</var><sub>D<var>j</var></sub>)</span><span class="gap"></span><span class="part"><var>t</var><sub>D</sub><span class="op">=</span><var>a t</var></span><span class="gap"></span><span class="part"><var>U</var><span class="op">=</span>1.119 <var>f φ c h r</var><sub>o</sub><sup>2</sup></span></div>
+        </div>
       </div>
-      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub> in psi⁻¹. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method.</p>
+      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub> in psi⁻¹. <var>t</var> in days. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method. <var>W</var><sub>D</sub> comes from the van Everdingen–Hurst solution for a radial aquifer at constant terminal pressure, with <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub> from 1.5 to 50 or infinite, and the steps Δ<var>p</var><sub><var>j</var></sub> are the averaged ones used by Dake (1978).</p>
     </section>
   </main>
 </div>
@@ -361,6 +449,8 @@
 <script src="assets/js/xlsxio.js"></script>
 <script src="assets/js/parser.js"></script>
 <script src="assets/js/mbe.js"></script>
+<script src="assets/js/wdtable.js"></script>
+<script src="assets/js/drive.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

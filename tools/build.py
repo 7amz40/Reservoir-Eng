@@ -12,7 +12,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST = os.path.join(ROOT, "dist")
-APP_JS = ["units.js", "xlsxio.js", "parser.js", "mbe.js", "charts.js", "app.js"]
+APP_JS = ["units.js", "xlsxio.js", "parser.js", "mbe.js", "wdtable.js", "drive.js", "charts.js", "app.js"]
 VENDOR = [
     ("d3.v7.9.0.min.js", "https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"),
     ("jszip.v3.10.1.min.js", "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"),

@@ -1,18 +1,18 @@
 /*
  * app.js
  * Wires the Havlena–Odeh analyzer together: file loading, state, rendering and exports.
- * Depends on d3, JSZip and the HOUnits, HOXlsx, HOParser, HOEngine and HOCharts globals.
+ * Depends on d3, JSZip and the HOUnits, HOXlsx, HOParser, HOEngine, HODrive and HOCharts globals.
  */
 (function () {
   'use strict';
 
-  var U = window.HOUnits, X = window.HOXlsx, P = window.HOParser, E = window.HOEngine, C = window.HOCharts;
+  var U = window.HOUnits, X = window.HOXlsx, P = window.HOParser, E = window.HOEngine, D = window.HODrive, C = window.HOCharts;
   var $ = function (id) { return document.getElementById(id); };
   var PREVIEW = window.HO_PREVIEW === true;
   if (PREVIEW) document.documentElement.classList.add('is-preview');
 
   /* ------------------------------------------------------------------
-   * Example data set: a gas-cap oil reservoir, with the initial parameters on a second sheet
+   * Example data set (the course example), with the initial parameters on a second sheet
    * ------------------------------------------------------------------ */
   var EX_PROD = [
     ['P (psia)', 'Rs (SCF/STB)', 'Bo (rb/STB)', 'Bg (rb/SCF)', 'Np (MMSTB)', 'Gp (MMSCF)'],
@@ -64,7 +64,7 @@
   /** Escape, then turn B_g, p_i, E_fw ... into italic symbols with subscripts. */
   function rich(text) {
     return esc(text)
-      .replace(/\b([NmGK])\b/g, '<var>$1</var>')
+      .replace(/\b([NmGKU])\b/g, '<var>$1</var>')
       .replace(/\b([A-Za-z])_([A-Za-z]{1,3})\b/g, '<var>$1</var><sub>$2</sub>');
   }
   function minus(s) { return String(s).replace(/^-/, '−'); }
@@ -106,8 +106,11 @@
     mNow: null,
     out: { N: 'MMSTB', G: 'MMMSCF' },
     tableAll: false,
-    aquifer: { mode: 'auto', K: 0 }, // 'auto' = the file's W_e column when it has one, else none
-    aqNote: '',
+    mech: 'auto',        // drive mechanism: 'auto' (found from the data), 'depletion', 'gascap', 'water', 'combination'
+    aqModel: 'auto',     // aquifer: 'auto' (best fit, or the W_e column when the file has one), 'pot', 'steady', 'veh', 'column'
+    potK: null,          // pot aquifer constant set by hand (rb/psi); null = fitted
+    reD: null,           // aquifer size r_e/r_o set by hand; null = fitted
+    timeMode: 'auto',    // without a time column: 'auto' (equal steps only if needed), 'steps', 'none'
     bundle: null,
     fileError: null
   };
@@ -120,31 +123,63 @@
   function compute() {
     var wb = state.source.wb;
     var analysis = P.analyzeWorkbook(wb, state.overrides);
-    var b = { analysis: analysis, inputs: null, result: null, blocking: false };
+    var b = { analysis: analysis, inputs: null, result: null, detection: null, model: null, blocking: false };
     b.blocking = analysis.errors.some(function (e) { return BLOCKING[e.code]; });
     if (!b.blocking && analysis.production && analysis.production.rows.length) {
       b.inputs = P.buildInputs(analysis, { params: state.paramEdits });
-      b.aquifer = resolveAquifer(b.inputs);
       if (!b.inputs.messages.errors.length) {
-        b.result = E.analyze(b.inputs.rows, b.inputs.params, engineOpts(b));
+        b.detection = detect(b);
+        b.model = b.detection.best;
+        b.result = runModel(b);
+        b.view = b.result.fit && b.result.fit.kind === 'origin' ? 'origin' : (b.result.fit && b.result.fit.kind === 'water' ? 'water' : 'line');
       }
     }
     return b;
   }
 
-  function resolveAquifer(inputs) {
-    var mode = state.aquifer.mode;
-    if (mode === 'auto') mode = inputs && inputs.hasWe ? 'column' : 'none';
-    if (mode === 'column' && !(inputs && inputs.hasWe)) mode = 'none';
-    return { mode: mode, K: mode === 'pot' ? state.aquifer.K : 0 };
+  function excludedIds(b) {
+    return b.inputs.rows.filter(function (r) { return state.excluded.has(r.sheetRow); }).map(function (r) { return r.id; });
   }
 
-  function engineOpts(b) {
-    var ids = b.inputs.rows.filter(function (r) { return state.excluded.has(r.sheetRow); }).map(function (r) { return r.id; });
-    return { includeEfw: state.includeEfw, excluded: ids, precision: b.inputs.precision, aquifer: b.aquifer };
+  function engineOpts(b, extra) {
+    return Object.assign({ includeEfw: state.includeEfw, excluded: excludedIds(b), precision: b.inputs.precision }, extra || {});
   }
 
-  function influxOn(b) { return !!(b.aquifer && b.aquifer.mode !== 'none'); }
+  function useWeColumn(inputs) {
+    return !!(inputs && inputs.hasWe) && (state.aqModel === 'auto' || state.aqModel === 'column');
+  }
+
+  /** Runs the drive-mechanism detection (or the mechanism chosen by hand). */
+  function detect(b) {
+    var inp = b.inputs, P0 = inp.params, col = useWeColumn(inp);
+    return D.detect(inp.rows, P0, {
+      includeEfw: state.includeEfw, excluded: excludedIds(b), precision: inp.precision,
+      hasTime: inp.hasTime, time: state.timeMode, mech: state.mech,
+      aquifer: col || state.aqModel === 'column' ? 'auto' : state.aqModel, weColumn: col,
+      potK: isFinite(state.potK) && state.potK !== null ? state.potK : null, reD: state.reD,
+      mKnown: isFinite(P0.m) && P0.m >= 0 ? P0.m : null,
+      undersaturated: inp.noGas ? true : undefined,
+      undersaturatedText: inp.noGas ? 'There are no R_s, B_g or G_p columns, so the oil is taken as undersaturated: no free gas and no gas cap.' : undefined
+    });
+  }
+
+  /** The engine's analysis for the chosen model: its Havlena–Odeh line, N, m, W_e and the drive indices. */
+  function runModel(b) {
+    var c = b.model, rows = b.inputs.rows, P0 = b.inputs.params;
+    if (!c) return E.analyzeOrigin(rows, P0, engineOpts(b, { mFixed: 0 }));
+    if (c.key === 'depletion') return E.analyzeOrigin(rows, P0, engineOpts(b, { mFixed: 0 }));
+    if (c.key === 'gascap-known') return E.analyzeOrigin(rows, P0, engineOpts(b, { mFixed: c.mFixed }));
+    if (c.key === 'gascap') return E.analyze(rows, P0, engineOpts(b, { aquifer: { mode: 'none' } }));
+    if (c.key === 'water-column') return E.analyzeOrigin(rows, P0, engineOpts(b, { mFixed: c.mFixed || 0, aquifer: { mode: 'column' } }));
+    if (c.key === 'comb-column') return E.analyze(rows, P0, engineOpts(b, { aquifer: { mode: 'column' } }));
+    if (c.key.indexOf('water-') === 0) return E.analyzeWater(rows, P0, engineOpts(b, { S: c.S, U: c.waterFitted ? null : c.U, mFixed: c.mFixed || 0 }));
+    // gas cap and water drive: the gas-cap line with W_e from the fitted aquifer
+    var We = {};
+    Object.keys(c.S).forEach(function (id) { We[id] = c.fit.U * c.S[id]; });
+    return E.analyze(rows, P0, engineOpts(b, { aquifer: { mode: 'series', We: We } }));
+  }
+
+  function influxOn(b) { return !!(b.model && b.model.water); }
 
   function recompute(opts) {
     opts = opts || {};
@@ -161,11 +196,13 @@
     renderAlert(b);
     renderSource(b);
     renderParams(b);
-    renderAquifer(b);
+    renderDrive(b);
     renderColumns(b);
+    renderVerdict(b);
     renderLedger(b);
     renderNotes(b);
     renderCharts(b, opts);
+    renderDiag(b, opts);
     renderTable(b);
     announce(b, opts);
   }
@@ -341,8 +378,56 @@
     $('efw').checked = state.includeEfw;
   }
 
-  /* ---------- water influx ---------- */
-  /** Top of the K slider: the K at which W_e would equal F at some point. */
+  /* ---------- drive mechanism: wording shared by the sidebar, the verdict and the tables ---------- */
+  function reText(r) { return r === Infinity || r === 'inf' ? '∞' : String(r); }
+  function pctText(v) { var a = Math.abs(v * 100); return (a >= 10 ? a.toFixed(0) : a >= 1 ? a.toFixed(1) : a.toFixed(2)) + ' %'; }
+
+  /** Time constant of the unsteady-state aquifer in words: t_D per day, per year, or per row step. */
+  function tdText(b, a) {
+    if (b.detection && b.detection.timeMode === 'steps') return fmtSig(a, 3) + ' per row';
+    return fmtSig(a * 365.25, 3) + ' per year';
+  }
+
+  /** The aquifer of a model, in words (rich text). */
+  function aquiferText(b, c) {
+    if (!c || !c.water) return '';
+    var set = c.waterFitted ? '' : ' (set by you)';
+    if (c.aquifer === 'column') return 'W_e from the file';
+    if (c.aquifer === 'pot') return 'Pot aquifer, K = ' + fmtFixed(c.fit.U, 0) + ' rb/psi' + set;
+    if (c.aquifer === 'steady') return 'Steady-state aquifer, C = ' + fmtSig(c.fit.U * (b.detection.timeMode === 'steps' ? 1 : 365.25), 4) + (b.detection.timeMode === 'steps' ? ' rb/psi per row' : ' rb/psi per year');
+    if (c.aquifer === 'veh') return 'Unsteady-state aquifer (van Everdingen–Hurst), r_e/r_o = ' + reText(c.reD) + ', U = ' + fmtFixed(c.fit.U, 0) + ' rb/psi, t_D = ' + tdText(b, c.a);
+    return '';
+  }
+
+  function familyName(b) {
+    var c = b.model;
+    if (!c) return 'No clear drive mechanism';
+    return D.NAMES[c.family];
+  }
+
+  /** One line under the mechanism: what it consists of. */
+  function familyLine(b) {
+    var c = b.model, det = b.detection;
+    if (!c) return 'No mechanism both makes physical sense and fits the data. The results below are for depletion alone.';
+    var parts = [];
+    var sat = det.saturation || {};
+    if (c.family === 'depletion') {
+      parts.push(b.inputs.noGas || sat.allAbove ? 'Oil and rock expansion above the bubble point' : 'Solution gas and rock expansion');
+      parts.push('no gas cap, no water influx');
+    } else if (c.family === 'gascap') {
+      parts.push(c.key === 'gascap-known' ? 'Gas cap of the given size, m = ' + fmtM(c.mFixed) : 'Gas cap, m = ' + fmtM(b.result.results ? b.result.results.m : c.fit.m));
+      parts.push('no water influx');
+    } else if (c.family === 'water') {
+      parts.push(aquiferText(b, c));
+      if (!(c.mFixed > 0)) parts.push('no gas cap');
+    } else {
+      parts.push('Gas cap, m = ' + fmtM(b.result.results ? b.result.results.m : c.fit.m));
+      parts.push(aquiferText(b, c).replace(/^./, function (x) { return x.toLowerCase(); }));
+    }
+    return parts.join('; ') + '.';
+  }
+
+  /* ---------- drive mechanism (sidebar) ---------- */
   function potKmax(b) {
     var k = 0;
     (b.result ? b.result.terms : []).forEach(function (t) {
@@ -353,53 +438,160 @@
     return Math.ceil(k / mag) * mag;
   }
 
-  function renderAquifer(b) {
-    var mode = b.aquifer ? b.aquifer.mode : 'none';
-    var hasWe = !!(b.inputs && b.inputs.hasWe);
-    document.querySelectorAll('input[name="aq"]').forEach(function (r) {
-      r.checked = r.value === mode;
-      r.disabled = !b.inputs || (r.value === 'column' && !hasWe);
+  var redBuilt = false;
+  function renderDrive(b) {
+    document.querySelectorAll('input[name="mech"]').forEach(function (r) {
+      r.checked = r.value === state.mech;
+      r.disabled = !b.inputs;
+      if (r.value === 'gascap' || r.value === 'combination') r.disabled = !b.inputs || !!b.inputs.noGas;
     });
-    var prod = b.analysis.production;
-    $('aq-col-note').innerHTML = hasWe
-      ? esc('Column ' + P.colLetter(prod.mapping.We) + ', “' + (prod.headers[prod.mapping.We].text || '') + '”')
-      : rich(b.inputs && b.inputs.weEmpty ? 'The W_e column in this file is empty.' : 'There is no W_e column in this file.');
-    $('aq-pot').hidden = mode !== 'pot';
-    if (mode !== 'pot') return;
-    var range = $('aq-range');
-    var max = Math.max(potKmax(b), state.aquifer.K || 0);
-    range.max = max;
-    range.step = max / 1000;
-    range.value = state.aquifer.K || 0;
-    var kin = $('aq-k');
-    if (document.activeElement !== kin) kin.value = fmtFixed(state.aquifer.K || 0, 0);
-    $('aq-read').innerHTML = state.aqNote ? rich(state.aqNote) : '';
+    var c = b.model, det = b.detection;
+    $('mech-found').innerHTML = state.mech === 'auto' && det ? 'Found: ' + esc(familyName(b)) : '';
+    if (!redBuilt) {
+      $('aq-red').innerHTML = '<option value="">Best fit</option>' + D.REDS.map(function (r) {
+        return '<option value="' + (r === Infinity ? 'inf' : r) + '">' + reText(r) + (r === Infinity ? ' (infinite aquifer)' : '') + '</option>';
+      }).join('');
+      redBuilt = true;
+    }
+    // the aquifer settings stay in view while water drive is possible: in automatic mode, and for the two water mechanisms
+    var waterShown = state.mech === 'auto' || state.mech === 'water' || state.mech === 'combination';
+    var hasWe = !!(b.inputs && b.inputs.hasWe);
+    $('aq-box').hidden = !b.inputs || !waterShown;
+    var sel = $('aq-model');
+    sel.value = state.aqModel;
+    sel.querySelector('option[value="column"]').disabled = !hasWe;
+    var active = c && c.water ? c.aquifer : (state.aqModel !== 'auto' ? state.aqModel : '');
+    var note = '';
+    if (hasWe && useWeColumn(b.inputs)) {
+      var prod = b.analysis.production;
+      note = 'Using W_e from column ' + P.colLetter(prod.mapping.We) + '. Choose another model to fit an aquifer instead.';
+    } else if (state.aqModel === 'auto' && c && c.water) {
+      note = 'Best fit: ' + ({ pot: 'pot aquifer', steady: 'steady state', veh: 'unsteady state' }[c.aquifer] || '') + '.';
+    }
+    $('aq-note').innerHTML = rich(note);
+    // pot aquifer: K by hand (trial and error) or fitted
+    $('aq-pot').hidden = active !== 'pot';
+    if (active === 'pot') {
+      var K = c && c.aquifer === 'pot' ? c.fit.U : (isFinite(state.potK) ? state.potK : 0);
+      var range = $('aq-range');
+      var max = Math.max(potKmax(b), K || 0, state.potK || 0);
+      range.max = max; range.step = max / 1000; range.value = Math.max(0, K || 0);
+      var kin = $('aq-k');
+      if (document.activeElement !== kin) kin.value = state.potK !== null && isFinite(state.potK) ? fmtFixed(state.potK, 0) : '';
+      kin.placeholder = c && c.aquifer === 'pot' && c.waterFitted ? 'fitted: ' + fmtFixed(c.fit.U, 0) : 'fitted';
+      $('aq-best').hidden = state.potK === null;
+    }
+    // unsteady state: aquifer size
+    $('aq-veh').hidden = active !== 'veh';
+    $('aq-red').value = state.reD === null ? '' : (state.reD === Infinity ? 'inf' : String(state.reD));
+    // time between rows (only when the file has none)
+    $('aq-time').hidden = !b.inputs || b.inputs.hasTime || hasWe && useWeColumn(b.inputs);
+    $('aq-steps').value = state.timeMode;
+    $('aq-read').innerHTML = c && c.water ? rich(aquiferText(b, c)) + '.' : '';
   }
 
-  function findBestK() {
-    var b = state.bundle;
-    if (!b || !b.inputs) return;
-    state.aquifer.mode = 'pot';
-    var opts = engineOpts(b);
-    var best = E.bestPotK(b.inputs.rows, b.inputs.params, opts);
-    if (!best) {
-      state.aqNote = 'At least three points are needed to find K.';
-      recompute({ noAnim: true });
+  /* ---------- verdict ---------- */
+  var EV_ICON = {
+    yes: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.4l3.2 3.2L15 6.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    no: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    maybe: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    info: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="6" r="1.2" fill="currentColor"/></svg>'
+  };
+  var EV_SR = { yes: 'Supports: ', no: 'Ruled out: ', maybe: 'Possible but weaker: ', info: 'Note: ' };
+
+  function renderVerdict(b) {
+    var det = b.detection;
+    var el = $('verdict');
+    if (!det) {
+      el.hidden = !b.blocking && !b.inputs ? true : false;
+      $('verdict-k').textContent = 'Drive mechanism';
+      $('verdict-title').textContent = b.blocking ? 'No data yet' : '–';
+      $('verdict-sub').textContent = b.inputs && b.inputs.messages.errors.length ? 'Fix the reservoir parameters on the left to run the analysis.' : '';
+      $('shares').innerHTML = '';
+      $('evidence').innerHTML = '';
+      el.removeAttribute('data-fam');
       return;
     }
-    state.aquifer.K = Math.round(best.K);
-    var note = best.negative
-      ? 'The best fit would need K < 0, that is water leaving the reservoir, so K is set to 0.'
-      : 'Best fit by least squares on F: K = ' + fmtFixed(best.K, 0) + ' rb/psi.';
-    state.aqNote = note;
-    var r = recompute({ noAnim: true });
-    var R = r.result && r.result.results;
-    if (R && !best.negative) {
-      state.aqNote = note + (R.m < 0
-        ? ' m is still negative (' + fmtM(R.m) + '), so a pot aquifer does not explain these data.'
-        : ' The line then gives N = ' + fmtRes(R.N / 1e6) + ' MMSTB and m = ' + fmtM(R.m) + '.');
-      renderAquifer(r);
+    el.hidden = false;
+    $('verdict-k').textContent = det.forced ? 'Drive mechanism, chosen by you' : 'Drive mechanism, found from the data';
+    $('verdict-title').textContent = familyName(b);
+    el.setAttribute('data-fam', b.model ? b.model.family : 'none');
+    $('verdict-sub').innerHTML = rich(familyLine(b)) + (det.assumedSteps ? ' <span class="assume">Rows taken as equal time steps.</span>' : '');
+    // shares of the drive at the last step in the fit
+    var sh = '';
+    if (hasFit(b) && !negativeM(b)) {
+      var inc = b.result.terms.filter(function (t) { return t.included && isFinite(t.sumDI) && t.sumDI > 0; });
+      var last = inc[inc.length - 1];
+      if (last) {
+        var items = [
+          { k: 'DDI', name: 'Depletion', cls: 'oil' }, { k: 'SDI', name: 'Gas cap', cls: 'gas' },
+          { k: 'WDI', name: 'Water influx', cls: 'water' }, { k: 'CDI', name: 'Rock and water expansion', cls: 'rock' }
+        ].map(function (it) { return Object.assign(it, { v: Math.max(0, last[it.k] / last.sumDI) }); })
+          .filter(function (it) { return it.v >= 0.005; });
+        sh = '<div class="shares-bar" role="img" aria-label="Drive indices at ' + esc(fmtFixed(last.p, 0)) + ' psia: ' +
+          esc(items.map(function (it) { return it.name + ' ' + pctText(it.v); }).join(', ')) + '">' +
+          items.map(function (it) { return '<span class="sh-' + it.cls + '" style="flex-grow:' + it.v.toFixed(4) + '"></span>'; }).join('') + '</div>' +
+          '<ul class="shares-key" aria-hidden="true">' + items.map(function (it) {
+            return '<li><i class="sw sh-' + it.cls + '"></i>' + esc(it.name) + ' <strong>' + pctText(it.v) + '</strong></li>';
+          }).join('') + '</ul>' +
+          '<p class="shares-at">Drive indices at the last step, ' + esc(fmtFixed(last.p, 0)) + ' psia</p>';
+      }
     }
+    $('shares').innerHTML = sh;
+    $('evidence').innerHTML = det.evidence.map(function (e) {
+      return '<li data-level="' + e.level + '">' + EV_ICON[e.level] + '<span><span class="sr-only">' + EV_SR[e.level] + '</span>' + rich(e.text) + '</span></li>';
+    }).join('');
+  }
+
+  /* ---------- how the mechanism was found ---------- */
+  function renderDiag(b, opts) {
+    var det = b.detection, nu = state.out.N, div = N_DIV[nu];
+    var el = $('chart-app'), tbl = $('models');
+    $('panel-diag').hidden = !det;
+    if (!det) { C.empty(el, 'No data.'); tbl.innerHTML = ''; C.legend($('legend-app'), [], {}); return; }
+    var mK = det.mKnown || 0;
+    var etOf = function (t) { return t.Eo + mK * t.Eg + (1 + mK) * t.Efw; };
+    var depl = det.cands.filter(function (c) { return c.key === 'depletion' || c.key === 'gascap-known'; })[0];
+    var c = b.model;
+    var incIds = {};
+    b.result.terms.forEach(function (t) { incIds[t.id] = t.included; });
+    var pts = det.trend.points.map(function (q) { return { key: q.id, Np: q.Np, v: q.v, p: q.p, included: incIds[q.id] !== false }; });
+    var model = c && c.key !== 'depletion' ? c.inc.slice().sort(function (a, z) { return a.Np - z.Np; }).map(function (t) { return { Np: t.Np, v: c.fit.Fhat(t) / etOf(t) }; }) : [];
+    C.apparentPlot(el, {
+      points: pts, flat: depl ? depl.fit.N : NaN, model: model, yDiv: div, yUnit: nu,
+      legendEl: $('legend-app'), modelLabel: c ? 'Chosen model, ' + D.NAMES[c.family].toLowerCase() : '',
+      emptyText: 'Not enough points.'
+    });
+    var rows = det.cands.slice().sort(function (a, z) { return (a.sc.aicc === Infinity) - (z.sc.aicc === Infinity) || a.sc.aicc - z.sc.aicc; });
+    var SHORT = { depletion: 'Depletion', gascap: 'Gas cap', water: 'Water drive', combination: 'Gas cap + water' };
+    var why = function (k) {
+      if (k === c) return 'Chosen';
+      if (!k.identifiable) return 'Cannot be told apart from expansion';
+      if (!k.valid) {
+        if (!(k.fit.N > 0)) return 'N ≤ 0';
+        if (k.gas && !(k.fit.m > 0)) return 'Negative gas cap';
+        return 'Water would leave';
+      }
+      if (!k.material) return 'Too small, under 2 % of F';
+      if (!k.robust) return 'Flips with rounding';
+      if (!isFinite(k.sc.aicc)) return 'Too few points';
+      if (c && k.sc.rms < c.sc.rms && k.k > c.k) return 'More constants than the data justify';
+      return 'Fits less well';
+    };
+    var aq = function (k) {
+      if (!k.water) return '–';
+      if (k.aquifer === 'column') return 'from the file';
+      if (k.aquifer === 'veh') return 'unsteady, <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub> = ' + esc(reText(k.reD));
+      return { pot: 'pot', steady: 'steady state' }[k.aquifer];
+    };
+    tbl.innerHTML = '<thead><tr><th scope="col">Mechanism</th><th scope="col">Aquifer</th><th scope="col"><var>N</var><span class="u">' + esc(nu) + '</span></th>' +
+      '<th scope="col"><var>m</var></th><th scope="col">Misfit<span class="u">of <var>F</var></span></th><th scope="col">Result</th></tr></thead><tbody>' +
+      rows.map(function (k) {
+        var mVal = fmtFixed(k.gas ? k.fit.m : (k.mFixed || 0), 3);
+        var res = k === c ? '<span class="verdict-chip is-yes">Chosen</span>' : rich(why(k));
+        return '<tr' + (k === c ? ' class="is-chosen"' : '') + '><th scope="row">' + esc(SHORT[k.family]) + '</th><td class="tl">' + aq(k) + '</td><td>' +
+          esc(fmtRes(k.fit.N / div)) + '</td><td>' + esc(mVal) + '</td><td class="nw">' + esc(pctText(k.sc.rms)) + '</td><td class="tl">' + res + '</td></tr>';
+      }).join('') + '</tbody>';
   }
 
   /* ---------- columns and units ---------- */
@@ -510,26 +702,53 @@
 
   function renderLedger(b) {
     var nu = state.out.N, gu = state.out.G;
+    var weCard = $('res-We');
     if (!hasFit(b)) {
       $('eq').innerHTML = b.blocking ? 'No data yet' : 'Not enough data for a line';
       $('fitline').textContent = '';
       setRes('res-N', '–', nu); setRes('res-m', '–', ''); setRes('res-G', '–', G_LABEL[gu]);
+      weCard.hidden = true;
+      $('ledger').classList.remove('has-we');
       return;
     }
-    var R = b.result.results, fit = b.result.fit;
-    var a = R.N / N_DIV[nu], s = R.mN / N_DIV[nu];
-    $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> ' + (s < 0 ? '−' : '+') + ' <strong class="n">' +
-      esc(fmtRes(Math.abs(s))) + '</strong> <var>x</var> <span class="ledger-label">(' + esc(nu) + ')</span>';
-    var aqText = '';
-    if (b.aquifer && b.aquifer.mode === 'pot') aqText = ', pot aquifer <var>K</var> = ' + esc(fmtFixed(b.aquifer.K, 0)) + ' rb/psi';
-    else if (b.aquifer && b.aquifer.mode === 'column') aqText = ', <var>W</var><sub>e</sub> from the file';
-    $('fitline').innerHTML = 'R² = <strong>' + fit.r2.toFixed(3) + '</strong> from ' + plural(fit.n, 'point') + aqText;
+    var R = b.result.results, fit = b.result.fit, c = b.model;
+    var a = R.N / N_DIV[nu];
+    if (b.view === 'origin') {
+      $('eq').innerHTML = (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' = <var>N</var> <var>E</var><sub>t</sub>, slope <var>N</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> <span class="ledger-label">' + esc(nu) + '</span>';
+    } else if (b.view === 'water') {
+      $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> + <var>x</var> <span class="ledger-label">(' + esc(nu) + '; slope 1)</span>';
+    } else {
+      var sl = R.mN / N_DIV[nu];
+      $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> ' + (sl < 0 ? '−' : '+') + ' <strong class="n">' +
+        esc(fmtRes(Math.abs(sl))) + '</strong> <var>x</var> <span class="ledger-label">(' + esc(nu) + ')</span>';
+    }
+    $('fitline').innerHTML = 'R² = <strong>' + fit.r2.toFixed(3) + '</strong> from ' + plural(fit.n, 'point');
     var ci = function (pair, div, fmt) {
       return pair ? '95 % range: ' + fmt(pair[0] / div) + ' to ' + fmt(pair[1] / div) : '';
     };
-    setRes('res-N', fmtRes(R.N / N_DIV[nu]), nu, ci(R.ciN, N_DIV[nu], fmtRes), R.N <= 0 ? 'Not physical: see the fit notes' : '');
-    setRes('res-m', fmtM(R.m), '', ci(R.ciM, 1, fmtM), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
-    setRes('res-G', fmtRes(R.G / G_DIV[gu]), G_LABEL[gu], ci(R.ciG, G_DIV[gu], fmtRes), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
+    var rob = c && c.robustness && c.robustness.trials >= 20 ? c.robustness : null;
+    var nCi = ci(R.ciN, N_DIV[nu], fmtRes);
+    if (rob && (rob.N[2] - rob.N[0]) > 0.02 * Math.abs(R.N)) nCi += (nCi ? '; ' : '') + 'rounding the table: ' + fmtRes(rob.N[0] / N_DIV[nu]) + ' to ' + fmtRes(rob.N[2] / N_DIV[nu]);
+    setRes('res-N', fmtRes(R.N / N_DIV[nu]), nu, nCi, R.N <= 0 ? 'Not physical: see the fit notes' : '');
+    $('res-N').querySelector('.res-how').innerHTML = b.view === 'origin' ? 'Slope of <var>F</var> against <var>E</var><sub>t</sub>' : 'Intercept of the line';
+    if (R.mFixed) {
+      setRes('res-m', fmtM(R.m), '', '');
+      $('res-m').querySelector('.res-how').innerHTML = R.m > 0 ? 'Given in the file' : 'No gas cap in this mechanism';
+    } else {
+      setRes('res-m', fmtM(R.m), '', ci(R.ciM, 1, fmtM), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
+      $('res-m').querySelector('.res-how').innerHTML = 'Slope ÷ intercept';
+    }
+    setRes('res-G', R.m === 0 ? '0' : fmtRes(R.G / G_DIV[gu]), G_LABEL[gu], R.m === 0 ? '' : ci(R.ciG, G_DIV[gu], fmtRes), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
+    // water influx at the last step in the fit
+    var inc = b.result.terms.filter(function (t) { return t.included; });
+    var last = inc[inc.length - 1];
+    var showWe = influxOn(b) && last && isFinite(last.We);
+    weCard.hidden = !showWe;
+    $('ledger').classList.toggle('has-we', !!showWe);
+    if (showWe) {
+      setRes('res-We', fmtRes(last.We / 1e6), 'MM rb', 'at ' + fmtFixed(last.p, 0) + ' psia: ' + pctText(last.We / last.F) + ' of F');
+      $('res-We-how').innerHTML = rich(aquiferText(b, c));
+    }
   }
 
   /* ---------- fit notes and statistics ---------- */
@@ -550,10 +769,13 @@
     if (b.inputs) add('warning', b.inputs.messages.warnings);
     if (b.result) add('warning', b.result.messages.warnings);
     if (!state.includeEfw) out.push({ level: 'info', text: 'E_fw is switched off, so connate water and rock expansion are neglected.' });
+    if (b.detection && b.model && b.model.sc.rms > D.POOR) {
+      out.push({ level: 'warning', text: 'Even the best model misses F by ' + pctText(b.model.sc.rms) + ' on average, so treat these results with care. Check the units and the PVT data, or leave out points that do not follow the trend.' });
+    }
     add('info', a.infos);
     if (b.inputs) add('info', b.inputs.messages.infos.filter(function (m) { return !(m.code === 'efw-default' && !state.includeEfw); }));
     if (b.result) add('info', b.result.messages.infos);
-    if (hasFit(b) && !out.some(function (m) { return m.level !== 'info'; }) && b.result.fit.n >= 3 && b.result.fit.r2 >= 0.95) {
+    if (hasFit(b) && b.view !== 'origin' && !out.some(function (m) { return m.level !== 'info'; }) && b.result.fit.n >= 3 && b.result.fit.r2 >= 0.95) {
       out.unshift({ level: 'ok', text: 'The points fall close to a straight line (R² = ' + b.result.fit.r2.toFixed(3) + ').' });
     }
     return out;
@@ -583,17 +805,27 @@
     if (!hasFit(b)) { st.innerHTML = '<dt>Points in the fit</dt><dd>–</dd>'; return; }
     var R = b.result.results, fit = b.result.fit, nu = state.out.N, div = N_DIV[nu];
     var usable = b.result.terms.filter(function (t) { return t.usable; }).length;
-    var pm = function (v, se, d, f) { return f(v / d) + (isFinite(se) ? ' ± ' + f(fit.tcrit * se / d) : ''); };
-    var rows = [
-      ['Points in the fit', fit.n + ' of ' + usable],
-      ['R²', fit.r2.toFixed(4)],
-      ['Intercept, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu],
-      ['Slope, <var>mN</var>', pm(R.mN, R.seMN, div, fmtRes) + ' ' + nu],
-      ['<var>m</var>', fmtM(R.m) + (isFinite(R.seM) ? ' ± ' + fmtM(fit.tcrit * R.seM) : '')],
-      ['Scatter of <var>y</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / div) + ' ' + nu : '–'],
-      ['Degrees of freedom', String(fit.dof)],
-      ['Student <var>t</var> at 95 %', isFinite(fit.tcrit) ? fit.tcrit.toFixed(3) : 'needs 3 points']
-    ];
+    var pm = function (v, se, d, f) { return f(v / d) + (isFinite(se) && isFinite(fit.tcrit) ? ' ± ' + f(fit.tcrit * se / d) : ''); };
+    var rows = [['Points in the fit', fit.n + ' of ' + usable], ['R²', fit.r2.toFixed(4)]];
+    if (b.view === 'origin') {
+      rows.push(['Slope, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu]);
+      rows.push(['<var>m</var>', fmtM(R.m) + (R.m > 0 ? ', given' : ', no gas cap')]);
+      rows.push(['Scatter of <var>F</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / 1e6) + ' MM rb' : '–']);
+    } else if (b.view === 'water') {
+      var c = b.model, uUnit = c && c.aquifer === 'steady' ? (b.detection.timeMode === 'steps' ? 'rb/psi per row' : 'rb/(psi·day)') : 'rb/psi';
+      rows.push(['Intercept, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu]);
+      rows.push(['Aquifer constant, ' + (c && c.aquifer === 'pot' ? '<var>K</var>' : c && c.aquifer === 'steady' ? '<var>C</var>' : '<var>U</var>'),
+        (isFinite(R.seU) && isFinite(fit.tcrit) ? fmtSig(R.U, 4) + ' ± ' + (fit.tcrit * R.seU < 5e-5 * Math.abs(R.U) ? '0' : fmtSig(fit.tcrit * R.seU, 2)) : fmtSig(R.U, 4) + (c && !c.waterFitted ? ', set by you' : '')) + ' ' + uUnit]);
+      rows.push(['<var>m</var>', fmtM(R.m) + (R.m > 0 ? ', given' : ', no gas cap')]);
+      rows.push(['Scatter of <var>y</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / div) + ' ' + nu : '–']);
+    } else {
+      rows.push(['Intercept, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu]);
+      rows.push(['Slope, <var>mN</var>', pm(R.mN, R.seMN, div, fmtRes) + ' ' + nu]);
+      rows.push(['<var>m</var>', fmtM(R.m) + (isFinite(R.seM) ? ' ± ' + (fit.tcrit * R.seM < 5e-4 ? '0.000' : fmtM(fit.tcrit * R.seM)) : '')]);
+      rows.push(['Scatter of <var>y</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / div) + ' ' + nu : '–']);
+    }
+    rows.push(['Degrees of freedom', String(fit.dof)]);
+    rows.push(['Student <var>t</var> at 95 %', isFinite(fit.tcrit) ? fit.tcrit.toFixed(3) : 'needs 3 points']);
     st.innerHTML = rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('');
   }
 
@@ -631,7 +863,8 @@
     var fitOk = hasFit(b);
     var R = fitOk ? b.result.results : null;
     var efw = anyEfw(b);
-    C.hoPlot(ho, {
+    var etTitle = R && R.mFixed && R.m > 0 ? '*E*_t' : (efw ? '(*E*_o + *E*_fw)' : '*E*_o');
+    var hoOpts = {
       points: hoPoints(b),
       fit: fitOk ? { a: R.N, b: R.mN } : null,
       yDiv: div, yUnit: nu, efw: efw, influx: influxOn(b),
@@ -642,7 +875,32 @@
       animate: !opts.noAnim,
       emptyText: 'No points below the initial pressure.',
       onToggle: toggleRow
-    });
+    };
+    var title = 'Havlena–Odeh plot', sub = '';
+    if (b.view === 'origin') {
+      title = 'Havlena–Odeh plot: ' + (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' against <var>E</var><sub>t</sub>';
+      sub = 'With ' + (influxOn(b) ? 'the water influx known' : (R && R.m > 0 ? 'the gas cap known' : 'depletion alone')) + ', the points lie on a straight line through the origin, and its slope is <var>N</var> (slide 37). Click a point to leave it out of the fit.';
+      Object.assign(hoOpts, {
+        fit: fitOk ? { a: 0, b: R.N } : null, yDiv: 1e6, yUnit: 'MM rb', noIntercept: true,
+        xTitle: (R && R.m > 0 ? '*E*_t' : (efw ? '*E*_o + *E*_fw' : '*E*_o')) + ', rb/STB',
+        yTitle: (influxOn(b) ? '*F* − *W*_e' : '*F*') + ', MM rb',
+        slopeLabel: fitOk ? 'slope *N* = ' + fmtRes(R.N / div) + ' ' + nu : ''
+      });
+    } else if (b.view === 'water') {
+      title = 'Havlena–Odeh plot: <var>F</var>/<var>E</var><sub>t</sub> against <var>W</var><sub>e</sub>/<var>E</var><sub>t</sub>';
+      sub = 'With the right aquifer, the points lie on a straight line of slope 1 that meets the axis at <var>N</var> (slide 41). Click a point to leave it out of the fit.';
+      Object.assign(hoOpts, {
+        points: hoPoints(b).map(function (q) { return Object.assign({}, q, { x: q.x / div }); }),
+        fit: fitOk ? { a: R.N, b: div } : null,
+        xTitle: '*W*_e / ' + etTitle + ', ' + nu, yTitle: '*F* / ' + etTitle + ', ' + nu,
+        slopeLabel: 'slope 1'
+      });
+    } else {
+      sub = (influxOn(b) ? 'With the water influx taken off <var>F</var>, the points' : 'The points') + ' lie on a straight line that meets the axis at <var>N</var>; its slope is <var>mN</var>. Click a point to leave it out of the fit.';
+    }
+    $('ho-title').innerHTML = title;
+    $('ho-sub').innerHTML = sub;
+    C.hoPlot(ho, hoOpts);
     $('reset-points').hidden = !b.result.terms.some(function (t) { return t.usable && t.userExcluded; });
 
     var inc = b.result.terms.filter(function (t) { return t.included; });
@@ -670,6 +928,7 @@
 
   function renderExplorer(b, opts) {
     var fitOk = hasFit(b);
+    $('panel-explorer').hidden = !!(b.inputs && b.inputs.noGas);
     var range = $('m-range'), num = $('m-num'), btn = $('m-fit');
     var expEl = $('chart-exp'), scanEl = $('chart-scan');
     if (!fitOk) {
@@ -737,6 +996,12 @@
   /* ---------- table ---------- */
   var TABLE_LIMIT = 30;
 
+  function rowOf(b, id) {
+    var rows = b.inputs ? b.inputs.rows : [];
+    for (var i = 0; i < rows.length; i++) if (rows[i].id === id) return rows[i];
+    return null;
+  }
+
   function renderTable(b) {
     var tbl = $('calc'), foot = $('table-foot');
     if (!b.result || !b.result.terms.length) {
@@ -746,7 +1011,8 @@
     }
     var nu = state.out.N, div = N_DIV[nu];
     var efw = anyEfw(b);
-    var cols = [
+    var timeCol = b.inputs && b.inputs.hasTime ? [{ g: 'Data', h: '<var>t</var>', u: 'years', v: function (t) { var r = rowOf(b, t.id); return r && isFinite(r.t) ? fmtSig(r.t / 365.25, 4) : '–'; } }] : [];
+    var cols = timeCol.concat([
       { g: 'Data', h: SYM.p, u: 'psia', v: function (t) { return fmtFixed(t.p, 0); } },
       { g: 'Data', h: SYM.Np, u: 'MMSTB', v: function (t) { return fmtSig(t.Np / 1e6, 4); } },
       { g: 'Data', h: SYM.Gp, u: 'MMSCF', v: function (t) { return fmtSig(t.Gp / 1e6, 5); } },
@@ -756,7 +1022,7 @@
       { g: 'Data', h: SYM.Bg, u: 'rb/SCF', v: function (t) { return fmtSig(t.Bg, 4); } },
       { g: 'Expansion terms', h: 'Δ<var>p</var>', u: 'psi', v: function (t) { return fmtFixed(t.dP, 0); } },
       { g: 'Expansion terms', h: '<var>F</var>', u: 'MM rb', v: function (t) { return fmtSig(t.F / 1e6, 5); } }
-    ].concat(influxOn(b) ? [
+    ]).concat(influxOn(b) ? [
       { g: 'Expansion terms', h: '<var>W</var><sub>e</sub>', u: 'MM rb', v: function (t) { return isFinite(t.We) ? fmtSig(t.We / 1e6, 4) : '–'; } }
     ] : []).concat([
       { g: 'Expansion terms', h: '<var>E</var><sub>o</sub>', u: 'rb/STB', v: function (t) { return fmtSig(t.Eo, 4); } },
@@ -764,12 +1030,12 @@
       { g: 'Expansion terms', h: '<var>E</var><sub>fw</sub>', u: 'rb/STB', v: function (t) { return efw ? fmtSig(t.Efw, 3) : '0'; } },
       { g: 'Straight line', h: '<var>x</var>', u: '', v: function (t) { return t.usable ? fmtSig(t.x, 4) : '–'; } },
       { g: 'Straight line', h: '<var>y</var>', u: nu, v: function (t) { return t.usable ? fmtSig(t.y / div, 5) : '–'; } },
-      { g: 'Check at the fitted <var>m</var>', h: influxOn(b) ? '(<var>F</var> − <var>W</var><sub>e</sub>)/<var>E</var><sub>t</sub>' : '<var>F</var>/<var>E</var><sub>t</sub>', u: nu, v: function (t) { return t.usable && isFinite(t.impliedN) ? fmtSig(t.impliedN / div, 5) : '–'; } },
-      { g: 'Check at the fitted <var>m</var>', h: 'DDI', u: '%', v: function (t) { return di(t, 'DDI'); } },
-      { g: 'Check at the fitted <var>m</var>', h: 'SDI', u: '%', v: function (t) { return di(t, 'SDI'); } }
+      { g: 'Check at the fitted <var>N</var> and <var>m</var>', h: influxOn(b) ? '(<var>F</var> − <var>W</var><sub>e</sub>)/<var>E</var><sub>t</sub>' : '<var>F</var>/<var>E</var><sub>t</sub>', u: nu, v: function (t) { return t.usable && isFinite(t.impliedN) ? fmtSig(t.impliedN / div, 5) : '–'; } },
+      { g: 'Check at the fitted <var>N</var> and <var>m</var>', h: 'DDI', u: '%', v: function (t) { return di(t, 'DDI'); } },
+      { g: 'Check at the fitted <var>N</var> and <var>m</var>', h: 'SDI', u: '%', v: function (t) { return di(t, 'SDI'); } }
     ]);
-    if (influxOn(b)) cols.push({ g: 'Check at the fitted <var>m</var>', h: 'WDI', u: '%', v: function (t) { return di(t, 'WDI'); } });
-    if (efw) cols.push({ g: 'Check at the fitted <var>m</var>', h: 'CDI', u: '%', v: function (t) { return di(t, 'CDI'); } });
+    if (influxOn(b)) cols.push({ g: 'Check at the fitted <var>N</var> and <var>m</var>', h: 'WDI', u: '%', v: function (t) { return di(t, 'WDI'); } });
+    if (efw) cols.push({ g: 'Check at the fitted <var>N</var> and <var>m</var>', h: 'CDI', u: '%', v: function (t) { return di(t, 'CDI'); } });
     var hideDI = negativeM(b);
     function di(t, k) {
       if (hideDI || !t.usable || !isFinite(t[k]) || !isFinite(t.sumDI) || t.sumDI === 0) return '–';
@@ -824,7 +1090,7 @@
     var s = $('status');
     if (hasFit(b)) {
       var R = b.result.results;
-      s.textContent = 'N = ' + fmtRes(R.N / N_DIV[state.out.N]) + ' ' + state.out.N + ', m = ' + fmtM(R.m) + ', G = ' + fmtRes(R.G / G_DIV[state.out.G]) + ' ' + G_LABEL[state.out.G] + '.';
+      s.textContent = familyName(b) + '. N = ' + fmtRes(R.N / N_DIV[state.out.N]) + ' ' + state.out.N + ', m = ' + fmtM(R.m) + ', G = ' + fmtRes(R.G / G_DIV[state.out.G]) + ' ' + G_LABEL[state.out.G] + '.';
     } else if (b.blocking) {
       s.textContent = 'The data could not be read. See the message at the top of the results.';
     }
@@ -857,8 +1123,11 @@
     state.paramEdits = {};
     state.excluded = new Set();
     state.mNow = null;
-    state.aquifer = { mode: 'auto', K: 0 };
-    state.aqNote = '';
+    state.mech = 'auto';
+    state.aqModel = 'auto';
+    state.potK = null;
+    state.reD = null;
+    state.timeMode = 'auto';
     state.tableAll = false;
     state.fileError = null;
     mRange.key = '';
@@ -927,8 +1196,8 @@
 
   function downloadTemplate() {
     X.writeXlsx([
-      { name: 'Production', headerRows: 1, colWidths: [13, 14, 14, 14, 14, 14],
-        rows: [['p (psia)', 'Np (MMSTB)', 'Gp (MMSCF)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)']] },
+      { name: 'Production', headerRows: 1, colWidths: [11, 13, 14, 14, 14, 14, 14, 13],
+        rows: [['t (years)', 'p (psia)', 'Np (MMSTB)', 'Gp (MMSCF)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'Wp (MMSTB)']] },
       { name: 'Initial', headerRows: 1, colWidths: [32, 14, 12, 60],
         rows: [['Property', 'Value', 'Unit', 'Notes'],
           ['Initial pressure, pi', null, 'psia', ''],
@@ -937,7 +1206,9 @@
           ['Initial solution GOR, Rsi', null, 'SCF/STB', 'Leave empty to take it from the table row at pi'],
           ['Connate water saturation, Swc', null, 'fraction', 'Swc, Cw and Cf can be left empty: then Efw = 0'],
           ['Water compressibility, Cw', null, '1/psi', ''],
-          ['Formation compressibility, Cf', null, '1/psi', '']] }
+          ['Formation compressibility, Cf', null, '1/psi', ''],
+          ['Gas-cap ratio, m', null, '-', 'Only if known from geology: then m is not fitted'],
+          ['', null, '', 'Production sheet: t and Wp are optional. Add a column We (MMrb) if the water influx is known.']] }
     ]).then(function (bytes) { download('havlena-odeh-template.xlsx', bytes, XLSX_MIME); });
   }
 
@@ -949,14 +1220,15 @@
   }
 
   function calcRows(b) {
-    var head = ['p (psia)', 'Np (STB)', 'Gp (SCF)', 'Rp (SCF/STB)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'dp (psi)',
+    var head = ['t (years)', 'p (psia)', 'Np (STB)', 'Gp (SCF)', 'Rp (SCF/STB)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'dp (psi)',
       'F (rb)', 'We (rb)', 'Eo (rb/STB)', 'Eg (rb/STB)', 'Efw (rb/STB)', 'x', 'y (STB)', '(F-We)/Et (STB)', 'DDI', 'SDI', 'WDI', 'CDI', 'In fit', 'Note'];
     var rows = [head];
     var hideDI = negativeM(b);
     b.result.terms.forEach(function (t) {
       var s = t.sumDI;
       var norm = function (k) { return !hideDI && t.usable && isFinite(t[k]) && isFinite(s) && s !== 0 ? t[k] / s : null; };
-      rows.push([t.p, t.Np, t.Gp, t.Np > 0 ? t.Rp : null, t.Bo, t.Rs, t.Bg, t.dP, t.F, isFinite(t.We) ? t.We : null, t.Eo, t.Eg, t.Efw,
+      var r0 = rowOf(b, t.id);
+      rows.push([r0 && isFinite(r0.t) ? r0.t / 365.25 : null, t.p, t.Np, t.Gp, t.Np > 0 ? t.Rp : null, t.Bo, t.Rs, t.Bg, t.dP, t.F, isFinite(t.We) ? t.We : null, t.Eo, t.Eg, t.Efw,
         t.usable ? t.x : null, t.usable ? t.y : null, t.usable && isFinite(t.impliedN) ? t.impliedN : null,
         norm('DDI'), norm('SDI'), norm('WDI'), norm('CDI'),
         t.usable ? (t.included ? 'yes' : 'no') : 'n/a', t.reason || (t.userExcluded ? 'left out by user' : '')]);
@@ -972,25 +1244,45 @@
       return;
     }
     var R = b.result.results, fit = b.result.fit, prm = b.inputs.params, info = b.inputs.paramInfo;
+    var det = b.detection, c = b.model;
+    var plain = function (t) { return String(t).replace(/_/g, ''); };
+    var lineText = {
+      origin: 'F - We = N Et through the origin, Et = Eo + m Eg + (1+m) Efw; N = slope',
+      water: 'F/Et = N + We/Et (slope 1), We = U S from the aquifer model; N = intercept',
+      line: '(F-We)/[Eo+(1+m)Efw] = N + mN Eg/[Eo+(1+m)Efw], fitted again with the new m until m stops changing; N = intercept, m = slope/intercept'
+    }[b.view];
+    var inc = b.result.terms.filter(function (t) { return t.included; });
+    var last = inc[inc.length - 1];
     var results = [
-      ['Havlena–Odeh straight-line analysis', ''],
+      ['Havlena–Odeh material balance analysis', ''],
       ['Data', state.source.name],
+      ['Drive mechanism', familyName(b) + (det.forced ? ' (chosen by the user)' : ' (found from the data)')],
+      ['', plain(familyLine(b))],
       ['Points in the fit', fit.n],
       ['', ''],
       ['Result', 'Value', 'Unit', '95 % low', '95 % high'],
       ['N, oil initially in place', R.N, 'STB', R.ciN ? R.ciN[0] : null, R.ciN ? R.ciN[1] : null],
       ['N, oil initially in place', R.N / 1e6, 'MMSTB', R.ciN ? R.ciN[0] / 1e6 : null, R.ciN ? R.ciN[1] / 1e6 : null],
       ['m, gas-cap to oil-zone volume ratio', R.m, '-', R.ciM ? R.ciM[0] : null, R.ciM ? R.ciM[1] : null],
-      ['mN, slope of the line', R.mN, 'STB', null, null],
       ['G, gas-cap gas initially in place', R.G, 'SCF', R.ciG ? R.ciG[0] : null, R.ciG ? R.ciG[1] : null],
       ['G, gas-cap gas initially in place', R.G / 1e9, 'Bscf', R.ciG ? R.ciG[0] / 1e9 : null, R.ciG ? R.ciG[1] / 1e9 : null],
+      ['We, water influx at the last step', influxOn(b) && last ? last.We : null, 'rb', null, null],
+      ['Aquifer', influxOn(b) ? plain(aquiferText(b, c)) : 'none', '', null, null],
+      ['Aquifer r_e/r_o', c && c.aquifer === 'veh' ? (c.reD === Infinity ? 'infinite' : c.reD) : null, '', null, null],
       ['R squared', fit.r2, '', null, null],
       ['', ''],
-      ['Method', '(F-We)/[Eo+(1+m)Efw] = N + mN Eg/[Eo+(1+m)Efw], fitted again with the new m until m stops changing; N = intercept, m = slope/intercept, G = mN Boi/Bgi'],
+      ['Line', lineText],
       ['Efw included', state.includeEfw ? 'yes' : 'no'],
-      ['Water influx', b.aquifer.mode === 'pot' ? 'pot aquifer, We = K (pi - p)' : b.aquifer.mode === 'column' ? 'We column from the file' : 'none'],
-      ['K, pot aquifer constant (rb/psi)', b.aquifer.mode === 'pot' ? b.aquifer.K : null]
-    ];
+      ['Time', b.inputs.hasTime ? 'from the file' : (det.assumedSteps ? 'rows taken as equal time steps' : 'none')],
+      ['', ''],
+      ['How the mechanism was found', '']
+    ].concat(det.evidence.map(function (e) { return [{ yes: 'supports', no: 'ruled out', maybe: 'weaker', info: 'note' }[e.level], plain(e.text)]; }));
+    var models = [['Mechanism', 'Aquifer', 'N (STB)', 'm', 'Aquifer constant', 'r_e/r_o', 'Misfit of F (rms, fraction)', 'AICc', 'Physical', 'Share at least 2 %', 'Robust to rounding', 'Chosen']];
+    det.cands.forEach(function (k) {
+      models.push([D.NAMES[k.family], k.water ? k.aquifer : 'none', k.fit.N, k.gas ? k.fit.m : (k.mFixed || 0), k.water ? k.fit.U : null,
+        k.aquifer === 'veh' ? (k.reD === Infinity ? 'infinite' : k.reD) : null, k.sc.rms, isFinite(k.sc.aicc) ? k.sc.aicc : null,
+        k.valid ? 'yes' : 'no', k.material ? 'yes' : 'no', k.robust ? 'yes' : 'no', k === c ? 'yes' : '']);
+    });
     var inputs = [['Parameter', 'Value', 'Unit', 'Source']];
     [['pi', 'psia'], ['Boi', 'rb/STB'], ['Bgi', 'rb/SCF'], ['Rsi', 'SCF/STB'], ['Swc', 'fraction'], ['Cw', '1/psi'], ['Cf', '1/psi']].forEach(function (p) {
       var i = info[p[0]] || {};
@@ -999,8 +1291,9 @@
     });
     var notes = [['Level', 'Note']].concat(collectMessages(b).map(function (m) { return [m.level, m.text.replace(/_/g, '')]; }));
     X.writeXlsx([
-      { name: 'Results', headerRows: 0, colWidths: [38, 22, 10, 16, 16], rows: results },
-      { name: 'Calculations', headerRows: 1, colWidths: [10, 14, 16, 12, 11, 12, 12, 9, 16, 14, 12, 12, 12, 10, 16, 16, 9, 9, 9, 9, 8, 24], rows: calcRows(b) },
+      { name: 'Results', headerRows: 0, colWidths: [38, 60, 10, 16, 16], rows: results },
+      { name: 'Models', headerRows: 1, colWidths: [36, 10, 16, 10, 16, 9, 14, 10, 10, 12, 12, 8], rows: models },
+      { name: 'Calculations', headerRows: 1, colWidths: [10, 10, 14, 16, 12, 11, 12, 12, 9, 16, 14, 12, 12, 12, 10, 16, 16, 9, 9, 9, 9, 8, 24], rows: calcRows(b) },
       { name: 'Inputs', headerRows: 1, colWidths: [12, 14, 10, 34], rows: inputs },
       { name: 'Notes', headerRows: 1, colWidths: [10, 110], rows: notes }
     ]).then(function (bytes) {
@@ -1125,33 +1418,49 @@
 
     $('efw').addEventListener('change', function () { state.includeEfw = this.checked; recompute({ noAnim: true }); });
 
-    document.querySelectorAll('input[name="aq"]').forEach(function (r) {
+    document.querySelectorAll('input[name="mech"]').forEach(function (r) {
       r.addEventListener('change', function () {
         if (!this.checked) return;
-        state.aquifer.mode = this.value;
-        state.aqNote = '';
+        state.mech = this.value;
         recompute({ noAnim: true });
       });
+    });
+    $('aq-model').addEventListener('change', function () {
+      state.aqModel = this.value;
+      if (state.aqModel !== 'pot') state.potK = null;
+      if (state.aqModel !== 'veh') state.reD = null;
+      recompute({ noAnim: true });
     });
     var aqTimer = null;
     function setK(v, quiet) {
       if (!(isFinite(v) && v >= 0)) return false;
-      state.aquifer.K = v;
-      state.aqNote = '';
+      state.potK = v;
+      if (state.aqModel === 'auto' || state.aqModel === 'column') state.aqModel = 'pot';
       recompute({ noAnim: true, quiet: quiet });
       return true;
     }
     $('aq-k').addEventListener('input', function () {
       var el = this;
       clearTimeout(aqTimer);
-      aqTimer = setTimeout(function () { setK(U.parseNumber(el.value), true); }, 350);
+      aqTimer = setTimeout(function () {
+        if (!el.value.trim()) { state.potK = null; recompute({ noAnim: true, quiet: true }); return; }
+        setK(U.parseNumber(el.value), true);
+      }, 350);
     });
     $('aq-k').addEventListener('change', function () {
       clearTimeout(aqTimer);
-      if (!setK(U.parseNumber(this.value), false)) this.value = fmtFixed(state.aquifer.K || 0, 0);
+      if (!this.value.trim()) { state.potK = null; recompute({ noAnim: true }); return; }
+      if (!setK(U.parseNumber(this.value), false)) this.value = state.potK !== null ? fmtFixed(state.potK, 0) : '';
     });
     $('aq-range').addEventListener('input', function () { setK(+this.value, true); });
-    $('aq-best').addEventListener('click', findBestK);
+    $('aq-best').addEventListener('click', function () { state.potK = null; recompute({ noAnim: true }); });
+    $('aq-red').addEventListener('change', function () {
+      state.reD = this.value === '' ? null : (this.value === 'inf' ? Infinity : +this.value);
+      if (state.reD !== null && state.aqModel !== 'veh') state.aqModel = 'veh';
+      recompute({ noAnim: true });
+    });
+    $('aq-steps').addEventListener('change', function () { state.timeMode = this.value; recompute({ noAnim: true }); });
+    $('png-app').addEventListener('click', function () { exportPNG('chart-app', 'apparent-N.png'); });
     $('labels-all').addEventListener('change', function () { state.labelsAll = this.checked; renderCharts(state.bundle, { noAnim: true }); });
     $('reset-points').addEventListener('click', function () { state.excluded.clear(); recompute({ noAnim: true }); });
     $('out-N').addEventListener('change', function () { state.out.N = this.value; renderAll(state.bundle, { noAnim: true, quiet: true }); });
@@ -1182,13 +1491,13 @@
         });
         if (!changed) return;
         clearTimeout(timer);
-        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 120);
+        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); renderDiag(state.bundle, { noAnim: true }); }, 120);
       });
-      ['chart-ho', 'chart-check', 'chart-drive', 'chart-exp', 'chart-scan'].forEach(function (id) { ro.observe($(id)); });
+      ['chart-ho', 'chart-app', 'chart-check', 'chart-drive', 'chart-exp', 'chart-scan'].forEach(function (id) { ro.observe($(id)); });
     } else {
       window.addEventListener('resize', function () {
         clearTimeout(timer);
-        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 150);
+        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); renderDiag(state.bundle, { noAnim: true }); }, 150);
       });
     }
 

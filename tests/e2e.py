@@ -66,6 +66,14 @@ class Page:
         self.page.wait_for_function("(n) => document.querySelector('#source').textContent.includes(n) || !document.querySelector('#alert').hidden", arg=name)
         self.page.wait_for_timeout(150)
 
+    def mech(self, value):
+        """Choose a drive mechanism in the sidebar ('auto', 'depletion', 'gascap', 'water', 'combination')."""
+        self.page.check("input[name=mech][value=%s]" % value)
+        self.page.wait_for_timeout(50)
+
+    def title(self):
+        return self.text("#verdict-title")
+
     def fit_points(self):
         m = re.search(r"from (\d+) point", self.text("#fitline"))
         return int(m.group(1)) if m else None
@@ -94,13 +102,33 @@ def shot(pg, name, full=False):
 def t_example(b):
     pg = Page(b)
     assert pg.page.locator("#alert").is_hidden()
+    # found from the data: water drive (Dake's exercise 9.2), with the rows taken as equal time steps
+    assert pg.title() == "Water drive"
+    assert "found from the data" in pg.text("#verdict-k")
+    sub = pg.text("#verdict-sub")
+    assert "Unsteady-state aquifer" in sub and "equal time steps" in sub, sub
+    ev = pg.text("#evidence")
+    assert "cannot be negative" in ev and "K < 0" in ev and "Depletion alone" in ev, ev
+    assert pg.val("res-N") == "286.6" and pg.val("res-m") == "0.000" and pg.val("res-G") == "0"
+    assert pg.page.locator("#res-We").is_visible() and pg.val("res-We") == "96.95"
+    assert "rounding the table" in pg.text("#res-N .res-ci")
+    assert pg.page.locator("#shares .shares-bar span").count() == 3, "depletion, water and rock"
+    assert "slope 1" in pg.page.locator("#chart-ho svg").text_content()
+    assert pg.page.locator("#models tbody tr").count() == 8
+    assert pg.page.locator("#models tr.is-chosen").count() == 1
+    assert pg.page.locator("#chart-app svg").count() == 1
+    assert pg.page.locator("#chart-ho circle.hit").count() == 10
+    assert pg.page.locator("#calc tbody tr").count() == 11
+    assert "Example" in pg.text("#source")
+    shot(pg, "desktop-light", full=True)
+    # the gas-cap line of the course table, chosen by hand
+    pg.mech("gascap")
+    assert pg.title() == "Gas-cap drive" and "chosen by you" in pg.text("#verdict-k")
     assert pg.val("res-N") == "729.9"
     assert pg.val("res-m") == "−0.070"
     assert pg.val("res-G") == "−79.53"
     assert "0.613" in pg.text("#fitline") and pg.fit_points() == 10
-    assert pg.page.locator("#chart-ho circle.hit").count() == 10
-    assert pg.page.locator("#calc tbody tr").count() == 11
-    assert "Example" in pg.text("#source")
+    assert pg.page.locator("#res-We").is_hidden()
     assert pg.page.locator("#res-m .res-flag").count() == 1, "negative m is flagged"
     assert pg.page.locator("#res-G .res-flag").count() == 1, "negative G is flagged"
     notes = pg.text("#notes")
@@ -114,7 +142,8 @@ def t_example(b):
     assert pg.page.locator("#res-G .res-flag").count() == 0
     pg.page.click("#reset-points")
     assert pg.val("res-N") == "729.9"
-    shot(pg, "desktop-light", full=True)
+    pg.mech("auto")
+    assert pg.title() == "Water drive" and pg.val("res-N") == "286.6"
     pg.close()
 
 
@@ -126,6 +155,14 @@ def t_layouts(b):
             continue
         pg.upload(os.path.join(FIX, f))
         assert pg.page.locator("#alert").is_hidden(), f + ": " + pg.text("#alert")
+        assert pg.title() == "Water drive", f + ": " + pg.title()
+        # one layout has monthly dates: real steps of 28 to 31 days instead of equal steps, so its aquifer fit differs
+        # (N stays inside the rounding range of the example, 246 to 330 MMSTB)
+        if "shuffled_long_headers" in f:
+            assert 246 <= num(pg.val("res-N")) <= 330, f + " N=" + pg.val("res-N")
+        else:
+            assert pg.val("res-N") == "286.6", f + " N=" + pg.val("res-N")
+        pg.mech("gascap")
         assert pg.val("res-N") == "729.9", f + " N=" + pg.val("res-N")
         assert pg.val("res-m") == "−0.070", f
         assert pg.fit_points() == 10, f
@@ -136,10 +173,12 @@ def t_layouts(b):
 def t_other_data(b):
     pg = Page(b)
     pg.upload(os.path.join(FIX, "q1_two_row_header.xlsx"))
+    assert pg.title() == "Gas-cap drive"
     assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542" and pg.val("res-G") == "84.62"
     assert "E" in pg.text("#notes") and "neglected" in pg.text("#notes")
     shot(pg, "desktop-q1")
     pg.upload(os.path.join(SAMPLES, "known_answer_N150_m040.xlsx"))
+    assert pg.title() == "Gas-cap drive"
     assert pg.val("res-N") == "150.0" and pg.val("res-m") == "0.400"
     t0 = time.time()
     pg.upload(os.path.join(FIX, "synthetic_large.xlsx"))
@@ -156,7 +195,7 @@ def t_errors(b):
     pg = Page(b)
     pg.upload(os.path.join(FIX, "q2_legacy.xls"))
     assert "97–2003" in pg.text("#alert")
-    assert pg.val("res-N") == "729.9", "previous result kept"
+    assert pg.val("res-N") == "286.6", "previous result kept"
     pg.page.click("#alert button[data-act=dismiss]")
     assert pg.page.locator("#alert").is_hidden()
     pg.upload(os.path.join(FIX, "q2_open_document.ods"))
@@ -172,7 +211,7 @@ def t_errors(b):
     pg.upload(os.path.join(SAMPLES, "havlena-odeh-template.xlsx"))
     assert "no rows with numbers" in pg.text("#alert")
     pg.page.click("#alert button[data-act=example]")
-    assert pg.val("res-N") == "729.9"
+    assert pg.val("res-N") == "286.6"
     pg.close()
 
 
@@ -182,7 +221,7 @@ def t_exclude(b):
     pg.page.uncheck("#calc tbody tr:nth-child(2) input[type=checkbox]")
     assert pg.fit_points() == 9
     assert pg.page.locator("#reset-points").is_visible()
-    assert pg.val("res-N") != "729.9"
+    assert pg.val("res-N") != "286.6"
     pg.page.click("#reset-points")
     assert pg.fit_points() == 10
     pg.page.locator("#chart-ho circle.hit").first.focus()
@@ -191,7 +230,7 @@ def t_exclude(b):
     assert pg.page.evaluate("document.activeElement.classList.contains('hit')"), "focus stays on the point"
     pg.page.keyboard.press("Enter")
     assert pg.fit_points() == 10
-    pg.page.locator("#chart-ho circle.hit").nth(3).click()
+    pg.page.locator("#chart-ho circle.hit").nth(0).click()
     assert pg.fit_points() == 9
     pg.close()
 
@@ -199,6 +238,7 @@ def t_exclude(b):
 @check("parameters, E_fw switch, columns and units drive the answer")
 def t_inputs(b):
     pg = Page(b)
+    pg.mech("gascap")
     axes = lambda: pg.page.locator("#chart-ho svg").text_content()
     assert "Eg / [Eo + (1 + m) Efw]" in axes() and "F / [Eo + (1 + m) Efw], MMSTB" in axes(), axes()
     pg.page.uncheck("#efw")
@@ -244,6 +284,7 @@ def t_inputs(b):
 @check("m explorer: slider, number box and the scan chart")
 def t_explorer(b):
     pg = Page(b)
+    pg.mech("gascap")
     pg.page.fill("#m-num", "0.3")
     pg.page.press("#m-num", "Enter")
     assert "0.300" in pg.text("#m-read")
@@ -285,62 +326,99 @@ def t_downloads(b):
     p = grab("#dl-template")
     wb = load_workbook(p)
     assert wb.sheetnames == ["Production", "Initial"]
-    assert wb["Production"]["B1"].value == "Np (MMSTB)"
+    assert wb["Production"]["A1"].value == "t (years)" and wb["Production"]["C1"].value == "Np (MMSTB)"
     p = grab("#dl-example")
     wb = load_workbook(p)
     assert wb["Production"]["A3"].value == 2500
     # the example file reads back into the same answer
     pg.upload(p)
-    assert pg.val("res-N") == "729.9"
+    assert pg.val("res-N") == "286.6"
     p = grab("#export-btn")
     wb = load_workbook(p)
-    assert wb.sheetnames == ["Results", "Calculations", "Inputs", "Notes"]
-    rows = {(r[0], r[2]): r for r in wb["Results"].iter_rows(values_only=True) if r and r[0]}
-    approx(rows[("N, oil initially in place", "STB")][1], 729.868e6)
-    approx(rows[("N, oil initially in place", "MMSTB")][1], 729.868)
-    approx(rows[("m, gas-cap to oil-zone volume ratio", "-")][1], -0.069846)
-    approx(rows[("G, gas-cap gas initially in place", "Bscf")][1], -79.5258)
-    approx(wb["Calculations"]["I3"].value, 12.151e6, 1e-3)
+    assert wb.sheetnames == ["Results", "Models", "Calculations", "Inputs", "Notes"]
+    res = [r for r in wb["Results"].iter_rows(values_only=True) if r and r[0]]
+    by = {(r[0], r[2]): r for r in res}
+    assert any(r[0] == "Drive mechanism" and r[1].startswith("Water drive (found from the data)") for r in res)
+    approx(by[("N, oil initially in place", "MMSTB")][1], 286.56, 1e-3)
+    assert by[("m, gas-cap to oil-zone volume ratio", "-")][1] == 0
+    assert by[("We, water influx at the last step", "rb")][1] > 9e7
+    models = list(wb["Models"].iter_rows(values_only=True))
+    assert len(models) == 9 and sum(1 for r in models[1:] if r[-1] == "yes") == 1
+    approx(wb["Calculations"]["J3"].value, 12.151e6, 1e-3)
     p = grab("#csv-btn")
     text = open(p, encoding="utf-8-sig").read()
-    assert text.startswith("p (psia),Np (STB)") and text.count("\n") == 11
+    assert text.startswith("t (years),p (psia),Np (STB)") and text.count("\n") == 11
     p = grab("#png-ho")
     assert open(p, "rb").read(8) == b"\x89PNG\r\n\x1a\n"
     pg.close()
 
 
-@check("water influx: W_e column, pot aquifer and the best K")
-def t_influx(b):
+@check("drive mechanism controls: W_e column, fitted and hand-set aquifers, time")
+def t_drive_controls(b):
     pg = Page(b)
-    # the example: the best pot aquifer keeps m negative
-    pg.page.check("input[name=aq][value=pot]")
-    assert pg.page.locator("#aq-pot").is_visible()
-    pg.page.click("#aq-best")
-    read = pg.text("#aq-read")
-    assert "K = 45,251 rb/psi" in read and "still negative" in read, read
-    assert "pot aquifer" in pg.text("#fitline")
-    assert "(F − We)" in pg.page.locator("#chart-ho svg").text_content(), "y axis shows F − We"
-    pg.page.fill("#aq-k", "0")
-    pg.page.press("#aq-k", "Enter")
-    assert pg.val("res-N") == "729.9"
-    pg.page.check("input[name=aq][value=none]")
-    assert pg.page.locator("#aq-pot").is_hidden()
     # a file with a W_e column is used straight away
     pg.upload(os.path.join(FIX, "synthetic_we_column.xlsx"))
-    assert pg.page.is_checked("input[name=aq][value=column]")
+    assert pg.title() == "Combination drive: gas cap and water", pg.title()
+    assert "from column" in pg.text("#aq-note")
     assert pg.val("res-N") == "120.0" and pg.val("res-m") == "0.300"
     assert pg.page.locator("#chart-drive svg").count() == 1
     assert "Water influx" in pg.text("#legend-drive")
-    # the same reservoir without the column: the dashboard finds K
+    # the same reservoir without the column: the pot aquifer is found by least squares
     pg.upload(os.path.join(FIX, "synthetic_pot_aquifer.xlsx"))
-    assert pg.page.is_checked("input[name=aq][value=none]")
-    assert pg.page.is_disabled("input[name=aq][value=column]")
-    assert pg.val("res-N") != "120.0"
-    pg.page.check("input[name=aq][value=pot]")
-    pg.page.click("#aq-best")
+    assert pg.page.is_disabled("#aq-model option[value=column]")
+    assert pg.title() == "Combination drive: gas cap and water", pg.title()
     assert pg.val("res-N") == "120.0" and pg.val("res-m") == "0.300", (pg.val("res-N"), pg.val("res-m"))
-    assert "K = 60,000 rb/psi" in pg.text("#aq-read")
+    assert "K = 60,000 rb/psi" in pg.text("#aq-read"), pg.text("#aq-read")
+    assert "(F − We)" in pg.page.locator("#chart-ho svg").text_content(), "y axis shows F − We"
+    # trial and error: K by hand, then fitted again
+    pg.page.fill("#aq-k", "20000")
+    pg.page.press("#aq-k", "Enter")
+    assert "set by you" in pg.text("#aq-read") and pg.val("res-N") != "120.0"
+    pg.page.click("#aq-best")
+    assert pg.val("res-N") == "120.0" and "K = 60,000 rb/psi" in pg.text("#aq-read")
     shot(pg, "desktop-influx", full=True)
+    # a mechanism chosen by hand
+    pg.mech("gascap")
+    assert pg.title() == "Gas-cap drive" and pg.page.locator("#res-We").is_hidden()
+    pg.mech("auto")
+    # the example has no time column: with time unknown, no aquifer that needs time is tried
+    pg.page.click("#use-example")
+    assert pg.page.locator("#aq-time").is_visible()
+    pg.page.select_option("#aq-steps", "none")
+    assert pg.title() == "Depletion drive", pg.title()
+    assert "misses F" in pg.text("#notes")
+    pg.page.select_option("#aq-steps", "auto")
+    assert pg.title() == "Water drive"
+    # the aquifer size by hand
+    pg.page.select_option("#aq-model", "veh")
+    pg.page.select_option("#aq-red", "5")
+    assert "re/ro = 5" in pg.text("#verdict-sub").replace("\n", ""), pg.text("#verdict-sub")
+    pg.close()
+
+
+@check("each mechanism is found from its sample file")
+def t_samples(b):
+    pg = Page(b)
+    cases = [
+        ("drive_depletion_N150.xlsx", "Depletion drive", "150.0", "Solution gas"),
+        ("drive_water_unsteady_N150.xlsx", "Water drive", "150.0", "Unsteady-state aquifer"),
+        ("drive_gascap_water_N150_m030.xlsx", "Combination drive: gas cap and water", "150.0", "Pot aquifer"),
+        ("drive_undersaturated_N150.xlsx", "Depletion drive", "150.0", "above the bubble point"),
+        ("havlena-odeh-example-2.xlsx", "Gas-cap drive", "108.6", "Gas cap, m = 0.542"),
+    ]
+    for f, title, N, sub in cases:
+        pg.upload(os.path.join(SAMPLES, f))
+        assert pg.page.locator("#alert").is_hidden(), f + ": " + pg.text("#alert")
+        assert pg.title() == title, f + ": " + pg.title()
+        if N:
+            assert pg.val("res-N") == N, f + " N=" + pg.val("res-N")
+        assert sub.lower() in pg.text("#verdict-sub").lower(), f + ": " + pg.text("#verdict-sub")
+        if f == "drive_water_unsteady_N150.xlsx":
+            assert "equal time steps" not in pg.text("#verdict-sub"), "the time column is used"
+            assert pg.page.locator("#calc thead").inner_text().startswith("Data") and "years" in pg.page.locator("#calc thead").inner_text()
+        if f == "drive_undersaturated_N150.xlsx":
+            assert pg.page.is_disabled("input[name=mech][value=gascap]")
+            assert pg.page.locator("#panel-explorer").is_hidden()
     pg.close()
 
 
@@ -366,7 +444,8 @@ def t_drop(b):
 def t_mobile(b):
     pg = Page(b, width=390, height=844)
     assert pg.page.evaluate("document.documentElement.scrollWidth") <= 390
-    assert pg.val("res-N") == "729.9"
+    assert pg.val("res-N") == "286.6"
+    assert pg.title() == "Water drive"
     assert pg.page.locator("#sec-params").get_attribute("open") is None, "secondary sections start folded"
     shot(pg, "mobile", full=True)
     pg.close()

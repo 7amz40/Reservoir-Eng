@@ -39,28 +39,42 @@ function run(wb, opts) {
 
 async function runFile(file, opts) { return run(await readFile(file), opts); }
 
-/** Exact gas-cap reservoir data from the MBE (same model as tests/make_fixtures.py). */
-function synthetic({ N = 150e6, m = 0.4, swc = 0.2, cw = 3e-6, cf = 5e-6, n = 9, pressures = null, K = 0 } = {}) {
+/**
+ * Exact reservoir data from the MBE (same model as tests/make_fixtures.py).
+ * K: pot aquifer (rb/psi); veh: {U (rb/psi), reD, a (t_D per day)} with one row per year; years: add t (days).
+ * undersaturated: R_s stays at R_si and B_o rises (no free gas).
+ */
+function synthetic({ N = 150e6, m = 0.4, swc = 0.2, cw = 3e-6, cf = 5e-6, n = 9, pressures = null, K = 0, veh = null, years = false, undersaturated = false } = {}) {
   const pi = 3000, T = 640;
   const z = p => 0.80 + 0.06 * Math.pow(p / 3000 - 0.5, 2) + 0.02 * (1 - p / 3000);
   const bg = p => 0.00504 * z(p) * T / p;
-  const rs = p => 600 - 0.19 * (pi - p) - 1.5e-5 * Math.pow(pi - p, 2);
-  const bo = p => 1.30 - 1.1e-4 * (pi - p) - 6e-9 * Math.pow(pi - p, 2);
+  const rs = undersaturated ? () => 600 : p => 600 - 0.19 * (pi - p) - 1.5e-5 * Math.pow(pi - p, 2);
+  const bo = undersaturated ? p => 1.30 * (1 + 1.2e-5 * (pi - p)) : p => 1.30 - 1.1e-4 * (pi - p) - 6e-9 * Math.pow(pi - p, 2);
   const boi = bo(pi), bgi = bg(pi), rsi = rs(pi);
   const ps = pressures || Array.from({ length: n - 1 }, (_, i) => pi - 160 * (i + 1) - 6 * (i + 1) * (i + 1));
-  const rows = [{ p: pi, Np: 0, Gp: 0, Bo: boi, Rs: rsi, Bg: bgi, We: 0 }];
-  for (const p of ps) {
+  const rows = [{ p: pi, Np: 0, Gp: 0, Bo: boi, Rs: rsi, Bg: bgi, We: 0, t: 0 }];
+  const timed = years || !!veh;
+  let S = null;
+  if (veh) {
+    const D = require('../assets/js/drive.js');
+    const hist = [pi].concat(ps).map((p, i) => ({ id: i, p, t: i * 365.25 }));
+    S = D.vehS(hist, veh.reD, veh.a);
+  }
+  for (const [i, p] of ps.entries()) {
     const Bo = bo(p), Rs = rs(p), Bg = bg(p), dp = pi - p;
     const eo = (Bo - boi) + (rsi - Rs) * Bg;
     const eg = boi * (Bg / bgi - 1);
     const efw = boi * (cw * swc + cf) * dp / (1 - swc);
-    const We = K * dp;
+    const We = K * dp + (veh ? veh.U * S[i + 1] : 0);
     const F = N * (eo + m * eg + (1 + m) * efw) + We;
-    const Np = N * (6e-5 * dp + 1e-8 * dp * dp);
-    const Rp = (F / Np - Bo) / Bg + Rs;
-    rows.push({ p, Np, Gp: Rp * Np, Bo, Rs, Bg, We });
+    // above the bubble point there is no free gas: F = Np Bo, so Np follows from F and R_p = R_s
+    const Np = undersaturated ? F / Bo : N * (6e-5 * dp + 1e-8 * dp * dp);
+    const Rp = undersaturated ? Rs : (F / Np - Bo) / Bg + Rs;
+    rows.push({ p, Np, Gp: Rp * Np, Bo, Rs, Bg, We, t: (i + 1) * 365.25 });
   }
-  return { rows: rows.map((r, i) => Object.assign({ id: i, sheetRow: i + 2, Wp: 0, Bw: 1 }, r)), params: { pi, Boi: boi, Bgi: bgi, Rsi: rsi, Swc: swc, Cw: cw, Cf: cf } };
+  const out = rows.map((r, i) => Object.assign({ id: i, sheetRow: i + 2, Wp: 0, Bw: 1 }, r));
+  if (!timed) out.forEach(r => { delete r.t; });
+  return { rows: out, params: { pi, Boi: boi, Bgi: bgi, Rsi: rsi, Swc: swc, Cw: cw, Cf: cf } };
 }
 
 /** Relative closeness check. */

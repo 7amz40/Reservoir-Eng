@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Havlena–Odeh Analyzer</title>
-<meta name="description" content="Material balance dashboard: reads production and PVT data from Excel and finds N, m and G with the Havlena–Odeh straight-line method.">
+<meta name="description" content="Material balance dashboard: reads production and PVT data from Excel, finds the drive mechanism with Havlena–Odeh diagnostics, and gives N, m, G and the water influx.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3Crect x='.5' y='.5' width='33' height='33' rx='7' fill='%23FAFCF9' stroke='%23BFCCC6'/%3E%3Cpath d='M7 6v21h21' fill='none' stroke='%2313221E' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M7 21.5L28 10' stroke='%2313221E' stroke-width='1.8' stroke-linecap='round'/%3E%3Ccircle cx='14' cy='17.6' r='2.4' fill='%231E8A50'/%3E%3Ccircle cx='20' cy='14.6' r='2.4' fill='%231E8A50'/%3E%3Ccircle cx='25' cy='11.4' r='2.4' fill='%231E8A50'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -370,7 +370,12 @@ a { color: var(--focus); }
 .radio input { margin: 2px 0 0; width: 15px; height: 15px; flex: none; accent-color: var(--ink); }
 .radio small { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
 .radio input:disabled, .radio input:disabled + span { cursor: not-allowed; color: var(--muted); }
-.aq-pot { display: grid; gap: 8px; margin-top: 12px; padding-top: 6px; border-top: 1px solid var(--line); }
+.aq-box { display: grid; gap: 7px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.field-l { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.field-note { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.field-note:empty, .aq-read:empty { display: none; }
+.aq-veh, .aq-time { display: grid; gap: 6px; margin-top: 4px; }
+.aq-pot { display: grid; gap: 8px; margin-top: 4px; }
 .aq-pot .prm { padding: 6px 0 0; }
 .aq-pot input[type="range"] { width: 100%; height: 24px; accent-color: var(--water); }
 .aq-pot .btn-quiet { justify-self: start; }
@@ -379,7 +384,7 @@ a { color: var(--focus); }
 /* columns and units */
 .colmap { display: grid; grid-template-columns: 44px minmax(0, 1fr) 96px; gap: 6px 8px; align-items: center; }
 .colmap .sym { font-size: 15px; }
-.colmap select, .sheet-pick select, .outunits select {
+.colmap select, .sheet-pick select, .outunits select, .aq-box select {
   width: 100%; height: 32px; padding: 0 26px 0 8px; font-size: 13px;
   border: 1px solid var(--line-strong); border-radius: var(--r-s); background-color: var(--surface);
   appearance: none; -webkit-appearance: none;
@@ -418,12 +423,50 @@ main {
 .alert .alert-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .alert .close { margin-left: auto; }
 
+/* ---------- verdict: the drive mechanism ---------- */
+
+.verdict {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px 34px;
+  padding: 16px 2px 20px;
+  border-top: 2px solid var(--ink);
+}
+.verdict-k { font-size: 13px; color: var(--muted); }
+.verdict-title {
+  margin-top: 2px;
+  font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 1.02; letter-spacing: -0.01em; color: var(--ink);
+  text-wrap: balance;
+}
+.verdict-sub { margin-top: 8px; font-size: 14.5px; line-height: 1.45; color: var(--ink-2); max-width: 58ch; }
+.verdict-sub .assume { display: inline-block; margin-top: 2px; color: var(--warn); }
+.shares { margin-top: 16px; max-width: 520px; }
+.shares-bar { display: flex; gap: 2px; height: 14px; border-radius: 4px; overflow: hidden; background: var(--surface); }
+.shares-bar span { flex-basis: 0; min-width: 3px; }
+.sh-oil { background: var(--oil); }
+.sh-gas { background: var(--gas); }
+.sh-water { background: var(--water); }
+.sh-rock { background: var(--rock); }
+.shares-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.shares-key li { display: inline-flex; align-items: center; gap: 6px; }
+.shares-key strong { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.shares-key .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.shares-at { margin-top: 4px; font-size: 12px; color: var(--muted); }
+
+.evidence { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; align-content: start; }
+.evidence li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+.evidence li svg { width: 22px; height: 22px; padding: 3px; border-radius: 50%; margin-top: -1px; }
+.evidence li[data-level="yes"] svg { color: var(--oil); background: var(--oil-soft); }
+.evidence li[data-level="yes"] { color: var(--ink); }
+.evidence li[data-level="no"] svg { color: var(--muted); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.evidence li[data-level="maybe"] svg { color: var(--warn); background: var(--warn-soft); }
+.evidence li[data-level="info"] svg { color: var(--muted); background: var(--info-soft); }
+
 /* ---------- ledger (results) ---------- */
 
 .ledger {
-  border-top: 2px solid var(--ink);
+  border-top: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line-strong);
 }
+.verdict[hidden] + .ledger { border-top: 2px solid var(--ink); }
 .ledger-line {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px;
   padding: 12px 2px 12px;
@@ -437,6 +480,8 @@ main {
 .ledger-fit strong { font-weight: 600; color: var(--ink); }
 
 .ledger-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ledger.has-we .ledger-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.res-sym sub { font-family: var(--font-math); font-style: normal; font-size: 0.55em; }
 .res { padding: 16px 18px 18px 2px; min-width: 0; }
 .res + .res { border-left: 1px solid var(--line); padding-left: 22px; }
 .res-top { display: flex; align-items: baseline; gap: 10px; }
@@ -535,6 +580,19 @@ main {
 .explorer-read strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .explorer-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px; padding: 0 18px 18px; }
 .mini-h { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
+.diag-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 22px; padding: 0 18px 18px; }
+.models-wrap .table-wrap { border-top: 0; }
+.models { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+.models th, .models td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); vertical-align: top; }
+.models thead th { font-weight: 500; color: var(--ink-2); vertical-align: bottom; border-bottom-color: var(--line-strong); }
+.models thead th .u { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+.models th[scope="row"], .models .tl, .models thead th:first-child, .models thead th:nth-child(2), .models thead th:last-child { text-align: left; }
+.models th[scope="row"] { font-weight: 500; color: var(--ink); }
+.models td.tl { color: var(--ink-2); }
+.models .nw, .models td:nth-child(3), .models td:nth-child(4) { white-space: nowrap; }
+.models tr.is-chosen th, .models tr.is-chosen td { background: var(--oil-soft); }
+.verdict-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.verdict-chip.is-yes { color: var(--ink); background: var(--surface); box-shadow: inset 0 0 0 1px var(--oil); }
 .mini-h span { font-weight: 400; color: var(--muted); }
 
 /* table */
@@ -562,6 +620,8 @@ main {
 .method { padding: 6px 2px 0; }
 .method > h2 { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
 .method > p { margin-top: 4px; font-size: 13.5px; color: var(--ink-2); max-width: 75ch; }
+.method-steps { margin: 8px 0 0; padding-left: 20px; font-size: 13.5px; color: var(--ink-2); max-width: 82ch; display: grid; gap: 6px; }
+.method-steps strong { color: var(--ink); font-weight: 600; }
 .eqs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; margin-top: 12px; }
 .eq { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
 .eq-name { font-size: 13px; color: var(--ink-2); }
@@ -614,11 +674,16 @@ footer.foot {
 
 @media (max-width: 1280px) {
   :root { --side-w: 310px; }
+  .diag-grid { grid-template-columns: minmax(0, 1fr); }
+  .ledger.has-we .ledger-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ledger.has-we .res:nth-child(3) { border-left: 0; padding-left: 2px; }
+  .ledger.has-we .res:nth-child(n+3) { border-top: 1px solid var(--line); }
   .ho-grid { grid-template-columns: minmax(0, 1fr); }
   .notes-col { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 8px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 0 24px; }
 }
 
 @media (max-width: 1080px) {
+  .verdict { grid-template-columns: minmax(0, 1fr); }
   .pair { grid-template-columns: minmax(0, 1fr); }
   .explorer-grid { grid-template-columns: minmax(0, 1fr); }
   .eqs { grid-template-columns: minmax(0, 1fr); }
@@ -640,7 +705,9 @@ footer.foot {
   .brand-org { padding-right: 12px; }
   .appbar .btn span { display: none; }
   .appbar .btn { padding: 0 10px; }
-  .ledger-grid { grid-template-columns: minmax(0, 1fr); }
+  .ledger-grid, .ledger.has-we .ledger-grid { grid-template-columns: minmax(0, 1fr); }
+  .verdict-title { font-size: 36px; }
+  .diag-grid { padding-left: 14px; padding-right: 14px; }
   .res + .res { border-left: 0; padding-left: 2px; border-top: 1px solid var(--line); }
   .res-val { font-size: 40px; }
   .ledger-fit { margin-left: 0; width: 100%; }
@@ -704,7 +771,7 @@ footer.foot {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2"/></svg>
           <p class="drop-title">Drop an Excel file here</p>
           <p class="drop-sub">or <span class="linklike">choose a file</span></p>
-          <p class="drop-hint" id="drop-hint">.xlsx or .csv with columns <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub>, <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub></p>
+          <p class="drop-hint" id="drop-hint">.xlsx or .csv with columns <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub>, <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub>, and time if you have it</p>
         </div>
         <input type="file" id="file" class="sr-only" tabindex="-1" aria-hidden="true" accept=".xlsx,.xlsm,.csv,.txt,.xls,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
 
@@ -731,6 +798,8 @@ footer.foot {
             <li>A table with a header row: pressure <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub> (or <var>R</var><sub>p</sub>), <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub> and <var>B</var><sub>g</sub>, in any order. Units in the header, like “Np (MMSTB)”, are read.</li>
             <li>The initial parameters <var>p</var><sub>i</sub>, <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub>, <var>R</var><sub>si</sub>, <var>S</var><sub>wc</sub>, <var>C</var><sub>w</sub>, <var>C</var><sub>f</sub> as label and value pairs, on a second sheet or beside or below the table.</li>
             <li>If <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub> or <var>R</var><sub>si</sub> are missing, they are read from the table row at <var>p</var><sub>i</sub>.</li>
+            <li>Optional columns: time (<var>t</var> in years, months or days, or dates), water produced <var>W</var><sub>p</sub>, and water influx <var>W</var><sub>e</sub> if you know it. Time lets the dashboard test steady- and unsteady-state aquifers.</li>
+            <li>For oil above its bubble point, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub> and <var>G</var><sub>p</sub> can be left out.</li>
             <li>The file stays on your computer. Nothing is uploaded.</li>
           </ul>
         </details>
@@ -749,22 +818,48 @@ footer.foot {
       </div>
     </details>
 
-    <details class="side-sec" id="sec-aq" open>
-      <summary>Water influx <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+    <details class="side-sec" id="sec-drive" open>
+      <summary>Drive mechanism <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
       <div class="side-body">
-        <p class="side-note">For a combination drive, the water influx <var>W</var><sub>e</sub> is taken off <var>F</var> before the line is fitted.</p>
-        <div class="aq-opts" role="radiogroup" aria-label="Water influx">
-          <label class="radio"><input type="radio" name="aq" value="none"> <span>No water influx</span></label>
-          <label class="radio"><input type="radio" name="aq" value="column"> <span><var>W</var><sub>e</sub> from a column in the file<small id="aq-col-note"></small></span></label>
-          <label class="radio"><input type="radio" name="aq" value="pot"> <span>Pot aquifer, <var>W</var><sub>e</sub> = <var>K</var> (<var>p</var><sub>i</sub> − <var>p</var>)<small>Change <var>K</var> until the points make a straight line, or let the dashboard find it.</small></span></label>
+        <p class="side-note">The dashboard tries every mechanism and keeps the one the data support. Pick one to see its results instead.</p>
+        <div class="aq-opts" role="radiogroup" aria-label="Drive mechanism">
+          <label class="radio"><input type="radio" name="mech" value="auto" checked> <span>Find it from the data<small id="mech-found"></small></span></label>
+          <label class="radio"><input type="radio" name="mech" value="depletion"> <span>Depletion (solution gas, rock and fluid expansion)</span></label>
+          <label class="radio"><input type="radio" name="mech" value="gascap"> <span>Gas cap</span></label>
+          <label class="radio"><input type="radio" name="mech" value="water"> <span>Water drive</span></label>
+          <label class="radio"><input type="radio" name="mech" value="combination"> <span>Gas cap and water drive</span></label>
         </div>
-        <div class="aq-pot" id="aq-pot" hidden>
-          <div class="prm">
-            <label for="aq-k"><span class="sym"><var>K</var></span> <span class="nm">Aquifer constant</span></label>
-            <div class="prm-input"><input id="aq-k" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"><span class="unit">rb/psi</span></div>
+        <div class="aq-box" id="aq-box">
+          <label class="field-l" for="aq-model">Aquifer model</label>
+          <select id="aq-model">
+            <option value="auto">Best fit of the models below</option>
+            <option value="pot">Pot aquifer</option>
+            <option value="steady">Steady state (Schilthuis)</option>
+            <option value="veh">Unsteady state (van Everdingen–Hurst)</option>
+            <option value="column">From the file (W_e column)</option>
+          </select>
+          <p class="field-note" id="aq-note"></p>
+          <div class="aq-pot" id="aq-pot" hidden>
+            <div class="prm">
+              <label for="aq-k"><span class="sym"><var>K</var></span> <span class="nm">Pot aquifer constant</span></label>
+              <div class="prm-input"><input id="aq-k" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="fitted"><span class="unit">rb/psi</span></div>
+            </div>
+            <input type="range" id="aq-range" min="0" max="100000" step="100" value="0" aria-label="Pot aquifer constant K, rb/psi">
+            <button class="btn-quiet" type="button" id="aq-best">Fit <var>K</var> again</button>
           </div>
-          <input type="range" id="aq-range" min="0" max="100000" step="100" value="0" aria-label="Aquifer constant K, rb/psi">
-          <button class="btn-quiet" type="button" id="aq-best">Find the best <var>K</var></button>
+          <div class="aq-veh" id="aq-veh" hidden>
+            <label class="field-l" for="aq-red">Aquifer size, <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub></label>
+            <select id="aq-red"></select>
+          </div>
+          <div class="aq-time" id="aq-time" hidden>
+            <label class="field-l" for="aq-steps">Time between rows</label>
+            <select id="aq-steps">
+              <option value="auto">Equal steps, only if needed</option>
+              <option value="steps">Equal steps</option>
+              <option value="none">Unknown</option>
+            </select>
+            <p class="field-note">The file has no time column. Steady- and unsteady-state aquifers need time.</p>
+          </div>
           <p class="aq-read" id="aq-read" aria-live="polite"></p>
         </div>
       </div>
@@ -798,6 +893,16 @@ footer.foot {
   <main id="main" tabindex="-1">
     <div class="alert" id="alert" role="alert" hidden></div>
 
+    <section class="verdict" id="verdict" aria-labelledby="verdict-title" aria-live="polite">
+      <div class="verdict-main">
+        <p class="verdict-k" id="verdict-k">Drive mechanism, found from the data</p>
+        <h2 class="verdict-title" id="verdict-title">–</h2>
+        <p class="verdict-sub" id="verdict-sub"></p>
+        <div class="shares" id="shares"></div>
+      </div>
+      <ul class="evidence" id="evidence" aria-label="How the mechanism was found"></ul>
+    </section>
+
     <section class="ledger" id="ledger" aria-labelledby="ledger-title">
       <h2 class="sr-only" id="ledger-title">Results</h2>
       <div class="ledger-line">
@@ -822,6 +927,12 @@ footer.foot {
           <div class="res-top"><span class="res-sym">G</span><span class="res-name">Gas-cap gas initially in place</span></div>
           <div class="res-val"><span class="val">–</span><span class="u"></span></div>
           <div class="res-how"><var>G</var> = <var>mN</var> <var>B</var><sub>oi</sub> / <var>B</var><sub>gi</sub></div>
+          <div class="res-ci"></div>
+        </div>
+        <div class="res" id="res-We" hidden>
+          <div class="res-top"><span class="res-sym">W<sub>e</sub></span><span class="res-name">Water influx at the last step</span></div>
+          <div class="res-val"><span class="val">–</span><span class="u"></span></div>
+          <div class="res-how" id="res-We-how"></div>
           <div class="res-ci"></div>
         </div>
       </div>
@@ -860,6 +971,29 @@ footer.foot {
       </div>
     </section>
 
+    <section class="panel" id="panel-diag" aria-labelledby="diag-title">
+      <div class="panel-head">
+        <div>
+          <h2 id="diag-title">How the mechanism was found</h2>
+          <p class="panel-sub">With depletion alone, <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>) is the same at every step: an apparent <var>N</var>. A gas cap or an aquifer makes it drift. Each mechanism is then fitted the Havlena–Odeh way and kept only if it makes physical sense and fits <var>F</var>.</p>
+        </div>
+        <div class="panel-tools">
+          <button class="btn-quiet" type="button" id="png-app" data-download>PNG</button>
+        </div>
+      </div>
+      <div class="diag-grid">
+        <div>
+          <p class="mini-h">Apparent <var>N</var> at each step</p>
+          <ul class="legend" id="legend-app"></ul>
+          <div class="chart" id="chart-app"></div>
+        </div>
+        <div class="models-wrap">
+          <p class="mini-h">Models tried <span>(misfit = root mean square of the relative error in <var>F</var>)</span></p>
+          <div class="table-wrap"><table class="models" id="models"></table></div>
+        </div>
+      </div>
+    </section>
+
     <div class="pair">
       <section class="panel" aria-labelledby="check-title">
         <div class="panel-head">
@@ -881,7 +1015,7 @@ footer.foot {
         <div class="panel-head">
           <div>
             <h2 id="drive-title">Drive indices</h2>
-            <p class="panel-sub">Share of the production supported by each mechanism, at the fitted <var>N</var> and <var>m</var>.</p>
+            <p class="panel-sub">Share of the production supported by each mechanism, from the fitted <var>N</var>, <var>m</var> and <var>W</var><sub>e</sub>.</p>
           </div>
           <div class="panel-tools">
             <button class="btn-quiet" type="button" id="png-drive" data-download>PNG</button>
@@ -945,7 +1079,12 @@ footer.foot {
 
     <section class="method" aria-labelledby="method-title">
       <h2 id="method-title">Method</h2>
-      <p>Havlena and Odeh (1963) wrote the material balance as a straight line. With both <var>N</var> and <var>m</var> unknown, a plot of <var>y</var> against <var>x</var> gives <var>N</var> as the intercept and <var>mN</var> as the slope. Both axes hold (1 + <var>m</var>) <var>E</var><sub>fw</sub>, so the line is fitted again with the new <var>m</var> until <var>m</var> stops changing, which takes a few rounds. Without <var>E</var><sub>fw</sub> the plot is <var>F</var>/<var>E</var><sub>o</sub> against <var>E</var><sub>g</sub>/<var>E</var><sub>o</sub>. For a combination drive, the water influx <var>W</var><sub>e</sub> is taken off <var>F</var> first; for a pot aquifer, <var>K</var> is changed by trial and error until the points make a straight line, and the dashboard can also find the <var>K</var> that fits best by least squares.</p>
+      <p>Havlena and Odeh (1963) wrote the material balance as a straight line, one for each drive mechanism (Week 7, slides 35 to 41). The dashboard uses them to find the mechanism in three steps.</p>
+      <ol class="method-steps">
+        <li><strong>Depletion check.</strong> With depletion alone, the apparent <var>N</var> = <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>) is the same at every step. If it drifts, more energy is acting.</li>
+        <li><strong>Fit every mechanism.</strong> Depletion: <var>F</var> against <var>E</var><sub>t</sub> through the origin. Gas cap: the straight line below, with <var>N</var> as the intercept and <var>mN</var> as the slope. Water drive: <var>F</var>/<var>E</var><sub>t</sub> against <var>W</var><sub>e</sub>/<var>E</var><sub>t</sub>, a line of slope 1 that meets the axis at <var>N</var>, with a pot, steady-state or unsteady-state aquifer. Gas cap and water drive together. The aquifer constants are found by least squares, which does the trial and error for you; you can also set them by hand.</li>
+        <li><strong>Keep what the data support.</strong> A model counts only if <var>N</var>, <var>m</var> and the aquifer constant are positive, each mechanism in it supplies at least 2 % of <var>F</var>, and their signs survive rounding the table within its last digit (90 % of 120 trials). Of those, the one with the lowest AICc (Akaike’s criterion, corrected for few points) on the relative misfit of <var>F</var> wins; within 2 of it, the one with fewer constants wins. Without a time column, steady- and unsteady-state aquifers are tried only when nothing simpler fits, with the rows taken as equal time steps.</li>
+      </ol>
       <div class="eqs">
         <div class="eq">
           <span class="eq-name">Underground withdrawal</span>
@@ -980,11 +1119,27 @@ footer.foot {
           <div class="eqn wrap"><span class="part"><span class="word">DDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N</var> <var>E</var><sub>o</sub></span><span class="den"><var>F</var></span></span></span><span class="gap"></span><span class="part"><span class="word">SDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N m</var> <var>E</var><sub>g</sub></span><span class="den"><var>F</var></span></span></span><span class="gap"></span><span class="part"><span class="word">CDI</span><span class="op">=</span><span class="frac"><span class="num"><var>N</var> (1<span class="op">+</span><var>m</var>) <var>E</var><sub>fw</sub></span><span class="den"><var>F</var></span></span></span><span class="gap"></span><span class="part"><span class="word">WDI</span><span class="op">=</span><span class="frac"><span class="num"><var>W</var><sub>e</sub></span><span class="den"><var>F</var></span></span></span></div>
         </div>
         <div class="eq">
+          <span class="eq-name">Depletion (slide 37)</span>
+          <div class="eqn"><var>F</var><span class="op">=</span><var>N</var> <var>E</var><sub>t</sub>,<span class="gap"></span><var>E</var><sub>t</sub><span class="op">=</span><var>E</var><sub>o</sub><span class="op">+</span><var>m</var> <var>E</var><sub>g</sub><span class="op">+</span>(1<span class="op">+</span><var>m</var>) <var>E</var><sub>fw</sub></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Water drive (slide 41)</span>
+          <div class="eqn"><span class="frac"><span class="num"><var>F</var></span><span class="den"><var>E</var><sub>t</sub></span></span><span class="op">=</span><var>N</var><span class="op">+</span><span class="frac"><span class="num"><var>W</var><sub>e</sub></span><span class="den"><var>E</var><sub>t</sub></span></span></div>
+        </div>
+        <div class="eq">
           <span class="eq-name">Pot aquifer</span>
           <div class="eqn"><var>W</var><sub>e</sub><span class="op">=</span><var>K</var> (<var>p</var><sub>i</sub><span class="op">−</span><var>p</var>),<span class="gap"></span><var>K</var><span class="op">=</span>(<var>c</var><sub>w</sub><span class="op">+</span><var>c</var><sub>f</sub>) <var>W</var><sub>i</sub> <var>f</var></div>
         </div>
+        <div class="eq">
+          <span class="eq-name">Steady state (Schilthuis)</span>
+          <div class="eqn"><var>W</var><sub>e</sub><span class="op">=</span><var>C</var> ∫<sub>0</sub><sup><var>t</var></sup> (<var>p</var><sub>i</sub><span class="op">−</span><var>p</var>) d<var>t</var></div>
+        </div>
+        <div class="eq">
+          <span class="eq-name">Unsteady state (van Everdingen–Hurst, radial)</span>
+          <div class="eqn wrap"><span class="part"><var>W</var><sub>e</sub><span class="op">=</span><var>U</var> Σ Δ<var>p</var><sub><var>j</var></sub> <var>W</var><sub>D</sub>(<var>t</var><sub>D</sub><span class="op">−</span><var>t</var><sub>D<var>j</var></sub>)</span><span class="gap"></span><span class="part"><var>t</var><sub>D</sub><span class="op">=</span><var>a t</var></span><span class="gap"></span><span class="part"><var>U</var><span class="op">=</span>1.119 <var>f φ c h r</var><sub>o</sub><sup>2</sup></span></div>
+        </div>
       </div>
-      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub> in psi⁻¹. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method.</p>
+      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub> in psi⁻¹. <var>t</var> in days. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method. <var>W</var><sub>D</sub> comes from the van Everdingen–Hurst solution for a radial aquifer at constant terminal pressure, with <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub> from 1.5 to 50 or infinite, and the steps Δ<var>p</var><sub><var>j</var></sub> are the averaged ones used by Dake (1978).</p>
     </section>
   </main>
 </div>
@@ -1157,12 +1312,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     ],
     ratio: [
       { id: '-', label: '–', factor: 1 }
+    ],
+    time: [
+      { id: 'year', label: 'years', factor: 365.25 },
+      { id: 'month', label: 'months', factor: 30.4375 },
+      { id: 'day', label: 'days', factor: 1 },
+      { id: 'hour', label: 'hours', factor: 1 / 24 }
     ]
   };
 
   var DEFAULTS = {
     pressure: 'psia', oil: 'MMSTB', gas: 'MMSCF', gor: 'SCF/STB',
-    bo: 'rb/STB', bg: 'rb/SCF', bw: 'rb/STB', rvol: 'MMrb', comp: '1/psi', frac: 'fraction', ratio: '-'
+    bo: 'rb/STB', bg: 'rb/SCF', bw: 'rb/STB', rvol: 'MMrb', comp: '1/psi', frac: 'fraction', ratio: '-', time: 'year'
   };
 
   function listUnits(kind) { return (CATALOG[kind] || []).slice(); }
@@ -1274,6 +1435,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (has(k, ['bar'])) return res('1/bar');
         if (has(k, ['psi', '1/p'])) return res('1/psi');
         break;
+      case 'time':
+        if (/^(°|deg|º)|^(f|r|c|k)$|fahrenheit|rankine|celsius|kelvin/.test(k)) break; // a temperature, not a time
+        if (has(k, ['hour', 'hr', '^h$'])) return res('hour');
+        if (has(k, ['month', 'mo', 'mth'])) return res('month');
+        if (has(k, ['day', 'date']) || k === 'd') return res('day');
+        if (has(k, ['year', 'yr', 'yrs', 'annum']) || k === 'y' || k === 'a') return res('year');
+        break;
       case 'frac':
         if (has(k, ['%', 'percent', 'pct'])) return res('%');
         if (has(k, ['frac', 'v/v', 'dimensionless', '-'])) return res('fraction');
@@ -1289,6 +1457,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var k = unitKey(text);
     if (!k || k.length > 24) return false;
     if (/^(psi[ag]?|bar|kpa|mpa|atm|%|percent|fraction|frac|v\/v|-)$/.test(k)) return true;
+    if (/^(years?|yrs?|months?|days?|hours?|hrs?|d|y|mo)$/.test(k)) return true;
     if (/^(m{0,3}|t|b)?(stb|scf|bbl|rb|cf|bo|mcf|scm|sm3|m3|rm3)$/.test(k)) return true;
     if (/^(rb|bbl|ft3|cf|m3|rm3|scf|mscf|mcf|sm3)\/(stb|scf|bbl|mscf|mcf|sm3|m3)$/.test(k)) return true;
     if (/^(1\/psi|psi-1|psi\^-1|\/psi|1\/bar|bar-1|1\/kpa)$/.test(k)) return true;
@@ -1969,6 +2138,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       contains: [['water', 'influx'], ['aquifer', 'influx'], ['influx'], ['encroachment']],
       neg: ['rate', 'index', 'daily']
     },
+    t: {
+      label: 'Time', symbol: 't', kind: 'time', required: false, optional: true,
+      exact: ['t', 'time', 'date', 'year', 'years', 'yr', 'yrs', 'days', 'day', 'months', 'month', 'elapsedtime', 'productiontime',
+        'timeyears', 'timeyear', 'timedays', 'timemonths', 'tyears', 'tdays', 'tyr', 'productiondate', 'timesincestart', 'timeyr'],
+      tokens: ['time', 'date'],
+      contains: [['time'], ['date']],
+      neg: ['rate', 'temperature', 'temp', 'step', 'travel', 'tdi']
+    },
     Bw: {
       label: 'Water formation volume factor', symbol: 'B_w', kind: 'bw', required: false, optional: true,
       exact: ['bw', 'waterfvf', 'fvfwater', 'waterformationvolumefactor', 'watervolumefactor'],
@@ -1977,8 +2154,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       neg: ['initial']
     }
   };
-  var FIELD_ORDER = ['p', 'Np', 'Gp', 'Rp', 'Bo', 'Rs', 'Bg', 'Wp', 'Bw', 'We'];
+  var FIELD_ORDER = ['p', 'Np', 'Gp', 'Rp', 'Bo', 'Rs', 'Bg', 'Wp', 'Bw', 'We', 't'];
   var CORE_FIELDS = ['p', 'Np', 'Bo', 'Rs', 'Bg'];
+  // p, Np and Bo are always needed; R_s, B_g and G_p (or R_p) come together, or not at all for undersaturated oil
+  var REQUIRED_FIELDS = ['p', 'Np', 'Bo'];
+  var GAS_FIELDS = ['Rs', 'Bg', 'Gp'];
 
   var PARAMS = {
     pi: {
@@ -2187,6 +2367,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   /* ---------------- production table ---------------- */
 
+  /** A date written as text, as an Excel day number (days since 1899-12-30), or NaN. Month-only dates mean the 1st. */
+  function dateDays(text) {
+    var t = String(text).trim(), m;
+    if ((m = t.match(/^(\d{4})[-\/.](\d{1,2})$/))) return Date.UTC(+m[1], +m[2] - 1, 1) / 86400000 + 25569;   // 2015-01
+    if ((m = t.match(/^(\d{1,2})[-\/.](\d{4})$/))) return Date.UTC(+m[2], +m[1] - 1, 1) / 86400000 + 25569;   // 01/2015
+    if (!DATE_TEXT.test(t)) return NaN;
+    var ms = Date.parse(t);
+    return isFinite(ms) ? ms / 86400000 + 25569 : NaN;
+  }
+
+  // dates written as text: 1990-01-01, 1/1/1990, 1.1.1990, Jan 1, 1990, 1 Jan 1990, Jan 1990, Jan-90
+  var DATE_TEXT = /^\s*(\d{4}[-\/.]\d{1,2}[-\/.]\d{1,2}|\d{1,2}[-\/.]\d{1,2}[-\/.]\d{2,4}|[A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}|\d{1,2}[-\s][A-Za-z]{3,9}\.?[-\s]\d{2,4}|[A-Za-z]{3,9}\.?[-\s]\d{2,4})\s*$/;
+
   function unitTextFromCell(v) {
     if (typeof v !== 'string') return '';
     var t = U.cleanText(v).replace(/^[\(\[\{]\s*|\s*[\)\]\}]$/g, '');
@@ -2206,6 +2399,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       headers.push({ index: c, text: txt.trim(), label: txt.trim() || ('Column ' + (c + 1)) });
     }
 
+    if (auto.t && /^(°|º|deg)|^\s*(f|r|c|k)\s*$|fahrenheit|rankine|celsius|kelvin/i.test(auto.t.info.unit || '')) delete auto.t;
     var mapping = {}, mappingSource = {};
     FIELD_ORDER.forEach(function (f) {
       if (mappingOverride && Object.prototype.hasOwnProperty.call(mappingOverride, f)) {
@@ -2244,6 +2438,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       FIELD_ORDER.forEach(function (f) {
         var idx = mapping[f];
         if (idx === undefined || idx < 0) { rec[f] = NaN; return; }
+        if (f === 't' && typeof row[idx] === 'string') {
+          var day = dateDays(row[idx]);
+          if (isFinite(day)) { rec[f] = day; inlineUnits.t = 'date'; return; }
+        }
         var parsed = U.parseNumberWithUnit(row[idx]);
         rec[f] = parsed ? parsed.value : NaN;
         if (parsed && parsed.unit && !inlineUnits[f]) inlineUnits[f] = parsed.unit;
@@ -2419,6 +2617,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     units.Rp = fromText('Rp') || { id: 'SCF/STB', source: 'assumed', text: '' };
     units.Bo = fromText('Bo') || { id: 'rb/STB', source: 'assumed', text: '' };
     units.Bw = fromText('Bw') || { id: 'rb/STB', source: 'assumed', text: '' };
+    units.t = fromText('t');
+    if (!units.t || prod.inlineUnits.t === 'date') {
+      var tv = rows.map(function (r) { return r.t; }).filter(isFinite);
+      var maxT = Math.max.apply(null, tv.concat([0]));
+      var hdrT = (prod.mapping.t >= 0 && prod.headers[prod.mapping.t] ? prod.headers[prod.mapping.t].text : '').toLowerCase();
+      if (prod.inlineUnits.t === 'date' || /date/.test(hdrT) || maxT > 20000) units.t = { id: 'day', source: 'inferred', text: '' };
+      else if (!units.t) units.t = { id: 'year', source: 'assumed', text: '' };
+    }
     units.We = fromText('We');
     if (!units.We) {
       var maxWe = Math.max.apply(null, rows.map(function (r) { return Math.abs(r.We); }).filter(isFinite).concat([0]));
@@ -2496,8 +2702,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     prod.sheetIndex = chosen.sheetIndex;
     res.production = prod;
 
-    var missing = CORE_FIELDS.filter(function (f) { return prod.mapping[f] < 0; });
-    if (prod.mapping.Gp < 0 && prod.mapping.Rp < 0) missing.push('Gp');
+    var missing = REQUIRED_FIELDS.filter(function (f) { return prod.mapping[f] < 0; });
+    var gasHave = { Rs: prod.mapping.Rs >= 0, Bg: prod.mapping.Bg >= 0, Gp: prod.mapping.Gp >= 0 || prod.mapping.Rp >= 0 };
+    var gasCount = GAS_FIELDS.filter(function (f) { return gasHave[f]; }).length;
+    if (gasCount > 0 && gasCount < 3) GAS_FIELDS.forEach(function (f) { if (!gasHave[f]) missing.push(f); });
+    res.noGas = gasCount === 0;
+    if (res.noGas && !missing.length) {
+      res.infos.push({ code: 'no-gas', text: 'There are no R_s, B_g or G_p columns, so the oil is taken as undersaturated (above its bubble point): all gas produced is solution gas and there is no gas cap.' });
+    }
     if (missing.length && !res.errors.length) {
       res.errors.push({
         code: 'missing-columns', fields: missing,
@@ -2590,8 +2802,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       o.Wp = (prod.mapping.Wp >= 0 && isFinite(r.Wp)) ? U.toBase('oil', u.Wp, r.Wp) : 0;
       o.Bw = (prod.mapping.Bw >= 0 && isFinite(r.Bw)) ? U.toBase('bw', u.Bw, r.Bw) : 1;
       o.We = (prod.mapping.We >= 0 && isFinite(r.We)) ? U.toBase('rvol', u.We, r.We) : NaN;
+      o.t = (prod.mapping.t >= 0 && isFinite(r.t)) ? U.toBase('time', u.t || 'year', r.t) : NaN;
       return o;
     });
+    var noGas = !!analysis.noGas;
 
     // keep the time order: sort by cumulative oil (stable), so unsorted tables give the same answer
     var order = rows.map(function (r, i) { return i; });
@@ -2664,6 +2878,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       var fp = fileParam(k, spec[2], spec[3]);
       if (isFinite(userParams[k])) setParam(k, userParams[k], 'user');
       else if (fp) setParam(k, fp.value, 'file', fp);
+      else if (noGas && k !== 'Boi') setParam(k, k === 'Bgi' ? 1 : 0, 'not-needed'); // no free gas: the value cancels out
       else if (refRow) setParam(k, refRow[col], 'derived', { from: 'row ' + refRow.sheetRow + ' (p = ' + U.fmt(refRow.p, 0) + ' psia)' });
       else {
         setParam(k, NaN, 'missing');
@@ -2691,6 +2906,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       else if (fp) setParam(k, fp.value, 'file', fp);
       else setParam(k, NaN, 'missing');
     });
+
+    if (noGas) {
+      // above the bubble point: R_s = R_si, B_g plays no part, and all gas produced is solution gas (R_p = R_s)
+      rows.forEach(function (r) { r.Rs = P.Rsi; r.Bg = P.Bgi; r.Gp = r.Np * P.Rsi; });
+    }
 
     // sanity checks
     if (isFinite(P.Swc) && (P.Swc < 0 || P.Swc >= 1)) msgs.errors.push({ text: 'S_wc must be a fraction between 0 and 1, now ' + U.fmtAuto(P.Swc) + '. For 20 %, type 0.2 or 20%.' });
@@ -2731,10 +2951,32 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       msgs.infos.push({ code: 'we-empty', text: 'The W_e column (column ' + colLetter(prod.mapping.We) + ') has no numbers, so it is not used.' });
     }
 
+    // a time column with no numbers is treated as no column
+    var tMapped = prod.mapping.t >= 0;
+    var tRows = rows.filter(function (r) { return r.Np > 0; });
+    var hasTime = tMapped && tRows.length > 0 && tRows.every(function (r) { return isFinite(r.t); });
+    var tVals = rows.map(function (r) { return r.t; }).filter(isFinite);
+    var tFlat = hasTime && !(Math.max.apply(null, tVals) > Math.min.apply(null, tVals));
+    if (tFlat) {
+      hasTime = false;
+      msgs.infos.push({ code: 't-flat', text: 'The time column (column ' + colLetter(prod.mapping.t) + ') has the same value on every row, so it is not used.' });
+    } else if (tMapped && !hasTime) {
+      var someT = rows.some(function (r) { return isFinite(r.t); });
+      msgs.infos.push({ code: 't-gap', text: someT ? 'The time column (column ' + colLetter(prod.mapping.t) + ') has gaps, so it is not used.' : 'The time column (column ' + colLetter(prod.mapping.t) + ') has no numbers, so it is not used.' });
+    }
+    if (hasTime) {
+      for (var qt = 1; qt < rows.length; qt++) {
+        if (isFinite(rows[qt].t) && isFinite(rows[qt - 1].t) && rows[qt].t < rows[qt - 1].t) {
+          msgs.warnings.push({ code: 't-order', text: 'Time goes down at row ' + rows[qt].sheetRow + ' while N_p goes up. Check the time column.' });
+          break;
+        }
+      }
+    }
+
     var precision = roundingSteps(analysis, info);
     return {
       rows: rows, params: P, paramInfo: info, initialRow: initialRow, refRow: refRow, messages: msgs, precision: precision,
-      hasWe: hasWe, weEmpty: weMapped && !hasWe
+      hasWe: hasWe, weEmpty: weMapped && !hasWe, hasTime: hasTime, noGas: noGas
     };
   }
 
@@ -2810,6 +3052,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     FIELDS: FIELDS,
     FIELD_ORDER: FIELD_ORDER,
     CORE_FIELDS: CORE_FIELDS,
+    REQUIRED_FIELDS: REQUIRED_FIELDS,
     PARAMS: PARAMS,
     PARAM_ORDER: PARAM_ORDER,
     PARAM_BASE: PARAM_BASE,
@@ -3010,6 +3253,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (!num(t.Efw)) t.Efw = 0;
       // cumulative water influx, rb
       if (aq.mode === 'column') t.We = num(r.We) ? r.We : (r.Np === 0 ? 0 : NaN);
+      else if (aq.mode === 'series') t.We = r.Np === 0 ? 0 : (aq.We && num(aq.We[r.id]) ? aq.We[r.id] : NaN);
       else if (potK) t.We = t.dP > 0 ? potK * t.dP : 0;
       else t.We = 0;
       t.Fnet = t.F - t.We;
@@ -3203,6 +3447,169 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return { K: Math.max(0, K), Kraw: K, negative: K < 0, N: N, m: mN / N, n: inc.length };
   }
 
+  /* ---------------- shared by the analyses ---------------- */
+
+  /** Checks the parameters, works out the terms and the points in the fit. Returns {res, terms, inc} or {res} with errors. */
+  function prepare(rows, params, opts) {
+    var msgs = { errors: [], warnings: [], infos: [] };
+    var P = params || {};
+    var res = { ok: false, terms: [], fit: null, results: null, validation: null, messages: msgs };
+    var need = ['pi', 'Boi', 'Bgi', 'Rsi'];
+    var SYM = { pi: 'p_i', Boi: 'B_oi', Bgi: 'B_gi', Rsi: 'R_si' };
+    var missing = need.filter(function (k) { return !num(P[k]); });
+    if (missing.length) {
+      msgs.errors.push({ code: 'params', text: 'Enter ' + missing.map(function (k) { return SYM[k]; }).join(', ') + ' to run the analysis.' });
+      return { res: res };
+    }
+    if (!(P.Bgi > 0)) { msgs.errors.push({ code: 'params', text: 'B_gi must be greater than zero.' }); return { res: res }; }
+    if (num(P.Swc) && (P.Swc < 0 || P.Swc >= 1)) { msgs.errors.push({ code: 'params', text: 'S_wc must be between 0 and 1.' }); return { res: res }; }
+    var terms = computeTerms(rows, P, opts);
+    res.terms = terms;
+    var inc = terms.filter(function (t) { return t.included; });
+    var usable = terms.filter(function (t) { return t.usable; });
+    if (usable.length < 2) {
+      msgs.errors.push({ code: 'points', text: 'At least two production points below p_i are needed to draw the line. The file has ' + usable.length + '.' });
+      return { res: res };
+    }
+    if (inc.length < 2) {
+      msgs.errors.push({ code: 'points', text: 'At least two points must be included in the fit. Click excluded points on the plot to add them back.' });
+      return { res: res };
+    }
+    return { res: res, terms: terms, inc: inc, P: P, msgs: msgs };
+  }
+
+  /** Et, implied N and the drive indices at each point, for the fitted N and m. */
+  function driveIndices(terms, N, m) {
+    terms.forEach(function (tt) {
+      tt.Et = tt.Eo + m * tt.Eg + (1 + m) * tt.Efw;
+      tt.impliedN = tt.Et > 0 ? tt.Fnet / tt.Et : NaN;
+      var Fm = tt.F;
+      if (Fm > 0 && num(tt.Et)) {
+        tt.DDI = N * tt.Eo / Fm;
+        tt.SDI = N * m * tt.Eg / Fm;
+        tt.CDI = N * (1 + m) * tt.Efw / Fm;
+        tt.WDI = num(tt.We) ? tt.We / Fm : 0;
+        tt.sumDI = tt.DDI + tt.SDI + tt.CDI + tt.WDI;
+      } else { tt.DDI = tt.SDI = tt.CDI = tt.WDI = tt.sumDI = NaN; }
+    });
+  }
+
+  function commonMessages(res, terms, fit) {
+    var msgs = res.messages;
+    var excludedCount = terms.filter(function (tt) { return tt.userExcluded && tt.usable; }).length;
+    if (excludedCount) msgs.infos.push({ code: 'excluded', text: excludedCount + ' point' + (excludedCount > 1 ? 's are' : ' is') + ' left out of the fit by you.' });
+    var negDen = terms.filter(function (tt) { return tt.reason === 'E_o is not positive'; }).length;
+    if (negDen) msgs.warnings.push({ code: 'eo', text: negDen + ' point' + (negDen > 1 ? 's have' : ' has') + ' E_o ≤ 0 and cannot be plotted. Check B_oi and R_si.' });
+    var negF = terms.filter(function (tt) { return tt.reason === 'F is not positive'; }).length;
+    if (negF) msgs.warnings.push({ code: 'F', text: negF + ' point' + (negF > 1 ? 's have' : ' has') + ' F ≤ 0. Check the units of G_p and B_g.' });
+    if (fit && fit.n >= 3 && fit.r2 < 0.9) {
+      msgs.warnings.push({ code: 'r2', text: 'The points scatter around the line (R² = ' + fit.r2.toFixed(3) + '). Treat the results with care.' });
+    }
+  }
+
+  /**
+   * F − We against Et through the origin, slope N (Week 7, slide 37 for depletion, slide 39 for a known m).
+   * opts.mFixed: m (0 = no gas cap); opts.aquifer as for computeTerms (W_e known).
+   * The points get x = Et and y = F − We, for the plot.
+   */
+  function analyzeOrigin(rows, params, opts) {
+    opts = opts || {};
+    var pr = prepare(rows, params, opts);
+    if (!pr.inc) return pr.res;
+    var res = pr.res, terms = pr.terms, inc = pr.inc, P = pr.P;
+    var m = num(opts.mFixed) ? opts.mFixed : 0;
+    var et = function (t) { return t.Eo + m * t.Eg + (1 + m) * t.Efw; };
+    var sxy = 0, sxx = 0;
+    inc.forEach(function (t) { sxy += t.Fnet * et(t); sxx += et(t) * et(t); });
+    var N = sxy / sxx, n = inc.length;
+    var sse = 0, ym = 0;
+    inc.forEach(function (t) { var r = t.Fnet - N * et(t); sse += r * r; ym += t.Fnet; });
+    ym /= n;
+    var sst = 0;
+    inc.forEach(function (t) { sst += (t.Fnet - ym) * (t.Fnet - ym); });
+    var dof = n - 1, s = dof > 0 ? Math.sqrt(sse / dof) : NaN, seN = dof > 0 ? s / Math.sqrt(sxx) : NaN;
+    var tc = tCrit95(dof);
+    res.fit = { kind: 'origin', n: n, dof: dof, r2: sst > 0 ? 1 - sse / sst : 1, s: s, tcrit: tc, slope: N, intercept: 0 };
+    var G = m * N * P.Boi / P.Bgi;
+    res.results = { N: N, m: m, mN: m * N, G: G, mFixed: true, seN: seN, seMN: NaN, seM: NaN, seG: m > 0 && num(seN) ? m * seN * P.Boi / P.Bgi : NaN };
+    res.results.ciN = num(seN) && num(tc) ? [N - tc * seN, N + tc * seN] : null;
+    res.results.ciM = null;
+    res.results.ciG = m > 0 && res.results.ciN ? [res.results.ciN[0] * m * P.Boi / P.Bgi, res.results.ciN[1] * m * P.Boi / P.Bgi] : null;
+    terms.forEach(function (t) { t.x = et(t); t.y = t.Fnet; t.yFit = N * t.x; t.resid = t.y - t.yFit; });
+    driveIndices(terms, N, m);
+    var ev = evaluateM(terms, m);
+    res.validation = { N: ev.N, cv: ev.cv, r2Origin: ev.r2Origin, relRms: ev.relRms, impliedMean: ev.impliedMean };
+    if (!(N > 0)) res.messages.errors.push({ code: 'N', text: 'The slope N is zero or negative, which has no physical meaning. Check the units and the initial parameters.' });
+    commonMessages(res, terms, null);
+    res.ok = res.messages.errors.length === 0;
+    return res;
+  }
+
+  /**
+   * Water drive with an aquifer model We = U S (Week 7, slide 41; Dake, chapter 9):
+   *   F/Et = N + U S/Et,  Et = Eo + m Eg + (1 + m) Efw  (m fixed: 0 unless given),
+   * so the intercept is N and the slope is the aquifer constant U. With U given, only N is fitted.
+   * The points get x = We/Et and y = F/Et, so the plotted line has slope 1 and meets the axis at N.
+   * opts.S: {id: S}; opts.U (optional, fixed); opts.mFixed.
+   */
+  function analyzeWater(rows, params, opts) {
+    opts = opts || {};
+    var pr = prepare(rows, params, Object.assign({}, opts, { aquifer: { mode: 'none' } }));
+    if (!pr.inc) return pr.res;
+    var res = pr.res, terms = pr.terms, inc = pr.inc, P = pr.P, S = opts.S || {};
+    var m = num(opts.mFixed) ? opts.mFixed : 0;
+    var et = function (t) { return t.Eo + m * t.Eg + (1 + m) * t.Efw; };
+    var missingS = inc.filter(function (t) { return !num(S[t.id]); });
+    if (missingS.length) {
+      res.messages.errors.push({ code: 'S', text: 'The aquifer model has no value at ' + missingS.length + ' point' + (missingS.length > 1 ? 's' : '') + '. Check the time column.' });
+      return res;
+    }
+    var xs = inc.map(function (t) { return S[t.id] / et(t); }), ys = inc.map(function (t) { return t.F / et(t); });
+    var N, U, fit;
+    if (num(opts.U)) {
+      U = opts.U; N = 0;
+      for (var i = 0; i < xs.length; i++) N += ys[i] - U * xs[i];
+      N /= xs.length;
+      var sse = 0, sst = 0, ym = ys.reduce(function (a, b) { return a + b; }, 0) / ys.length;
+      for (var j = 0; j < xs.length; j++) { var r = ys[j] - N - U * xs[j]; sse += r * r; sst += (ys[j] - ym) * (ys[j] - ym); }
+      var dof = xs.length - 1, s = dof > 0 ? Math.sqrt(sse / dof) : NaN;
+      fit = { kind: 'water', n: xs.length, dof: dof, r2: sst > 0 ? 1 - sse / sst : 1, s: s, tcrit: tCrit95(dof), seIntercept: dof > 0 ? s / Math.sqrt(xs.length) : NaN, seSlope: NaN, Ufixed: true };
+    } else {
+      fit = linreg(xs, ys);
+      if (!fit || fit.degenerate) {
+        res.messages.errors.push({ code: 'degenerate', text: 'The aquifer model gives the same value at every point, so its constant cannot be found.' });
+        return res;
+      }
+      fit.kind = 'water';
+      N = fit.intercept; U = fit.slope;
+    }
+    res.fit = fit;
+    terms.forEach(function (t) {
+      t.We = num(S[t.id]) ? U * S[t.id] : (t.Np === 0 ? 0 : NaN);
+      t.S = S[t.id];
+      t.Fnet = t.F - t.We;
+      var e = et(t);
+      t.x = t.We / e; t.y = t.F / e; t.yFit = N + t.x; t.resid = t.y - t.yFit;
+    });
+    var tc = fit.tcrit;
+    var R = { N: N, m: m, mN: m * N, G: m * N * P.Boi / P.Bgi, U: U, mFixed: true,
+      seN: fit.seIntercept, seU: fit.seSlope, seM: NaN, seMN: NaN, seG: NaN };
+    R.ciN = num(R.seN) && num(tc) ? [N - tc * R.seN, N + tc * R.seN] : null;
+    R.ciU = num(R.seU) && num(tc) ? [U - tc * R.seU, U + tc * R.seU] : null;
+    R.ciM = null; R.ciG = null;
+    res.results = R;
+    driveIndices(terms, N, m);
+    var ev = evaluateM(terms, m);
+    res.validation = { N: ev.N, cv: ev.cv, r2Origin: ev.r2Origin, relRms: ev.relRms, impliedMean: ev.impliedMean };
+    if (!(N > 0)) res.messages.errors.push({ code: 'N', text: 'The intercept N is zero or negative, which has no physical meaning.' });
+    if (!(U > 0)) res.messages.warnings.push({ code: 'U', text: 'The aquifer constant comes out ≤ 0: water would leave the reservoir. This aquifer model does not fit.' });
+    var over = inc.filter(function (t) { return t.We > t.F; }).length;
+    if (over) res.messages.warnings.push({ code: 'We', text: 'At ' + over + ' point' + (over > 1 ? 's' : '') + ' the water influx is larger than F, which cannot be.' });
+    commonMessages(res, terms, fit);
+    res.ok = res.messages.errors.length === 0;
+    return res;
+  }
+
   /* ---------------- full analysis ---------------- */
 
   function analyze(rows, params, opts) {
@@ -3374,7 +3781,687 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     scanM: scanM,
     roundingCheck: roundingCheck,
     bestPotK: bestPotK,
+    driveIndices: driveIndices,
+    analyzeOrigin: analyzeOrigin,
+    analyzeWater: analyzeWater,
     analyze: analyze
+  };
+});
+
+</script>
+<script>
+/*
+ * wdtable.js (generated by tools/make_wd_table.py, do not edit)
+ * van Everdingen-Hurst W_D(t_D) for radial aquifers, constant terminal pressure.
+ * t_D = 10^(logT0 + i / perDecade); one curve per r_e/r_o ("inf" = infinite aquifer).
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.HOWD = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  return {"logT0":-3.0,"perDecade":20,"reD":[1.5,2,2.5,3,3.5,4,4.5,5,6,7,8,9,10,12,15,20,30,50,"inf"],"WD":{"1.5":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149806,0.159158,0.169121,0.179738,0.191055,0.20312,0.215985,0.229702,0.244325,0.259898,0.276458,0.294025,0.312593,0.332127,0.352555,0.37376,0.395582,0.417812,0.440198,0.462449,0.484241,0.505234,0.525083,0.543464,0.560093,0.574748,0.58729,0.597677,0.605969,0.612323,0.61697,0.620196,0.622306,0.623594,0.624321,0.624693,0.624864,0.624933,0.624959,0.624972,0.624982,0.624992,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625,0.625],"2":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244383,0.260033,0.276747,0.294607,0.313697,0.33411,0.355947,0.379317,0.404337,0.431134,0.459845,0.49061,0.523571,0.558866,0.596613,0.636902,0.679773,0.725207,0.773106,0.823279,0.875434,0.929169,0.983972,1.03922,1.0942,1.14812,1.20013,1.2494,1.2951,1.33653,1.37313,1.40453,1.43061,1.4515,1.46756,1.47936,1.48759,1.493,1.49633,1.49821,1.49919,1.49964,1.49983,1.4999,1.49993,1.49995,1.49998,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5],"2.5":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404338,0.431141,0.459863,0.490658,0.523689,0.559137,0.597197,0.63808,0.682017,0.729255,0.780053,0.83468,0.893399,0.956454,1.02405,1.09631,1.17329,1.25491,1.34095,1.43102,1.52456,1.62081,1.71881,1.81743,1.91537,2.01118,2.10337,2.19043,2.27093,2.34363,2.40759,2.46221,2.50734,2.54328,2.57073,2.59075,2.60459,2.61361,2.61909,2.62216,2.62372,2.62443,2.62472,2.62483,2.62488,2.62492,2.62497,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625,2.625],"3":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729282,0.780124,0.834854,0.893799,0.957315,1.02579,1.09962,1.17925,1.26508,1.35754,1.45696,1.56361,1.67764,1.79904,1.92758,2.06281,2.20404,2.35027,2.50021,2.65228,2.80463,2.95516,3.10161,3.24163,3.37292,3.49336,3.60117,3.69508,3.77439,3.83911,3.88993,3.92814,3.95551,3.97407,3.98588,3.99286,3.99665,3.99851,3.99932,3.99964,3.99976,3.99984,3.99991,3.99997,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0,4.0],"3.5":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682026,0.729281,0.780123,0.834854,0.893803,0.957329,1.02582,1.09972,1.17948,1.26562,1.35868,1.45926,1.56796,1.6854,1.81217,1.94881,2.09573,2.25319,2.42126,2.59973,2.78807,2.98544,3.19057,3.4018,3.61707,3.83389,4.04942,4.26053,4.4639,4.65623,4.83434,4.9955,5.13755,5.25914,5.35987,5.44029,5.50193,5.54702,5.57833,5.59882,5.61133,5.61839,5.62201,5.62367,5.62435,5.62461,5.62473,5.62483,5.62492,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625,5.625],"4":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834853,0.893802,0.957327,1.02582,1.09972,1.17949,1.26564,1.35873,1.45939,1.56827,1.68612,1.8137,1.95184,2.10138,2.26315,2.4379,2.6263,2.82881,3.04568,3.27682,3.52179,3.77972,4.04924,4.32846,4.61495,4.9057,5.19719,5.48544,5.76612,6.03476,6.28695,6.51859,6.72625,6.90741,7.06069,7.18603,7.28467,7.35904,7.41246,7.44879,7.472,7.48579,7.49331,7.49702,7.49865,7.49929,7.49954,7.49968,7.49981,7.49993,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5,7.5],"4.5":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81383,1.95217,2.10212,2.26473,2.44105,2.63219,2.83921,3.06311,3.30473,3.56467,3.84325,4.14038,4.4555,4.78751,5.13468,5.49464,5.86429,6.2398,6.61668,6.98982,7.35368,7.70245,8.03043,8.33227,8.60346,8.8406,9.0418,9.20683,9.33715,9.43578,9.50693,9.55556,9.5868,9.60548,9.61576,9.62087,9.62314,9.62404,9.62438,9.62458,9.62474,9.6249,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625,9.625],"5":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81385,1.9522,2.1022,2.26493,2.44153,2.63326,2.84145,3.06746,3.31266,3.57837,3.86577,4.17581,4.5091,4.86588,5.24581,5.64797,6.07073,6.51165,6.96746,7.43398,7.90614,8.37803,8.84306,9.29412,9.72394,10.1255,10.4922,10.819,11.1022,11.3399,11.5326,11.6828,11.7948,11.8743,11.9276,11.9611,11.9806,11.991,11.996,11.9982,11.999,11.9993,11.9995,11.9997,11.9999,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0,12.0],"6":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.44161,2.63346,2.84193,3.06856,3.31505,3.58322,3.87502,4.19246,4.53758,4.91235,5.31859,5.75782,6.23115,6.73915,7.28169,7.85782,8.46561,9.10206,9.76295,10.4428,11.1347,11.8306,12.5213,13.1965,13.8458,14.4583,15.0242,15.5348,15.9834,16.366,16.6817,16.9327,17.124,17.2632,17.3593,17.4217,17.4595,17.4806,17.4913,17.4961,17.498,17.4988,17.4992,17.4995,17.4998,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5,17.5],"7":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84194,3.0686,3.31516,3.5835,3.87568,4.19397,4.54081,4.91882,5.33075,5.77943,6.26764,6.79803,7.37292,7.99421,8.66313,9.38011,10.1446,10.9548,11.8075,12.6981,13.6202,14.5656,15.5241,16.4842,17.4326,18.3549,19.2365,20.0628,20.8205,21.4984,22.0885,22.5866,22.9928,23.3115,23.551,23.7223,23.8383,23.9121,23.9556,23.9792,23.9908,23.9958,23.9977,23.9985,23.999,23.9994,23.9998,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0,24.0],"8":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.0686,3.31516,3.58351,3.87572,4.19408,4.54108,4.91949,5.33231,5.78279,6.2744,6.81079,7.39569,8.03276,8.72548,9.47693,10.2896,11.1652,12.1043,13.1063,14.169,15.2885,16.4586,17.6713,18.916,20.1797,21.4471,22.701,23.9227,25.0927,26.1917,27.2019,28.1084,28.8998,29.5702,30.1191,30.5516,30.8781,31.1131,31.2732,31.3757,31.4367,31.4702,31.4867,31.494,31.4968,31.498,31.4986,31.4992,31.4997,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5,31.5],"9":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.06859,3.31515,3.5835,3.87572,4.19408,4.54111,4.91956,5.33248,5.78321,6.27542,6.81308,7.40049,8.04218,8.74286,9.50727,10.34,11.2453,12.2268,13.2875,14.4288,15.6513,16.9533,18.3314,19.7799,21.2901,22.8507,24.4474,26.0625,27.6759,29.2649,30.8052,32.2719,33.6408,34.8901,36.0021,36.9643,37.7712,38.4243,38.9325,39.3108,39.5787,39.7579,39.8702,39.9355,39.9702,39.9868,39.9939,39.9966,39.9977,39.9984,39.9992,39.9998,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0,40.0],"10":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.06859,3.31515,3.5835,3.87572,4.19408,4.5411,4.91956,5.3325,5.78326,6.27556,6.81344,7.40136,8.04416,8.7471,9.51572,10.3558,11.2733,12.2739,13.3631,14.5456,15.8254,17.205,18.6854,20.2657,21.9425,23.7096,25.5578,27.4743,29.4427,31.4426,33.4501,35.438,37.3769,39.236,40.9845,42.5943,44.041,45.3067,46.3809,47.2624,47.9589,48.4863,48.867,49.1274,49.2948,49.3951,49.4503,49.4778,49.49,49.4948,49.4967,49.4977,49.4986,49.4995,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5,49.5],"12":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.0686,3.31516,3.5835,3.87572,4.19408,4.5411,4.91955,5.33249,5.78326,6.27557,6.8135,7.40153,8.04461,8.74819,9.51828,10.3614,11.2848,12.296,13.4033,14.6149,15.9395,17.3854,18.9603,20.671,22.5232,24.5205,26.6645,28.9536,31.3832,33.9444,36.624,39.4036,42.2595,45.1625,48.0781,50.9669,53.7861,56.4912,59.0376,61.3839,63.4947,65.3433,66.9144,68.2053,69.227,70.002,70.5626,70.9468,71.1946,71.3433,71.4255,71.4667,71.485,71.4923,71.4951,71.4967,71.498,71.4992,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5,71.5],"15":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.0686,3.31516,3.5835,3.87572,4.19408,4.5411,4.91956,5.33249,5.78326,6.27557,6.81349,7.40152,8.04461,8.74823,9.51841,10.3618,11.2857,12.2982,13.4083,14.6257,15.9611,17.426,19.0328,20.7944,22.7241,24.8352,27.1405,29.6518,32.3793,35.3313,38.5129,41.9255,45.5661,49.4263,53.4911,57.7383,62.1379,66.6511,71.2304,75.8204,80.3581,84.7754,89.0017,92.9676,96.609,99.8718,102.717,105.122,107.088,108.634,109.799,110.634,111.202,111.564,111.779,111.896,111.954,111.979,111.989,111.993,111.995,111.997,111.999,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0,112.0],"20":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.0686,3.31516,3.5835,3.87572,4.19408,4.5411,4.91956,5.33249,5.78326,6.27557,6.81349,7.40152,8.04461,8.74823,9.5184,10.3618,11.2857,12.2983,13.4084,14.6261,15.9621,17.4285,19.0387,20.8072,22.7503,24.8857,27.2327,29.8121,32.646,35.7575,39.1703,42.9079,46.9929,51.4463,56.2866,61.5282,67.1809,73.2479,79.7245,86.5967,93.8391,101.414,109.268,117.334,125.53,133.756,141.902,149.846,157.463,164.627,171.221,177.148,182.331,186.731,190.341,193.192,195.352,196.91,197.976,198.661,199.071,199.297,199.409,199.459,199.479,199.487,199.491,199.494,199.498,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5,199.5],"30":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.0686,3.31516,3.5835,3.87572,4.19408,4.5411,4.91956,5.33249,5.78326,6.27557,6.81349,7.40152,8.04461,8.74823,9.5184,10.3618,11.2857,12.2983,13.4084,14.6261,15.9621,17.4285,19.0387,20.8074,22.7507,24.8868,27.2356,29.8189,32.6611,35.7891,39.2327,43.0246,47.2011,51.8017,56.8695,62.451,68.5954,75.3541,82.78,90.9258,99.8429,109.58,120.179,131.678,144.102,157.464,171.762,186.973,203.05,219.92,237.478,255.584,274.066,292.714,311.288,329.521,347.132,363.832,379.348,393.436,405.904,416.623,425.547,432.713,438.238,442.309,445.159,447.041,448.202,448.866,449.211,449.372,449.439,449.464,449.475,449.484,449.492,449.499,449.5,449.5,449.5,449.5,449.5,449.5,449.5,449.5,449.5,449.5,449.5,449.5,449.5,449.5],"50":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.0686,3.31516,3.5835,3.87572,4.19408,4.5411,4.91956,5.33249,5.78326,6.27557,6.81349,7.40152,8.04461,8.74823,9.5184,10.3618,11.2857,12.2983,13.4084,14.6261,15.9621,17.4285,19.0387,20.8074,22.7507,24.8868,27.2355,29.8189,32.6611,35.7891,39.2328,43.0251,47.2024,51.8052,56.8781,62.4708,68.6379,75.4404,82.9453,91.2272,100.369,110.46,121.602,133.905,147.486,162.473,179.003,197.215,217.255,239.267,263.396,289.776,318.533,349.771,383.575,419.993,459.035,500.658,544.755,591.15,639.579,689.69,741.03,793.051,845.11,896.487,946.402,994.054,1038.66,1079.5,1115.98,1147.68,1174.38,1196.1,1213.1,1225.84,1234.92,1241.05,1244.92,1247.2,1248.43,1249.02,1249.28,1249.38,1249.42,1249.45,1249.47,1249.49,1249.5,1249.5,1249.5,1249.5],"inf":[0.0361796,0.0383544,0.0406618,0.0431101,0.0457082,0.0484656,0.0513923,0.0544991,0.0577974,0.0612995,0.0650184,0.0689682,0.0731638,0.0776211,0.0823572,0.0873904,0.0927403,0.0984279,0.104476,0.110908,0.11775,0.125029,0.132777,0.141024,0.149805,0.159158,0.169121,0.179738,0.191056,0.203123,0.215994,0.229726,0.244384,0.260033,0.276747,0.294607,0.313696,0.334109,0.355946,0.379317,0.404339,0.431141,0.459863,0.490657,0.523688,0.559136,0.597197,0.638083,0.682027,0.729281,0.780123,0.834854,0.893802,0.957327,1.02582,1.09972,1.17948,1.26563,1.35873,1.45939,1.56829,1.68617,1.81384,1.9522,2.10221,2.26495,2.4416,2.63346,2.84193,3.0686,3.31516,3.5835,3.87572,4.19408,4.5411,4.91956,5.33249,5.78326,6.27557,6.81349,7.40152,8.04461,8.74823,9.5184,10.3618,11.2857,12.2983,13.4084,14.6261,15.9621,17.4285,19.0387,20.8074,22.7507,24.8868,27.2355,29.8188,32.6611,35.7891,39.2328,43.0251,47.2024,51.8052,56.8781,62.4708,68.6379,75.4403,82.9453,91.2274,100.369,110.463,121.609,133.92,147.522,162.553,179.165,197.53,217.835,240.292,265.131,292.611,323.018,356.67,393.919,435.157,480.818,531.385,587.394,649.44,718.183,794.359,878.783,972.361,1076.1,1191.12,1318.66,1460.11,1616.99,1791.03,1984.11,2198.34,2436.08,2699.93,2992.79,3317.88,3678.8,4079.53,4524.51,5018.68,5567.53,6177.18,6854.42,7606.81,8442.78,9371.69,10404.0,11551.2,12826.4,14243.8,15819.5,17571.3]}};
+});
+
+</script>
+<script>
+/*
+ * drive.js
+ * Finds the drive mechanism from the production and PVT data with Havlena–Odeh diagnostics
+ * (Week 7, slides 35–41), then hands the chosen model to the engine for the full results.
+ *
+ *   1. Apparent N = F / (Eo + Efw) at each step. With depletion alone it is the same at every step.
+ *   2. Candidate models, each fitted the Havlena–Odeh way:
+ *        depletion               F = N (Eo + Efw)                               F against Et through the origin
+ *        gas cap                 F = N [Eo + m Eg + (1 + m) Efw]                the gas-cap line (table form)
+ *        water drive             F = N (Eo + Efw) + We,  We = U S               F/Et against S/Et: slope U, intercept N
+ *        gas cap + water drive   F = N [Eo + m Eg + (1 + m) Efw] + U S          least squares in F/Et
+ *      Aquifers: pot (S = pi − p), steady state (Schilthuis, S = ∫(pi − p) dt) and unsteady state
+ *      (van Everdingen–Hurst, radial: S = Σ ΔP_j W_D(a (t − t_j)), with r_e/r_o and a = t_D per unit time fitted).
+ *      A W_e column in the file replaces the aquifer models; a given m replaces the fitted one.
+ *   3. A model counts only if it makes physical sense (N > 0, m > 0, U > 0), each mechanism in it carries at least
+ *      2 % of F at some step, and the sign of its m and U survives the rounding of the table (90 % of trials).
+ *      Among those, the lowest AICc (on the relative misfit of F) wins; within 2 of it, fewer parameters win.
+ *   4. Without a time column, time-dependent aquifers are tried only when nothing simpler fits, with the rows
+ *      taken as equal time steps (said so in the result).
+ * Works in the browser (global HODrive) and in Node (module.exports).
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./mbe.js'), require('./wdtable.js'));
+  else root.HODrive = factory(root.HOEngine, root.HOWD);
+})(typeof self !== 'undefined' ? self : this, function (E, WDT) {
+  'use strict';
+
+  function num(v) { return typeof v === 'number' && isFinite(v); }
+
+  var MIN_SHARE = 0.02;   // a mechanism must carry at least 2 % of F at some step
+  var ROBUST = 0.9;       // ... and keep its sign in 90 % of the rounding trials
+  var POOR = 0.03;        // relative misfit of F above which a model does not explain the data
+  var TREND = 0.05;       // apparent N may drift up to 5 % for depletion
+  var SPREAD = 0.03;      // a straight line needs its x to vary by at least 3 % to give a slope
+
+  /* ---------------- van Everdingen–Hurst W_D ---------------- */
+
+  var CURVES = {}, PLATEAU = {};
+  WDT.reD.forEach(function (r) {
+    var key = String(r);
+    CURVES[key] = WDT.WD[key].map(function (v) { return Math.log(v); });
+    PLATEAU[key] = key === 'inf' ? Infinity : (r * r - 1) / 2;
+  });
+  var REDS = WDT.reD.map(function (r) { return r === 'inf' ? Infinity : r; });
+
+  function reKey(reD) { return reD === Infinity || reD === 'inf' ? 'inf' : String(reD); }
+
+  /** Dimensionless cumulative influx W_D(t_D) of a radial aquifer with r_e/r_o = reD (Infinity = infinite). */
+  function wd(tD, reD) {
+    if (!(tD > 0)) return 0;
+    var key = reKey(reD), c = CURVES[key];
+    var pos = (Math.log(tD) / Math.LN10 - WDT.logT0) * WDT.perDecade;
+    if (pos <= 0) return 2 * Math.sqrt(tD / Math.PI) + tD / 2;              // early time, any aquifer size
+    if (pos >= c.length - 1) return key === 'inf' ? (-4.29881 + 2.02566 * tD) / Math.log(tD) : PLATEAU[key];
+    var i = Math.floor(pos), f = pos - i;
+    return Math.exp(c[i] + f * (c[i + 1] - c[i]));
+  }
+
+  /* ---------------- pressure history and influx functions ---------------- */
+
+  /**
+   * Pressure history for the aquifer models: [{id, p, t}] in time order, starting at the initial state (p = pi).
+   * mode 'column': t from the file (days); 'steps': the rows are equal time steps (t = 0, 1, 2 ...).
+   */
+  function history(rows, P, mode) {
+    var list = rows.filter(function (r) { return num(r.p) && num(r.Np) && (mode !== 'column' || num(r.t)); });
+    if (mode === 'column') list = list.slice().sort(function (a, b) { return (a.t - b.t) || (a.Np - b.Np); });
+    if (!list.length) return [];
+    var h = list.map(function (r, i) { return { id: r.id, p: r.p, t: mode === 'column' ? r.t : i }; });
+    var first = list[0];
+    if (first.Np === 0 || first.p >= P.pi) {
+      h[0].p = P.pi;
+    } else {
+      // no initial row: production starts from pi at time 0 (or at the first time if that is not after 0)
+      h.unshift({ id: null, p: P.pi, t: mode === 'column' ? Math.min(0, first.t) : -1 });
+      if (mode !== 'column') h.forEach(function (x, i) { x.t = i; });
+    }
+    return h;
+  }
+
+  function potS(h, P) {
+    var S = {};
+    h.forEach(function (x) { if (x.id !== null) S[x.id] = P.pi - x.p; });
+    return S;
+  }
+
+  /** Schilthuis steady state: S(t) = ∫ (pi − p) dt, trapezoids between the steps. */
+  function steadyS(h, P) {
+    var S = {}, acc = 0;
+    for (var k = 0; k < h.length; k++) {
+      if (k > 0) acc += 0.5 * ((P.pi - h[k].p) + (P.pi - h[k - 1].p)) * (h[k].t - h[k - 1].t);
+      if (h[k].id !== null) S[h[k].id] = acc;
+    }
+    return S;
+  }
+
+  /** van Everdingen–Hurst superposition: S(t_k) = Σ_{j<k} ΔP_j W_D(a (t_k − t_j)), ΔP_0 = (p0 − p1)/2, ΔP_j = (p_{j−1} − p_{j+1})/2. */
+  function vehS(h, reD, a, only) {
+    var n = h.length, S = {};
+    if (n < 2) return S;
+    var dP = new Array(n - 1);
+    dP[0] = (h[0].p - h[1].p) / 2;
+    for (var j = 1; j < n - 1; j++) dP[j] = (h[j - 1].p - h[j + 1].p) / 2;
+    for (var k = 1; k < n; k++) {
+      var id = h[k].id;
+      if (id === null || (only && !only[id])) continue;
+      var s = 0;
+      for (var jj = 0; jj < k; jj++) s += dP[jj] * wd(a * (h[k].t - h[jj].t), reD);
+      S[id] = s;
+    }
+    return S;
+  }
+
+  /* ---------------- fits ---------------- */
+
+  function etOf(t, m) { return t.Eo + m * t.Eg + (1 + m) * t.Efw; }
+
+  /** F (or F − We) against Et through the origin: slide 37 (depletion), slide 38 (known m). */
+  function fitOrigin(inc, m) {
+    var sxy = 0, sxx = 0;
+    inc.forEach(function (t) { var e = etOf(t, m); sxy += t.Fnet * e; sxx += e * e; });
+    var N = sxy / sxx;
+    return { N: N, m: m, U: 0, We: function (t) { return t.F - t.Fnet; }, Fhat: function (t) { return N * etOf(t, m) + (t.F - t.Fnet); } };
+  }
+
+  /** Gas-cap line in the table form (F − We known). */
+  function fitGas(inc) {
+    var pts = inc.map(function (t) { return Object.assign({}, t); });
+    var f = E.fitLine(pts);
+    if (!f || f.degenerate) return null;
+    var N = f.intercept, m = f.slope / f.intercept;
+    return { N: N, m: m, U: 0, We: function (t) { return t.F - t.Fnet; }, Fhat: function (t) { return N * etOf(t, m) + (t.F - t.Fnet); } };
+  }
+
+  /** Water drive: F/Et = N + U S/Et (m fixed, 0 unless given); with U given, only N is fitted. */
+  function fitWater(inc, S, m, Ufixed) {
+    var xs = [], ys = [];
+    inc.forEach(function (t) { var e = etOf(t, m); xs.push(S[t.id] / e); ys.push(t.F / e); });
+    var N, U;
+    if (num(Ufixed)) {
+      U = Ufixed; N = 0;
+      for (var i = 0; i < xs.length; i++) N += ys[i] - U * xs[i];
+      N /= xs.length;
+    } else {
+      var f = E.linreg(xs, ys);
+      if (!f || f.degenerate) return null;
+      N = f.intercept; U = f.slope;
+    }
+    return { N: N, m: m, U: U, We: function (t) { return U * S[t.id]; }, Fhat: function (t) { return N * etOf(t, m) + U * S[t.id]; } };
+  }
+
+  /** Gas cap + water drive: F = N (Eo + Efw) + mN (Eg + Efw) + U S, least squares in F/(Eo + Efw). */
+  function fitComb(inc, S) {
+    var A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], b = [0, 0, 0];
+    var rowsX = inc.map(function (t) {
+      var e = t.Eo + t.Efw;
+      return { x: [1, (t.Eg + t.Efw) / e, S[t.id] / e], y: t.F / e };
+    });
+    var sc = [0, 1, 2].map(function (j) { return Math.max.apply(null, rowsX.map(function (r) { return Math.abs(r.x[j]); })) || 1; });
+    rowsX.forEach(function (r) {
+      var c = r.x.map(function (v, j) { return v / sc[j]; });
+      for (var i = 0; i < 3; i++) { b[i] += c[i] * r.y; for (var k = 0; k < 3; k++) A[i][k] += c[i] * c[k]; }
+    });
+    var x = solve3(A, b);
+    if (!x) return null;
+    var N = x[0] / sc[0], mN = x[1] / sc[1], U = x[2] / sc[2], m = mN / N;
+    return { N: N, m: m, U: U, We: function (t) { return U * S[t.id]; }, Fhat: function (t) { return N * etOf(t, m) + U * S[t.id]; } };
+  }
+
+  function solve3(A, b) {
+    var M = A.map(function (row, i) { return row.concat([b[i]]); });
+    for (var c = 0; c < 3; c++) {
+      var piv = c;
+      for (var r = c + 1; r < 3; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+      if (Math.abs(M[piv][c]) < 1e-300) return null;
+      var tmp = M[c]; M[c] = M[piv]; M[piv] = tmp;
+      for (var r2 = c + 1; r2 < 3; r2++) {
+        var f = M[r2][c] / M[c][c];
+        for (var k = c; k < 4; k++) M[r2][k] -= f * M[c][k];
+      }
+    }
+    var x = [0, 0, 0];
+    for (var i = 2; i >= 0; i--) {
+      var s = M[i][3];
+      for (var j = i + 1; j < 3; j++) s -= M[i][j] * x[j];
+      x[i] = s / M[i][i];
+    }
+    return x.every(num) ? x : null;
+  }
+
+  /** Relative misfit of F and AICc (k parameters). */
+  function score(inc, fit, k) {
+    var sse = 0, n = inc.length;
+    inc.forEach(function (t) { var r = (t.F - fit.Fhat(t)) / t.F; sse += r * r; });
+    var floor = n * 1e-14;
+    var aicc = n - k - 1 > 0 ? n * Math.log(Math.max(sse, floor) / n) + 2 * k + 2 * k * (k + 1) / (n - k - 1) : Infinity;
+    return { sse: sse, rms: Math.sqrt(sse / n), aicc: aicc, k: k, n: n };
+  }
+
+  /** Largest share of F carried by the gas cap (SDI) and by the water influx (WDI) over the points in the fit. */
+  function shares(inc, fit) {
+    var sdi = 0, wdi = 0;
+    inc.forEach(function (t) {
+      sdi = Math.max(sdi, fit.N * fit.m * t.Eg / t.F);
+      wdi = Math.max(wdi, fit.We(t) / t.F);
+    });
+    return { sdi: sdi, wdi: wdi };
+  }
+
+  /* ---------------- unsteady-state aquifer: fit r_e/r_o and a ---------------- */
+
+  function vehSearch(inc, h, gas, opts) {
+    var span = h.length ? h[h.length - 1].t - h[0].t : 0;
+    if (!(span > 0)) return null;
+    var only = {};
+    // on long files, search on at most 40 points, then fit all of them
+    var pick = inc;
+    if (inc.length > 40) pick = inc.filter(function (t, i) { return i % Math.ceil(inc.length / 40) === 0 || i === inc.length - 1; });
+    pick.forEach(function (t) { only[t.id] = 1; });
+    var lo = Math.log10(0.01 / span), hi = Math.log10(1e4 / span);
+    var reds = opts.reD !== undefined && opts.reD !== null ? [opts.reD === 'inf' ? Infinity : opts.reD] : REDS;
+    var best = null;
+    function evalAt(reD, la, set, ids) {
+      var S = vehS(h, reD, Math.pow(10, la), ids);
+      var f = gas ? fitComb(set, S) : fitWater(set, S, opts.mKnown || 0, null);
+      if (!f || !(f.N > 0) || !(f.U > 0) || (gas && !(f.m > 0))) return { sse: Infinity };
+      var sc = score(set, f, 1);
+      return { sse: sc.sse, fit: f, S: S };
+    }
+    reds.forEach(function (reD) {
+      var grid = [], bi = -1;
+      for (var la = lo; la <= hi + 1e-9; la += 1 / 12) {
+        var v = evalAt(reD, la, pick, only).sse;
+        grid.push([la, v]);
+        if (v < Infinity && (bi < 0 || v < grid[bi][1])) bi = grid.length - 1;
+      }
+      if (bi < 0) return;
+      // golden section between the grid neighbours
+      var a = grid[Math.max(0, bi - 1)][0], b = grid[Math.min(grid.length - 1, bi + 1)][0];
+      var g = (Math.sqrt(5) - 1) / 2;
+      var c = b - g * (b - a), d = a + g * (b - a), fc = evalAt(reD, c, pick, only).sse, fd = evalAt(reD, d, pick, only).sse;
+      for (var it = 0; it < 28; it++) {
+        if (fc < fd) { b = d; d = c; fd = fc; c = b - g * (b - a); fc = evalAt(reD, c, pick, only).sse; }
+        else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = evalAt(reD, d, pick, only).sse; }
+      }
+      var laBest = fc < fd ? c : d;
+      if (Math.min(fc, fd) > grid[bi][1]) laBest = grid[bi][0];
+      var full = evalAt(reD, laBest, inc, null);
+      if (full.sse < Infinity && (!best || full.sse < best.sse)) best = { sse: full.sse, fit: full.fit, S: full.S, reD: reD, a: Math.pow(10, laBest) };
+    });
+    return best;
+  }
+
+  /* ---------------- rounding robustness ---------------- */
+
+  function rng(seed) {
+    var s = seed >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) >>> 0;
+      var t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function quantile(sorted, q) {
+    if (!sorted.length) return NaN;
+    var pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  }
+
+  /**
+   * Refits a model on tables rounded differently within their last digit: the share of trials in which its gas cap
+   * (m > 0) and aquifer (U > 0) keep their sign, and the 5, 50 and 95 % points of N, m and U.
+   */
+  function robustness(rows, P, baseOpts, cand, steps, trials) {
+    var rand = rng(20261121), okGas = 0, okWater = 0, okN = 0, n = 0, Ns = [], ms = [], Us = [];
+    function jit(s) { return s > 0 ? (rand() - 0.5) * s : 0; }
+    for (var k = 0; k < trials; k++) {
+      var rr = rows.map(function (r) { return Object.assign({}, r, { Bo: r.Bo + jit(steps.Bo), Rs: r.Rs + jit(steps.Rs), Bg: r.Bg + jit(steps.Bg) }); });
+      var pp = Object.assign({}, P, { Boi: P.Boi + jit(steps.Boi), Bgi: P.Bgi + jit(steps.Bgi), Rsi: P.Rsi + jit(steps.Rsi) });
+      var inc = E.computeTerms(rr, pp, baseOpts).filter(function (t) { return t.included; });
+      if (inc.length < 2) continue;
+      var f = cand.refit(inc);
+      if (!f) continue;
+      n++;
+      if (f.N > 0) okN++;
+      if (f.m > 0) okGas++;
+      if (f.U > 0) okWater++;
+      Ns.push(f.N); ms.push(f.m); Us.push(f.U);
+    }
+    var q = function (a) { a.sort(function (x, y) { return x - y; }); return [quantile(a, 0.05), quantile(a, 0.5), quantile(a, 0.95)]; };
+    return { trials: n, gas: n ? okGas / n : 0, water: n ? okWater / n : 0, pos: n ? okN / n : 0, N: q(Ns), m: q(ms), U: q(Us) };
+  }
+
+  /* ---------------- apparent N ---------------- */
+
+  function apparentN(inc, m) {
+    var pts = inc.map(function (t) { return { id: t.id, p: t.p, Np: t.Np, v: t.Fnet / etOf(t, m) }; }).filter(function (q) { return num(q.v); });
+    if (pts.length < 2) return { points: pts, change: 0, t: 0, mean: pts.length ? pts[0].v : NaN };
+    var f = E.linreg(pts.map(function (q) { return q.Np; }), pts.map(function (q) { return q.v; }));
+    var mean = pts.reduce(function (s, q) { return s + q.v; }, 0) / pts.length;
+    var lo = Math.min.apply(null, pts.map(function (q) { return q.Np; })), hi = Math.max.apply(null, pts.map(function (q) { return q.Np; }));
+    var change = f && !f.degenerate ? f.slope * (hi - lo) / mean : 0;
+    var tstat = f && num(f.seSlope) && f.seSlope > 0 ? f.slope / f.seSlope : (f && f.slope !== 0 ? Infinity : 0);
+    var vmin = Math.min.apply(null, pts.map(function (q) { return q.v; })), vmax = Math.max.apply(null, pts.map(function (q) { return q.v; }));
+    return { points: pts, change: change, t: tstat, mean: mean, min: vmin, max: vmax, spread: (vmax - vmin) / mean };
+  }
+
+  /* ---------------- the candidates ---------------- */
+
+  var NAMES = {
+    depletion: 'Depletion drive',
+    gascap: 'Gas-cap drive',
+    water: 'Water drive',
+    combination: 'Combination drive: gas cap and water'
+  };
+  var AQ_NAMES = { pot: 'pot aquifer', steady: 'steady-state aquifer', veh: 'unsteady-state aquifer', column: 'W_e from the file' };
+
+  function build(rows, P, opts, timeMode) {
+    var baseOpts = { includeEfw: opts.includeEfw, excluded: opts.excluded, aquifer: { mode: 'none' } };
+    var colOpts = { includeEfw: opts.includeEfw, excluded: opts.excluded, aquifer: { mode: 'column' } };
+    var base = E.computeTerms(rows, P, baseOpts);
+    var inc = base.filter(function (t) { return t.included; });
+    var cands = [];
+    var mKnown = num(opts.mKnown) && opts.mKnown >= 0 ? opts.mKnown : null;
+    var gasPossible = mKnown === null && !opts.undersaturated && inc.some(function (t) { return t.Eg !== 0; });
+    var mech = opts.mech || 'auto';
+    var allow = function (family) { return mech === 'auto' || mech === family; };
+    var aqAllow = function (kind) { return !opts.aquifer || opts.aquifer === 'auto' || opts.aquifer === kind; };
+
+    function add(c) {
+      if (!c.fit) return;
+      c.sc = score(c.inc, c.fit, c.k);
+      c.share = shares(c.inc, c.fit);
+      c.valid = c.fit.N > 0 && (!c.gas || c.fit.m > 0) && (!c.waterFitted || c.fit.U > 0);
+      c.material = (!c.gas || c.share.sdi >= MIN_SHARE) && (!c.water || c.share.wdi >= MIN_SHARE);
+      // a line whose x hardly changes cannot separate its two constants (above the bubble point, for example,
+      // a pot aquifer grows in step with the oil and rock expansion)
+      c.identifiable = true;
+      var xs = null;
+      if (!c.gas && c.water && c.waterFitted && c.S) xs = c.inc.map(function (t) { return c.S[t.id] / etOf(t, c.mFixed || 0); });
+      else if (c.key === 'gascap') xs = c.inc.map(function (t) { return t.Eg / (t.Eo + t.Efw); });
+      if (xs && xs.length >= 2) {
+        var xm = xs.reduce(function (a, b) { return a + b; }, 0) / xs.length;
+        c.xSpread = (Math.max.apply(null, xs) - Math.min.apply(null, xs)) / Math.abs(xm || 1);
+        c.identifiable = c.xSpread >= SPREAD;
+      }
+      c.name = NAMES[c.family] + (c.aquifer ? ', ' + AQ_NAMES[c.aquifer] : '');
+      cands.push(c);
+    }
+
+    if (opts.weColumn) {
+      // the file gives W_e: the question is only whether there is a gas cap as well
+      var colTerms = E.computeTerms(rows, P, colOpts);
+      var cinc = colTerms.filter(function (t) { return t.included; });
+      if (cinc.length >= 2) {
+        if (allow('water') || allow('depletion')) {
+          add({ key: 'water-column', family: 'water', aquifer: 'column', gas: false, water: true, waterFitted: false, k: 1, inc: cinc,
+            fit: fitOrigin(cinc, mKnown || 0), refit: function (x) { return fitOrigin(x, mKnown || 0); }, baseOpts: colOpts, mFixed: mKnown || 0 });
+        }
+        if (gasPossible && (allow('combination') || allow('gascap'))) {
+          add({ key: 'comb-column', family: 'combination', aquifer: 'column', gas: true, water: true, waterFitted: false, k: 2, inc: cinc,
+            fit: fitGas(cinc), refit: fitGas, baseOpts: colOpts });
+        }
+      }
+      return { cands: cands, inc: inc, base: base, gasPossible: gasPossible, mKnown: mKnown };
+    }
+
+    // no aquifer
+    if (allow('depletion') || (mKnown !== null && allow('gascap'))) {
+      var m0 = mKnown || 0;
+      add({ key: mKnown ? 'gascap-known' : 'depletion', family: mKnown ? 'gascap' : 'depletion', gas: false, water: false, k: 1, inc: inc,
+        fit: fitOrigin(inc, m0), refit: function (x) { return fitOrigin(x, m0); }, baseOpts: baseOpts, mFixed: m0 });
+    }
+    if (gasPossible && allow('gascap')) {
+      add({ key: 'gascap', family: 'gascap', gas: true, water: false, k: 2, inc: inc, fit: fitGas(inc), refit: fitGas, baseOpts: baseOpts });
+    }
+
+    // aquifers
+    var h = timeMode ? history(rows, P, timeMode) : history(rows, P, 'steps');
+    var aqs = [];
+    if (aqAllow('pot')) aqs.push({ kind: 'pot', S: potS(h, P), extra: 0, Ufixed: num(opts.potK) ? opts.potK : null });
+    if (timeMode && aqAllow('steady')) aqs.push({ kind: 'steady', S: steadyS(h, P), extra: 0 });
+    var waterFam = mKnown ? 'water' : 'water';
+    aqs.forEach(function (aq) {
+      var fixedU = num(aq.Ufixed);
+      if (allow('water') || (mKnown !== null && allow('combination'))) {
+        var mw = mKnown || 0;
+        add({ key: 'water-' + aq.kind, family: mKnown ? 'combination' : waterFam, aquifer: aq.kind, gas: false, water: true, waterFitted: !fixedU,
+          k: (fixedU ? 1 : 2) + aq.extra, inc: inc, S: aq.S, U: aq.Ufixed, mFixed: mw,
+          fit: fitWater(inc, aq.S, mw, aq.Ufixed), refit: function (x) { return fitWater(x, aq.S, mw, aq.Ufixed); }, baseOpts: baseOpts });
+      }
+      if (gasPossible && allow('combination')) {
+        if (fixedU) {
+          // pot aquifer with K given: the gas-cap line with W_e known
+          var withWe = inc.map(function (t) { return Object.assign({}, t, { Fnet: t.F - aq.Ufixed * aq.S[t.id] }); });
+          add({ key: 'comb-' + aq.kind, family: 'combination', aquifer: aq.kind, gas: true, water: true, waterFitted: false, k: 2 + aq.extra,
+            inc: withWe, S: aq.S, U: aq.Ufixed, fit: (function () { var f = fitGas(withWe); if (f) { f.U = aq.Ufixed; f.We = function (t) { return aq.Ufixed * aq.S[t.id]; }; } return f; })(),
+            refit: function (x) {
+              var w = x.map(function (t) { return Object.assign({}, t, { Fnet: t.F - aq.Ufixed * aq.S[t.id] }); });
+              var f = fitGas(w); if (f) f.U = aq.Ufixed; return f;
+            }, baseOpts: baseOpts });
+        } else {
+          add({ key: 'comb-' + aq.kind, family: 'combination', aquifer: aq.kind, gas: true, water: true, waterFitted: true, k: 3 + aq.extra,
+            inc: inc, S: aq.S, fit: fitComb(inc, aq.S), refit: function (x) { return fitComb(x, aq.S); }, baseOpts: baseOpts });
+        }
+      }
+    });
+    if (timeMode && aqAllow('veh')) {
+      var vopts = { reD: opts.reD, mKnown: mKnown };
+      var extra = opts.reD !== undefined && opts.reD !== null ? 1 : 2;
+      if (allow('water') || (mKnown !== null && allow('combination'))) {
+        var v = vehSearch(inc, h, false, vopts);
+        if (v) {
+          var mw2 = mKnown || 0;
+          add({ key: 'water-veh', family: mKnown ? 'combination' : 'water', aquifer: 'veh', gas: false, water: true, waterFitted: true, k: 2 + extra,
+            inc: inc, S: v.S, reD: v.reD, a: v.a, mFixed: mw2, fit: v.fit, refit: function (x) { return fitWater(x, v.S, mw2, null); }, baseOpts: baseOpts });
+        }
+      }
+      if (gasPossible && allow('combination')) {
+        var v2 = vehSearch(inc, h, true, vopts);
+        if (v2) {
+          add({ key: 'comb-veh', family: 'combination', aquifer: 'veh', gas: true, water: true, waterFitted: true, k: 3 + extra,
+            inc: inc, S: v2.S, reD: v2.reD, a: v2.a, fit: v2.fit, refit: function (x) { return fitComb(x, v2.S); }, baseOpts: baseOpts });
+        }
+      }
+    }
+    return { cands: cands, inc: inc, base: base, gasPossible: gasPossible, mKnown: mKnown, history: h };
+  }
+
+  function choose(cands, forced) {
+    var eligible = cands.filter(function (c) { return c.valid && (forced || (c.material && c.robust && c.identifiable)) && isFinite(c.sc.aicc); });
+    if (!eligible.length && forced) eligible = cands.filter(function (c) { return isFinite(c.sc.aicc); });
+    if (!eligible.length) return null;
+    eligible.sort(function (a, b) { return a.sc.aicc - b.sc.aicc; });
+    var best = eligible[0];
+    eligible.forEach(function (c) {
+      if (c.sc.aicc <= eligible[0].sc.aicc + 2 && (c.k < best.k || (c.k === best.k && c.sc.aicc < best.sc.aicc))) best = c;
+    });
+    return best;
+  }
+
+  /* ---------------- saturation ---------------- */
+
+  /**
+   * Above the bubble point R_s stays at R_si and B_o rises as the pressure falls. If any production step shows that,
+   * the oil started undersaturated, so there can be no initial gas cap.
+   */
+  function saturation(rows, P) {
+    var prod = rows.filter(function (r) { return r.Np > 0 && num(r.p) && num(r.Rs) && num(r.Bo); });
+    var tol = Math.max(0.5, 1e-3 * Math.abs(P.Rsi || 0));
+    var under = prod.filter(function (r) { return r.Rs >= P.Rsi - tol && r.Bo > P.Boi + 1e-9; });
+    var sat = prod.filter(function (r) { return r.Rs < P.Rsi - tol; });
+    if (!under.length) return { undersaturated: false, below: sat.length > 0 };
+    var pu = Math.min.apply(null, under.map(function (r) { return r.p; }));
+    var ps = sat.length ? Math.max.apply(null, sat.map(function (r) { return r.p; })) : null;
+    var fmt = function (v) { return Math.round(v).toLocaleString('en-US'); };
+    var text = sat.length
+      ? 'R_s stays at R_si and B_o rises down to ' + fmt(pu) + ' psia, so the oil started undersaturated (bubble point between ' + fmt(ps) + ' and ' + fmt(pu) + ' psia) and there is no initial gas cap.'
+      : 'R_s stays at R_si and B_o rises at every step: the oil stays above its bubble point, so there is no free gas and no gas cap.';
+    return { undersaturated: true, allAbove: !sat.length, pbLow: ps, pbHigh: pu, text: text };
+  }
+
+  /* ---------------- detection ---------------- */
+
+  /**
+   * rows/params as for the engine. opts: includeEfw, excluded (ids), precision {steps}, hasTime (rows carry t in days),
+   * time: 'auto' | 'steps' | 'none' (used when there is no time column), mech: 'auto' | 'depletion' | 'gascap' | 'water' | 'combination',
+   * aquifer: 'auto' | 'pot' | 'steady' | 'veh', potK (rb/psi, fixed), reD (fixed r_e/r_o), weColumn (use the W_e column),
+   * mKnown (given m), undersaturated (no gas cap possible), trials (rounding trials).
+   */
+  function detect(rows, params, opts) {
+    opts = Object.assign({}, opts || {});
+    var P = params || {};
+    var sat = saturation(rows, P);
+    if (opts.undersaturated === undefined) { opts.undersaturated = sat.undersaturated; opts.undersaturatedText = sat.text; }
+    var forced = opts.mech && opts.mech !== 'auto';
+    var steps = opts.precision && opts.precision.steps;
+    var hasSteps = steps && Object.keys(steps).some(function (k) { return steps[k] > 0; });
+    var trials = opts.trials || 120;
+
+    function run(timeMode) {
+      var b = build(rows, P, opts, timeMode);
+      b.cands.forEach(function (c) {
+        c.robust = true;
+        c.robustness = null;
+        if (!hasSteps || !c.valid || !c.material || !c.identifiable || (!c.gas && !c.waterFitted)) return;
+        var r = robustness(rows, P, c.baseOpts, c, steps, trials);
+        c.robustness = r;
+        c.robust = r.trials >= 20 && r.pos >= ROBUST && (!c.gas || r.gas >= ROBUST) && (!c.waterFitted || r.water >= ROBUST);
+      });
+      b.best = choose(b.cands, forced);
+      if (b.best && hasSteps && !b.best.robustness && b.best.refit) b.best.robustness = robustness(rows, P, b.best.baseOpts, b.best, steps, trials);
+      b.timeMode = timeMode;
+      return b;
+    }
+
+    var timeMode = opts.hasTime ? 'column' : (opts.time === 'steps' ? 'steps' : null);
+    var out = run(timeMode);
+    var trendBase = apparentN(out.inc, out.mKnown || 0);
+    out.trend = trendBase;
+    out.assumedSteps = false;
+    var depl = out.cands.filter(function (c) { return c.key === 'depletion' || c.key === 'gascap-known'; })[0];
+    var deplPoor = depl && (depl.sc.rms > POOR || (Math.abs(trendBase.change) > TREND && Math.abs(trendBase.t) > 2));
+    var bestPoor = !out.best || out.best.sc.rms > POOR || (depl && out.best === depl && deplPoor);
+    if (!opts.hasTime && opts.time !== 'none' && opts.time !== 'steps' && !opts.weColumn && bestPoor) {
+      var alt = run('steps');
+      var ab = alt.best;
+      if (ab && ab.water && (ab.aquifer === 'veh' || ab.aquifer === 'steady') && ab.sc.rms <= POOR &&
+          (!out.best || ab.sc.aicc < out.best.sc.aicc - 4)) {
+        alt.trend = trendBase;
+        alt.assumedSteps = true;
+        out = alt;
+      } else {
+        out.stepsTried = alt;
+      }
+    }
+    out.saturation = sat;
+    out.depletionPoor = !!deplPoor;
+    out.forced = !!forced;
+    out.evidence = evidence(out, opts);
+    out.title = out.best ? NAMES[out.best.family] : 'Drive mechanism not clear';
+    out.poor = !out.best || out.best.sc.rms > POOR;
+    return out;
+  }
+
+  /* ---------------- the evidence, in words ---------------- */
+
+  function pct(v) { var a = Math.abs(v * 100); return (a >= 10 ? a.toFixed(0) : a >= 1 ? a.toFixed(1) : a.toFixed(2)) + ' %'; }
+  function mm(v) { return (v / 1e6).toFixed(v >= 1e8 ? 0 : 1); }
+  function sg(v, d) { var s = v.toFixed(d); return v < 0 ? '−' + s.slice(1) : s; }
+  function big(v) { return Math.round(v).toLocaleString('en-US'); }
+
+  function aqText(c) {
+    if (c.aquifer === 'veh') return 'unsteady-state aquifer (van Everdingen–Hurst, r_e/r_o = ' + (c.reD === Infinity ? '∞' : c.reD) + ')';
+    return AQ_NAMES[c.aquifer];
+  }
+
+  function evidence(out, opts) {
+    var ev = [], tr = out.trend, cands = out.cands, best = out.best;
+    function find(key) { return cands.filter(function (c) { return c.key === key; })[0]; }
+    // 1. depletion alone
+    if (!opts.weColumn && tr.points.length >= 3) {
+      var mk = out.mKnown ? ' with m = ' + out.mKnown : '';
+      if (out.depletionPoor) {
+        ev.push({ level: 'no', key: 'depletion', text: 'Depletion alone' + mk + ' would keep F/E_t the same at every step. Here it goes from ' + mm(tr.points[0].v) + ' to ' +
+          mm(tr.points[tr.points.length - 1].v) + ' MMSTB (range ' + mm(tr.min) + ' to ' + mm(tr.max) + '), so more energy is acting.' });
+      } else {
+        ev.push({ level: 'yes', key: 'depletion', text: 'Depletion alone' + mk + ' explains the data: F/E_t stays within ' + pct(tr.spread / 2) + ' of ' + mm(tr.mean) + ' MMSTB at every step.' });
+      }
+    }
+    // 2. gas cap
+    if (opts.undersaturated) {
+      ev.push({ level: 'info', key: 'gascap', text: opts.undersaturatedText || 'The oil starts undersaturated (R_s = R_si below p_i), so there is no initial gas cap.' });
+    } else if (out.mKnown !== null && out.mKnown !== undefined) {
+      ev.push({ level: 'info', key: 'gascap', text: 'm = ' + out.mKnown + ' is given, so the gas cap is not fitted.' });
+    } else if (out.gasPossible) {
+      var g = find('gascap') || find('comb-column');
+      if (g) ev.push(gasLine(g, best));
+    }
+    // 3. water
+    if (opts.weColumn) {
+      var wc = find('water-column');
+      if (wc) ev.push({ level: 'info', key: 'water', text: 'W_e comes from the file. With it, F − W_e against E_t gives N = ' + mm(wc.fit.N) + ' MMSTB (fits F within ' + pct(wc.sc.rms) + ').' });
+    } else {
+      ['pot', 'steady', 'veh'].forEach(function (kind) {
+        var c = find('water-' + kind);
+        if (!c) return;
+        ev.push(waterLine(c, best));
+      });
+      if (!out.timeMode) {
+        ev.push({ level: 'info', key: 'time', text: 'There is no time column, so only the pot aquifer can be tried. Steady- and unsteady-state aquifers need time; add a time or date column, or set the rows to equal time steps.' });
+      }
+    }
+    if (out.assumedSteps) {
+      ev.push({ level: 'info', key: 'time', text: 'There is no time column, so the rows are taken as equal time steps (for example, one per year) for the steady- and unsteady-state aquifers. If they are not, add a time column.' });
+    }
+    // 4. combination
+    if (best && best.family === 'combination') {
+      var u = best.aquifer === 'column' ? 'W_e from the file' : aqText(best) + (best.aquifer === 'pot' ? ', K = ' + big(best.fit.U) + ' rb/psi' : '');
+      ev.push({ level: 'yes', key: 'comb', text: 'Gas cap and ' + u + ' together fit F within ' + pct(best.sc.rms) + ', with N = ' + mm(best.fit.N) + ' MMSTB and m = ' + sg(best.fit.m, 3) +
+        '. The gas cap supplies up to ' + pct(best.share.sdi) + ' of F and the influx up to ' + pct(best.share.wdi) + '.' });
+    }
+    ['comb-pot', 'comb-steady', 'comb-veh'].forEach(function (key) {
+      var c = find(key);
+      if (!c || c === best) return;
+      if (best && best.family === 'combination') return;
+      if (c.valid && c.material && !c.robust) {
+        ev.push({ level: 'no', key: 'comb', text: 'Adding a gas cap to the ' + aqText(c) + ' gives m = ' + sg(c.fit.m, 3) + ', but rounding the table within its last digit flips it in ' + pct(1 - c.robustness.gas) + ' of trials, so it is not counted.' });
+      }
+    });
+    // 5. the choice
+    if (best) {
+      var others = cands.filter(function (c) { return c !== best && c.valid && c.material && c.robust && isFinite(c.sc.aicc); }).sort(function (a, b) { return a.sc.aicc - b.sc.aicc; });
+      var lower = function (c) { return c.name.charAt(0).toLowerCase() + c.name.slice(1); };
+      var txt = 'Best: ' + lower(best) + (best.aquifer === 'veh' ? ' (r_e/r_o = ' + (best.reD === Infinity ? '∞' : best.reD) + ')' : '') +
+        ', which reproduces F within ' + pct(best.sc.rms) + ' (root mean square).';
+      if (others.length && !out.forced) {
+        var nx = others[0], extraK = nx.k - best.k;
+        if (nx.sc.rms < best.sc.rms && extraK > 0) {
+          txt += ' The ' + lower(nx) + ' fits a little closer (' + pct(nx.sc.rms) + ') but needs ' + extraK + ' more parameter' + (extraK > 1 ? 's' : '') + ', which these points do not justify.';
+        } else txt += ' Next: ' + lower(nx) + ', within ' + pct(nx.sc.rms) + '.';
+      }
+      if (out.forced) txt = 'You chose this mechanism. ' + txt;
+      ev.push({ level: best.sc.rms > POOR ? 'no' : 'yes', key: 'best', text: txt });
+    } else {
+      ev.push({ level: 'no', key: 'best', text: 'No model makes physical sense and fits the data. Check the units, the initial parameters and the PVT data.' });
+    }
+    return ev;
+  }
+
+  function gasLine(g, best) {
+    var m = g.fit.m;
+    var both = best && best.family === 'combination';
+    if (!g.identifiable) return { level: 'no', key: 'gascap', text: 'The gas-cap line has almost no spread in E_g/E_t here, so its slope, and m, cannot be found.' };
+    if (both && !(m > 0)) return { level: 'no', key: 'gascap', text: 'On its own, with no water influx, the gas-cap line gives m = ' + sg(m, 3) + ': a gas cap alone does not explain the data.' };
+    if (!(m > 0)) return { level: 'no', key: 'gascap', text: 'The gas-cap line gives m = ' + sg(m, 3) + '. A gas cap cannot be negative, so there is no gas cap.' };
+    if (!g.material) return { level: 'no', key: 'gascap', text: 'The gas-cap line gives m = ' + sg(m, 4) + ': the gas cap would supply under ' + pct(MIN_SHARE) + ' of F, so it does not count.' };
+    if (!g.robust) return { level: 'no', key: 'gascap', text: 'The gas-cap line gives m = ' + sg(m, 3) + ', but rounding the table within its last digit makes it negative in ' + pct(1 - g.robustness.gas) + ' of trials, so the data show no clear gas cap.' };
+    if (both) return { level: 'maybe', key: 'gascap', text: 'On its own, with no water influx, the gas-cap line gives m = ' + sg(m, 3) + ' and fits F within ' + pct(g.sc.rms) + ', less well than with the aquifer as well.' };
+    if (best && best.gas) return { level: 'yes', key: 'gascap', text: 'The gas-cap line gives m = ' + sg(m, 3) + ' and fits F within ' + pct(g.sc.rms) + ': the gas cap supplies up to ' + pct(g.share.sdi) + ' of F.' };
+    return { level: 'maybe', key: 'gascap', text: 'The gas-cap line gives m = ' + sg(m, 3) + ' and fits F within ' + pct(g.sc.rms) + ', less well than the model chosen.' };
+  }
+
+  function waterLine(c, best) {
+    var name = aqText(c);
+    var both = best && best.family === 'combination' && !c.gas;
+    var name1 = name.charAt(0).toUpperCase() + name.slice(1) + (both ? ' alone, with no gas cap' : '');
+    if (!c.identifiable) return { level: 'no', key: 'water-' + c.aquifer, text: name1 + ': its influx grows in step with the oil and rock expansion here, so the two cannot be told apart. Any such aquifer is already inside the apparent N.' };
+    if (!(c.fit.U > 0) && c.waterFitted) return { level: 'no', key: 'water-' + c.aquifer, text: name1 + ': the best fit needs ' + (c.aquifer === 'pot' ? 'K' : c.aquifer === 'steady' ? 'C' : 'U') + ' < 0, water leaving the reservoir, so it does not apply.' };
+    if (!c.valid) return { level: 'no', key: 'water-' + c.aquifer, text: name1 + ': the fit gives N ≤ 0, so it does not apply.' };
+    if (!c.material) return { level: 'no', key: 'water-' + c.aquifer, text: name1 + ': the influx would supply under ' + pct(MIN_SHARE) + ' of F, so it does not count.' };
+    if (!c.robust) return { level: 'no', key: 'water-' + c.aquifer, text: name1 + ': fits F within ' + pct(c.sc.rms) + ', but rounding the table within its last digit flips ' + (c.robustness.pos < ROBUST ? 'the sign of N' : 'the aquifer') + ' in ' + pct(1 - Math.min(c.robustness.water, c.robustness.pos)) + ' of trials.' };
+    if (c.sc.rms > POOR) return { level: 'no', key: 'water-' + c.aquifer, text: name1 + ': misses F by ' + pct(c.sc.rms) + ' on average, so it does not explain the data.' };
+    if (best && best.water && !best.gas && best.aquifer === c.aquifer) return { level: 'yes', key: 'water-' + c.aquifer, text: name1 + ': fits F within ' + pct(c.sc.rms) + ', with N = ' + mm(c.fit.N) + ' MMSTB; the influx supplies up to ' + pct(c.share.wdi) + ' of F.' };
+    return { level: 'maybe', key: 'water-' + c.aquifer, text: name1 + ': fits F within ' + pct(c.sc.rms) + ' (N = ' + mm(c.fit.N) + ' MMSTB), less well than the model chosen.' };
+  }
+
+  return {
+    wd: wd,
+    REDS: REDS,
+    history: history,
+    potS: potS,
+    steadyS: steadyS,
+    vehS: vehS,
+    fitOrigin: fitOrigin,
+    fitWater: fitWater,
+    fitComb: fitComb,
+    apparentN: apparentN,
+    saturation: saturation,
+    detect: detect,
+    NAMES: NAMES,
+    AQ_NAMES: AQ_NAMES,
+    MIN_SHARE: MIN_SHARE,
+    POOR: POOR
   };
 });
 
@@ -3631,10 +4718,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         shape.setAttribute('cx', 9); shape.setAttribute('cy', 6); shape.setAttribute('r', 4.5);
         shape.setAttribute('fill', it.fill || 'none');
         if (it.stroke) { shape.setAttribute('stroke', it.stroke); shape.setAttribute('stroke-width', 1.6); }
-      } else if (it.type === 'line') {
+      } else if (it.type === 'line' || it.type === 'dash') {
         shape = document.createElementNS(SVGNS, 'line');
         shape.setAttribute('x1', 1); shape.setAttribute('x2', 17); shape.setAttribute('y1', 6); shape.setAttribute('y2', 6);
-        shape.setAttribute('stroke', it.stroke); shape.setAttribute('stroke-width', 2); shape.setAttribute('stroke-linecap', 'round');
+        shape.setAttribute('stroke', it.stroke); shape.setAttribute('stroke-width', it.type === 'dash' ? 1.6 : 2); shape.setAttribute('stroke-linecap', 'round');
+        if (it.type === 'dash') shape.setAttribute('stroke-dasharray', '4 3');
       } else if (it.type === 'diamond') {
         shape = document.createElementNS(SVGNS, 'path');
         shape.setAttribute('d', 'M9 1 L14 6 L9 11 L4 6 Z');
@@ -3656,7 +4744,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* =====================================================================
    * Havlena–Odeh plot
    * d = {points:[{key,x,y,p,included,F,Eo,Eg,Efw}], fit:{a,b}|null, yDiv, yUnit, efw, labelsAll,
-   *      Ntext, mNtext, legendEl, onToggle(key)}
+   *      Ntext, mNtext, legendEl, onToggle(key),
+   *      optional: xTitle, yTitle (rich text), slopeLabel (replaces "slope mN = …"), noIntercept (line through the origin)}
    * ===================================================================== */
   function hoPlot(el, d) {
     var T = tokens();
@@ -3664,16 +4753,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (d.legendEl) legend(d.legendEl, [
       { type: 'dot', fill: T.oil, html: 'Point in the fit' },
       { type: 'dot', fill: T.paper, stroke: T.muted, html: 'Left out' },
-      { type: 'line', stroke: T.ink, html: 'Fitted line' },
-      { type: 'diamond', fill: T.ink, html: 'Intercept, <var>N</var>' }
-    ], T);
+      { type: 'line', stroke: T.ink, html: d.noIntercept ? 'Line through the origin, slope <var>N</var>' : 'Fitted line' }
+    ].concat(d.noIntercept ? [] : [{ type: 'diamond', fill: T.ink, html: 'Intercept, <var>N</var>' }]), T);
     if (!pts.length) { empty(el, d.emptyText || 'No points to plot yet.'); return; }
 
     var narrow = el.clientWidth < 560;
     var f = frame(el, {
       height: d.height || (narrow ? 340 : 430), T: T,
       margin: { t: 16, r: narrow ? 14 : 24, b: 54, l: narrow ? 62 : 74 },
-      label: 'Havlena–Odeh plot of ' + pts.length + ' points' + (d.fit ? ', intercept N ' + d.Ntext + ', slope mN ' + d.mNtext : '')
+      label: 'Havlena–Odeh plot of ' + pts.length + ' points' + (d.fit ? (d.noIntercept ? ', slope N ' + d.Ntext : ', intercept N ' + d.Ntext + ', ' + String(d.slopeLabel || 'slope mN ' + d.mNtext).replace(/\*/g, '')) : '')
     });
     var yd = d.yDiv || 1;
     var xs = pts.map(function (p) { return p.x; });
@@ -3692,8 +4780,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     graphPaper(f, x, y, T);
     axes(f, x, y, T, {
-      xTitle: d.efw ? '*E*_g / [*E*_o + (1 + *m*) *E*_fw]' : '*E*_g / *E*_o',
-      yTitle: (d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / [*E*_o + (1 + *m*) *E*_fw]' : ' / *E*_o') + ', ' + d.yUnit
+      xTitle: d.xTitle || (d.efw ? '*E*_g / [*E*_o + (1 + *m*) *E*_fw]' : '*E*_g / *E*_o'),
+      yTitle: d.yTitle || ((d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / [*E*_o + (1 + *m*) *E*_fw]' : ' / *E*_o') + ', ' + d.yUnit)
     });
     // zero line for x when the domain starts left of 0
     if (x.domain()[0] < 0) {
@@ -3732,7 +4820,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     // intercept diamond and labels (drawn above the points)
     var ann = f.g.append('g');
-    if (d.fit && x.domain()[0] <= 0) {
+    if (d.fit && !d.noIntercept && x.domain()[0] <= 0) {
       var cx = x(0), cy = y(d.fit.a / yd);
       if (cy >= -2 && cy <= f.ih + 2) {
         ann.append('path').attr('d', d3.symbol(d3.symbolDiamond, 110)())
@@ -3754,12 +4842,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     }
     var lineY = function (xx) { return d.fit ? y((d.fit.a + d.fit.b * xx) / yd) : NaN; };
     var screenPts = pts.map(function (p) { return [x(p.x), y(p.y / yd)]; });
-    if (d.fit && d.mNtext) {
+    if (d.fit && (d.mNtext || d.slopeLabel)) {
       // slope label on the line, where it is farthest from the points and from the N label
       var dom = x.domain(), best = null;
-      var labelLen = (8 + d.mNtext.length) * 6.4;
+      var slopeText = d.slopeLabel || ('slope *mN* = ' + d.mNtext);
+      var labelLen = slopeText.replace(/\*/g, '').length * 6.4;
       var obstacles = screenPts.slice();
-      if (x.domain()[0] <= 0) {
+      if (x.domain()[0] <= 0 && !d.noIntercept) {
         var nx = x(0), ny = y(d.fit.a / yd);
         for (var k = 0; k <= 4; k++) obstacles.push([nx + 12 + k * 28, ny + (d.fit.b / yd > 0 ? 18 : -16)]);
         obstacles.push([nx, ny]);
@@ -3777,7 +4866,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         var sl = ann.append('text')
           .attr('transform', 'translate(' + best.px + ',' + best.py + ') rotate(' + ang + ') translate(0,-9)')
           .attr('text-anchor', 'middle').attr('fill', T.ink2).attr('font-size', 12);
-        richSvg(sl, 'slope *mN* = ' + d.mNtext, T);
+        richSvg(sl, slopeText, T);
         halo(sl, T);
       }
     }
@@ -3865,6 +4954,64 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       .on('keydown', function (ev, p) {
         if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (d.onToggle) d.onToggle(p.key, true); }
       });
+  }
+
+  /* =====================================================================
+   * Apparent N = F / (Eo + Efw) against cumulative oil: flat for depletion alone
+   * d = {points:[{key,Np,v,p,included}], flat (STB), model:[{Np,v}], yDiv, yUnit, legendEl, modelLabel}
+   * ===================================================================== */
+  function apparentPlot(el, d) {
+    var T = tokens();
+    var pts = d.points.filter(function (p) { return isFinite(p.Np) && isFinite(p.v); });
+    if (d.legendEl) legend(d.legendEl, [
+      { type: 'dot', fill: T.oil, html: 'From the data, <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>)' },
+      { type: 'dash', stroke: T.muted, html: 'Depletion alone (flat)' }
+    ].concat(d.model && d.model.length ? [{ type: 'line', stroke: T.ink, html: d.modelLabel || 'Chosen model' }] : []), T);
+    if (!pts.length) { empty(el, d.emptyText || 'No points to show.'); return; }
+    var narrow = el.clientWidth < 520;
+    var f = frame(el, {
+      height: d.height || (narrow ? 260 : 300), T: T,
+      margin: { t: 14, r: 18, b: 52, l: narrow ? 56 : 64 },
+      label: 'Apparent N at ' + pts.length + ' steps' + (isFinite(d.flat) ? ', depletion alone gives ' + d3.format(',.1f')(d.flat / (d.yDiv || 1)) + ' ' + d.yUnit : '')
+    });
+    var yd = d.yDiv || 1;
+    var xmax = d3.max(pts, function (p) { return p.Np; }) / 1e6;
+    var x = d3.scaleLinear().domain([0, xmax * 1.06]).nice().range([0, f.iw]);
+    var vals = pts.map(function (p) { return p.v / yd; });
+    if (isFinite(d.flat)) vals.push(d.flat / yd);
+    (d.model || []).forEach(function (q) { if (isFinite(q.v)) vals.push(q.v / yd); });
+    var lo = d3.min(vals), hi = d3.max(vals), pad = (hi - lo) * 0.18 || Math.abs(hi) * 0.1 || 1;
+    var y = d3.scaleLinear().domain([Math.max(0, lo - pad), hi + pad]).nice().range([f.ih, 0]);
+    hGrid(f, y, T);
+    axes(f, x, y, T, { xTitle: '*N*_p, MMSTB', yTitle: 'Apparent *N*, ' + d.yUnit });
+    var plot = f.g.append('g').attr('clip-path', clip(f));
+    if (isFinite(d.flat)) {
+      plot.append('line').attr('x1', 0).attr('x2', f.iw).attr('y1', y(d.flat / yd)).attr('y2', y(d.flat / yd))
+        .attr('stroke', T.muted).attr('stroke-width', 1.6).attr('stroke-dasharray', '5 4');
+    }
+    if (d.model && d.model.length > 1) {
+      var line = d3.line().x(function (q) { return x(q.Np / 1e6); }).y(function (q) { return y(q.v / yd); }).defined(function (q) { return isFinite(q.v); });
+      plot.append('path').datum(d.model).attr('d', line).attr('fill', 'none').attr('stroke', T.ink).attr('stroke-width', 2)
+        .attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
+    }
+    var dots = plot.append('g').selectAll('circle').data(pts).join('circle')
+      .attr('cx', function (p) { return x(p.Np / 1e6); }).attr('cy', function (p) { return y(p.v / yd); })
+      .attr('r', 5).attr('fill', function (p) { return p.included ? T.oil : T.paper; })
+      .attr('stroke', function (p) { return p.included ? T.surface : T.muted; }).attr('stroke-width', function (p) { return p.included ? 2 : 1.6; });
+    var hits = f.g.append('g').selectAll('circle').data(pts).join('circle')
+      .attr('cx', function (p) { return x(p.Np / 1e6); }).attr('cy', function (p) { return y(p.v / yd); })
+      .attr('r', 12).attr('fill', 'transparent');
+    hits.on('pointerenter', function (ev, p) {
+      dots.filter(function (q) { return q.key === p.key; }).attr('r', 6.5);
+      showTip(el, f.m.l + x(p.Np / 1e6), f.m.t + y(p.v / yd), [
+        { head: d3.format(',')(Math.round(p.p)) + ' psia' },
+        { k: 'Np', v: fmtSig(p.Np / 1e6, 4) + ' MMSTB' },
+        { k: 'Apparent N', v: fmtSig(p.v / yd, 4) + ' ' + d.yUnit }
+      ]);
+    }).on('pointerleave', function (ev, p) {
+      dots.filter(function (q) { return q.key === p.key; }).attr('r', 5);
+      hideTip(el);
+    });
   }
 
   /* =====================================================================
@@ -4146,6 +5293,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   return {
     tokens: tokens,
     hoPlot: hoPlot,
+    apparentPlot: apparentPlot,
     originPlot: originPlot,
     driveBars: driveBars,
     scanPlot: scanPlot,
@@ -4163,18 +5311,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 /*
  * app.js
  * Wires the Havlena–Odeh analyzer together: file loading, state, rendering and exports.
- * Depends on d3, JSZip and the HOUnits, HOXlsx, HOParser, HOEngine and HOCharts globals.
+ * Depends on d3, JSZip and the HOUnits, HOXlsx, HOParser, HOEngine, HODrive and HOCharts globals.
  */
 (function () {
   'use strict';
 
-  var U = window.HOUnits, X = window.HOXlsx, P = window.HOParser, E = window.HOEngine, C = window.HOCharts;
+  var U = window.HOUnits, X = window.HOXlsx, P = window.HOParser, E = window.HOEngine, D = window.HODrive, C = window.HOCharts;
   var $ = function (id) { return document.getElementById(id); };
   var PREVIEW = window.HO_PREVIEW === true;
   if (PREVIEW) document.documentElement.classList.add('is-preview');
 
   /* ------------------------------------------------------------------
-   * Example data set: a gas-cap oil reservoir, with the initial parameters on a second sheet
+   * Example data set (the course example), with the initial parameters on a second sheet
    * ------------------------------------------------------------------ */
   var EX_PROD = [
     ['P (psia)', 'Rs (SCF/STB)', 'Bo (rb/STB)', 'Bg (rb/SCF)', 'Np (MMSTB)', 'Gp (MMSCF)'],
@@ -4226,7 +5374,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /** Escape, then turn B_g, p_i, E_fw ... into italic symbols with subscripts. */
   function rich(text) {
     return esc(text)
-      .replace(/\b([NmGK])\b/g, '<var>$1</var>')
+      .replace(/\b([NmGKU])\b/g, '<var>$1</var>')
       .replace(/\b([A-Za-z])_([A-Za-z]{1,3})\b/g, '<var>$1</var><sub>$2</sub>');
   }
   function minus(s) { return String(s).replace(/^-/, '−'); }
@@ -4268,8 +5416,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     mNow: null,
     out: { N: 'MMSTB', G: 'MMMSCF' },
     tableAll: false,
-    aquifer: { mode: 'auto', K: 0 }, // 'auto' = the file's W_e column when it has one, else none
-    aqNote: '',
+    mech: 'auto',        // drive mechanism: 'auto' (found from the data), 'depletion', 'gascap', 'water', 'combination'
+    aqModel: 'auto',     // aquifer: 'auto' (best fit, or the W_e column when the file has one), 'pot', 'steady', 'veh', 'column'
+    potK: null,          // pot aquifer constant set by hand (rb/psi); null = fitted
+    reD: null,           // aquifer size r_e/r_o set by hand; null = fitted
+    timeMode: 'auto',    // without a time column: 'auto' (equal steps only if needed), 'steps', 'none'
     bundle: null,
     fileError: null
   };
@@ -4282,31 +5433,63 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   function compute() {
     var wb = state.source.wb;
     var analysis = P.analyzeWorkbook(wb, state.overrides);
-    var b = { analysis: analysis, inputs: null, result: null, blocking: false };
+    var b = { analysis: analysis, inputs: null, result: null, detection: null, model: null, blocking: false };
     b.blocking = analysis.errors.some(function (e) { return BLOCKING[e.code]; });
     if (!b.blocking && analysis.production && analysis.production.rows.length) {
       b.inputs = P.buildInputs(analysis, { params: state.paramEdits });
-      b.aquifer = resolveAquifer(b.inputs);
       if (!b.inputs.messages.errors.length) {
-        b.result = E.analyze(b.inputs.rows, b.inputs.params, engineOpts(b));
+        b.detection = detect(b);
+        b.model = b.detection.best;
+        b.result = runModel(b);
+        b.view = b.result.fit && b.result.fit.kind === 'origin' ? 'origin' : (b.result.fit && b.result.fit.kind === 'water' ? 'water' : 'line');
       }
     }
     return b;
   }
 
-  function resolveAquifer(inputs) {
-    var mode = state.aquifer.mode;
-    if (mode === 'auto') mode = inputs && inputs.hasWe ? 'column' : 'none';
-    if (mode === 'column' && !(inputs && inputs.hasWe)) mode = 'none';
-    return { mode: mode, K: mode === 'pot' ? state.aquifer.K : 0 };
+  function excludedIds(b) {
+    return b.inputs.rows.filter(function (r) { return state.excluded.has(r.sheetRow); }).map(function (r) { return r.id; });
   }
 
-  function engineOpts(b) {
-    var ids = b.inputs.rows.filter(function (r) { return state.excluded.has(r.sheetRow); }).map(function (r) { return r.id; });
-    return { includeEfw: state.includeEfw, excluded: ids, precision: b.inputs.precision, aquifer: b.aquifer };
+  function engineOpts(b, extra) {
+    return Object.assign({ includeEfw: state.includeEfw, excluded: excludedIds(b), precision: b.inputs.precision }, extra || {});
   }
 
-  function influxOn(b) { return !!(b.aquifer && b.aquifer.mode !== 'none'); }
+  function useWeColumn(inputs) {
+    return !!(inputs && inputs.hasWe) && (state.aqModel === 'auto' || state.aqModel === 'column');
+  }
+
+  /** Runs the drive-mechanism detection (or the mechanism chosen by hand). */
+  function detect(b) {
+    var inp = b.inputs, P0 = inp.params, col = useWeColumn(inp);
+    return D.detect(inp.rows, P0, {
+      includeEfw: state.includeEfw, excluded: excludedIds(b), precision: inp.precision,
+      hasTime: inp.hasTime, time: state.timeMode, mech: state.mech,
+      aquifer: col || state.aqModel === 'column' ? 'auto' : state.aqModel, weColumn: col,
+      potK: isFinite(state.potK) && state.potK !== null ? state.potK : null, reD: state.reD,
+      mKnown: isFinite(P0.m) && P0.m >= 0 ? P0.m : null,
+      undersaturated: inp.noGas ? true : undefined,
+      undersaturatedText: inp.noGas ? 'There are no R_s, B_g or G_p columns, so the oil is taken as undersaturated: no free gas and no gas cap.' : undefined
+    });
+  }
+
+  /** The engine's analysis for the chosen model: its Havlena–Odeh line, N, m, W_e and the drive indices. */
+  function runModel(b) {
+    var c = b.model, rows = b.inputs.rows, P0 = b.inputs.params;
+    if (!c) return E.analyzeOrigin(rows, P0, engineOpts(b, { mFixed: 0 }));
+    if (c.key === 'depletion') return E.analyzeOrigin(rows, P0, engineOpts(b, { mFixed: 0 }));
+    if (c.key === 'gascap-known') return E.analyzeOrigin(rows, P0, engineOpts(b, { mFixed: c.mFixed }));
+    if (c.key === 'gascap') return E.analyze(rows, P0, engineOpts(b, { aquifer: { mode: 'none' } }));
+    if (c.key === 'water-column') return E.analyzeOrigin(rows, P0, engineOpts(b, { mFixed: c.mFixed || 0, aquifer: { mode: 'column' } }));
+    if (c.key === 'comb-column') return E.analyze(rows, P0, engineOpts(b, { aquifer: { mode: 'column' } }));
+    if (c.key.indexOf('water-') === 0) return E.analyzeWater(rows, P0, engineOpts(b, { S: c.S, U: c.waterFitted ? null : c.U, mFixed: c.mFixed || 0 }));
+    // gas cap and water drive: the gas-cap line with W_e from the fitted aquifer
+    var We = {};
+    Object.keys(c.S).forEach(function (id) { We[id] = c.fit.U * c.S[id]; });
+    return E.analyze(rows, P0, engineOpts(b, { aquifer: { mode: 'series', We: We } }));
+  }
+
+  function influxOn(b) { return !!(b.model && b.model.water); }
 
   function recompute(opts) {
     opts = opts || {};
@@ -4323,11 +5506,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     renderAlert(b);
     renderSource(b);
     renderParams(b);
-    renderAquifer(b);
+    renderDrive(b);
     renderColumns(b);
+    renderVerdict(b);
     renderLedger(b);
     renderNotes(b);
     renderCharts(b, opts);
+    renderDiag(b, opts);
     renderTable(b);
     announce(b, opts);
   }
@@ -4503,8 +5688,56 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('efw').checked = state.includeEfw;
   }
 
-  /* ---------- water influx ---------- */
-  /** Top of the K slider: the K at which W_e would equal F at some point. */
+  /* ---------- drive mechanism: wording shared by the sidebar, the verdict and the tables ---------- */
+  function reText(r) { return r === Infinity || r === 'inf' ? '∞' : String(r); }
+  function pctText(v) { var a = Math.abs(v * 100); return (a >= 10 ? a.toFixed(0) : a >= 1 ? a.toFixed(1) : a.toFixed(2)) + ' %'; }
+
+  /** Time constant of the unsteady-state aquifer in words: t_D per day, per year, or per row step. */
+  function tdText(b, a) {
+    if (b.detection && b.detection.timeMode === 'steps') return fmtSig(a, 3) + ' per row';
+    return fmtSig(a * 365.25, 3) + ' per year';
+  }
+
+  /** The aquifer of a model, in words (rich text). */
+  function aquiferText(b, c) {
+    if (!c || !c.water) return '';
+    var set = c.waterFitted ? '' : ' (set by you)';
+    if (c.aquifer === 'column') return 'W_e from the file';
+    if (c.aquifer === 'pot') return 'Pot aquifer, K = ' + fmtFixed(c.fit.U, 0) + ' rb/psi' + set;
+    if (c.aquifer === 'steady') return 'Steady-state aquifer, C = ' + fmtSig(c.fit.U * (b.detection.timeMode === 'steps' ? 1 : 365.25), 4) + (b.detection.timeMode === 'steps' ? ' rb/psi per row' : ' rb/psi per year');
+    if (c.aquifer === 'veh') return 'Unsteady-state aquifer (van Everdingen–Hurst), r_e/r_o = ' + reText(c.reD) + ', U = ' + fmtFixed(c.fit.U, 0) + ' rb/psi, t_D = ' + tdText(b, c.a);
+    return '';
+  }
+
+  function familyName(b) {
+    var c = b.model;
+    if (!c) return 'No clear drive mechanism';
+    return D.NAMES[c.family];
+  }
+
+  /** One line under the mechanism: what it consists of. */
+  function familyLine(b) {
+    var c = b.model, det = b.detection;
+    if (!c) return 'No mechanism both makes physical sense and fits the data. The results below are for depletion alone.';
+    var parts = [];
+    var sat = det.saturation || {};
+    if (c.family === 'depletion') {
+      parts.push(b.inputs.noGas || sat.allAbove ? 'Oil and rock expansion above the bubble point' : 'Solution gas and rock expansion');
+      parts.push('no gas cap, no water influx');
+    } else if (c.family === 'gascap') {
+      parts.push(c.key === 'gascap-known' ? 'Gas cap of the given size, m = ' + fmtM(c.mFixed) : 'Gas cap, m = ' + fmtM(b.result.results ? b.result.results.m : c.fit.m));
+      parts.push('no water influx');
+    } else if (c.family === 'water') {
+      parts.push(aquiferText(b, c));
+      if (!(c.mFixed > 0)) parts.push('no gas cap');
+    } else {
+      parts.push('Gas cap, m = ' + fmtM(b.result.results ? b.result.results.m : c.fit.m));
+      parts.push(aquiferText(b, c).replace(/^./, function (x) { return x.toLowerCase(); }));
+    }
+    return parts.join('; ') + '.';
+  }
+
+  /* ---------- drive mechanism (sidebar) ---------- */
   function potKmax(b) {
     var k = 0;
     (b.result ? b.result.terms : []).forEach(function (t) {
@@ -4515,53 +5748,160 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return Math.ceil(k / mag) * mag;
   }
 
-  function renderAquifer(b) {
-    var mode = b.aquifer ? b.aquifer.mode : 'none';
-    var hasWe = !!(b.inputs && b.inputs.hasWe);
-    document.querySelectorAll('input[name="aq"]').forEach(function (r) {
-      r.checked = r.value === mode;
-      r.disabled = !b.inputs || (r.value === 'column' && !hasWe);
+  var redBuilt = false;
+  function renderDrive(b) {
+    document.querySelectorAll('input[name="mech"]').forEach(function (r) {
+      r.checked = r.value === state.mech;
+      r.disabled = !b.inputs;
+      if (r.value === 'gascap' || r.value === 'combination') r.disabled = !b.inputs || !!b.inputs.noGas;
     });
-    var prod = b.analysis.production;
-    $('aq-col-note').innerHTML = hasWe
-      ? esc('Column ' + P.colLetter(prod.mapping.We) + ', “' + (prod.headers[prod.mapping.We].text || '') + '”')
-      : rich(b.inputs && b.inputs.weEmpty ? 'The W_e column in this file is empty.' : 'There is no W_e column in this file.');
-    $('aq-pot').hidden = mode !== 'pot';
-    if (mode !== 'pot') return;
-    var range = $('aq-range');
-    var max = Math.max(potKmax(b), state.aquifer.K || 0);
-    range.max = max;
-    range.step = max / 1000;
-    range.value = state.aquifer.K || 0;
-    var kin = $('aq-k');
-    if (document.activeElement !== kin) kin.value = fmtFixed(state.aquifer.K || 0, 0);
-    $('aq-read').innerHTML = state.aqNote ? rich(state.aqNote) : '';
+    var c = b.model, det = b.detection;
+    $('mech-found').innerHTML = state.mech === 'auto' && det ? 'Found: ' + esc(familyName(b)) : '';
+    if (!redBuilt) {
+      $('aq-red').innerHTML = '<option value="">Best fit</option>' + D.REDS.map(function (r) {
+        return '<option value="' + (r === Infinity ? 'inf' : r) + '">' + reText(r) + (r === Infinity ? ' (infinite aquifer)' : '') + '</option>';
+      }).join('');
+      redBuilt = true;
+    }
+    // the aquifer settings stay in view while water drive is possible: in automatic mode, and for the two water mechanisms
+    var waterShown = state.mech === 'auto' || state.mech === 'water' || state.mech === 'combination';
+    var hasWe = !!(b.inputs && b.inputs.hasWe);
+    $('aq-box').hidden = !b.inputs || !waterShown;
+    var sel = $('aq-model');
+    sel.value = state.aqModel;
+    sel.querySelector('option[value="column"]').disabled = !hasWe;
+    var active = c && c.water ? c.aquifer : (state.aqModel !== 'auto' ? state.aqModel : '');
+    var note = '';
+    if (hasWe && useWeColumn(b.inputs)) {
+      var prod = b.analysis.production;
+      note = 'Using W_e from column ' + P.colLetter(prod.mapping.We) + '. Choose another model to fit an aquifer instead.';
+    } else if (state.aqModel === 'auto' && c && c.water) {
+      note = 'Best fit: ' + ({ pot: 'pot aquifer', steady: 'steady state', veh: 'unsteady state' }[c.aquifer] || '') + '.';
+    }
+    $('aq-note').innerHTML = rich(note);
+    // pot aquifer: K by hand (trial and error) or fitted
+    $('aq-pot').hidden = active !== 'pot';
+    if (active === 'pot') {
+      var K = c && c.aquifer === 'pot' ? c.fit.U : (isFinite(state.potK) ? state.potK : 0);
+      var range = $('aq-range');
+      var max = Math.max(potKmax(b), K || 0, state.potK || 0);
+      range.max = max; range.step = max / 1000; range.value = Math.max(0, K || 0);
+      var kin = $('aq-k');
+      if (document.activeElement !== kin) kin.value = state.potK !== null && isFinite(state.potK) ? fmtFixed(state.potK, 0) : '';
+      kin.placeholder = c && c.aquifer === 'pot' && c.waterFitted ? 'fitted: ' + fmtFixed(c.fit.U, 0) : 'fitted';
+      $('aq-best').hidden = state.potK === null;
+    }
+    // unsteady state: aquifer size
+    $('aq-veh').hidden = active !== 'veh';
+    $('aq-red').value = state.reD === null ? '' : (state.reD === Infinity ? 'inf' : String(state.reD));
+    // time between rows (only when the file has none)
+    $('aq-time').hidden = !b.inputs || b.inputs.hasTime || hasWe && useWeColumn(b.inputs);
+    $('aq-steps').value = state.timeMode;
+    $('aq-read').innerHTML = c && c.water ? rich(aquiferText(b, c)) + '.' : '';
   }
 
-  function findBestK() {
-    var b = state.bundle;
-    if (!b || !b.inputs) return;
-    state.aquifer.mode = 'pot';
-    var opts = engineOpts(b);
-    var best = E.bestPotK(b.inputs.rows, b.inputs.params, opts);
-    if (!best) {
-      state.aqNote = 'At least three points are needed to find K.';
-      recompute({ noAnim: true });
+  /* ---------- verdict ---------- */
+  var EV_ICON = {
+    yes: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.4l3.2 3.2L15 6.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    no: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    maybe: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    info: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="6" r="1.2" fill="currentColor"/></svg>'
+  };
+  var EV_SR = { yes: 'Supports: ', no: 'Ruled out: ', maybe: 'Possible but weaker: ', info: 'Note: ' };
+
+  function renderVerdict(b) {
+    var det = b.detection;
+    var el = $('verdict');
+    if (!det) {
+      el.hidden = !b.blocking && !b.inputs ? true : false;
+      $('verdict-k').textContent = 'Drive mechanism';
+      $('verdict-title').textContent = b.blocking ? 'No data yet' : '–';
+      $('verdict-sub').textContent = b.inputs && b.inputs.messages.errors.length ? 'Fix the reservoir parameters on the left to run the analysis.' : '';
+      $('shares').innerHTML = '';
+      $('evidence').innerHTML = '';
+      el.removeAttribute('data-fam');
       return;
     }
-    state.aquifer.K = Math.round(best.K);
-    var note = best.negative
-      ? 'The best fit would need K < 0, that is water leaving the reservoir, so K is set to 0.'
-      : 'Best fit by least squares on F: K = ' + fmtFixed(best.K, 0) + ' rb/psi.';
-    state.aqNote = note;
-    var r = recompute({ noAnim: true });
-    var R = r.result && r.result.results;
-    if (R && !best.negative) {
-      state.aqNote = note + (R.m < 0
-        ? ' m is still negative (' + fmtM(R.m) + '), so a pot aquifer does not explain these data.'
-        : ' The line then gives N = ' + fmtRes(R.N / 1e6) + ' MMSTB and m = ' + fmtM(R.m) + '.');
-      renderAquifer(r);
+    el.hidden = false;
+    $('verdict-k').textContent = det.forced ? 'Drive mechanism, chosen by you' : 'Drive mechanism, found from the data';
+    $('verdict-title').textContent = familyName(b);
+    el.setAttribute('data-fam', b.model ? b.model.family : 'none');
+    $('verdict-sub').innerHTML = rich(familyLine(b)) + (det.assumedSteps ? ' <span class="assume">Rows taken as equal time steps.</span>' : '');
+    // shares of the drive at the last step in the fit
+    var sh = '';
+    if (hasFit(b) && !negativeM(b)) {
+      var inc = b.result.terms.filter(function (t) { return t.included && isFinite(t.sumDI) && t.sumDI > 0; });
+      var last = inc[inc.length - 1];
+      if (last) {
+        var items = [
+          { k: 'DDI', name: 'Depletion', cls: 'oil' }, { k: 'SDI', name: 'Gas cap', cls: 'gas' },
+          { k: 'WDI', name: 'Water influx', cls: 'water' }, { k: 'CDI', name: 'Rock and water expansion', cls: 'rock' }
+        ].map(function (it) { return Object.assign(it, { v: Math.max(0, last[it.k] / last.sumDI) }); })
+          .filter(function (it) { return it.v >= 0.005; });
+        sh = '<div class="shares-bar" role="img" aria-label="Drive indices at ' + esc(fmtFixed(last.p, 0)) + ' psia: ' +
+          esc(items.map(function (it) { return it.name + ' ' + pctText(it.v); }).join(', ')) + '">' +
+          items.map(function (it) { return '<span class="sh-' + it.cls + '" style="flex-grow:' + it.v.toFixed(4) + '"></span>'; }).join('') + '</div>' +
+          '<ul class="shares-key" aria-hidden="true">' + items.map(function (it) {
+            return '<li><i class="sw sh-' + it.cls + '"></i>' + esc(it.name) + ' <strong>' + pctText(it.v) + '</strong></li>';
+          }).join('') + '</ul>' +
+          '<p class="shares-at">Drive indices at the last step, ' + esc(fmtFixed(last.p, 0)) + ' psia</p>';
+      }
     }
+    $('shares').innerHTML = sh;
+    $('evidence').innerHTML = det.evidence.map(function (e) {
+      return '<li data-level="' + e.level + '">' + EV_ICON[e.level] + '<span><span class="sr-only">' + EV_SR[e.level] + '</span>' + rich(e.text) + '</span></li>';
+    }).join('');
+  }
+
+  /* ---------- how the mechanism was found ---------- */
+  function renderDiag(b, opts) {
+    var det = b.detection, nu = state.out.N, div = N_DIV[nu];
+    var el = $('chart-app'), tbl = $('models');
+    $('panel-diag').hidden = !det;
+    if (!det) { C.empty(el, 'No data.'); tbl.innerHTML = ''; C.legend($('legend-app'), [], {}); return; }
+    var mK = det.mKnown || 0;
+    var etOf = function (t) { return t.Eo + mK * t.Eg + (1 + mK) * t.Efw; };
+    var depl = det.cands.filter(function (c) { return c.key === 'depletion' || c.key === 'gascap-known'; })[0];
+    var c = b.model;
+    var incIds = {};
+    b.result.terms.forEach(function (t) { incIds[t.id] = t.included; });
+    var pts = det.trend.points.map(function (q) { return { key: q.id, Np: q.Np, v: q.v, p: q.p, included: incIds[q.id] !== false }; });
+    var model = c && c.key !== 'depletion' ? c.inc.slice().sort(function (a, z) { return a.Np - z.Np; }).map(function (t) { return { Np: t.Np, v: c.fit.Fhat(t) / etOf(t) }; }) : [];
+    C.apparentPlot(el, {
+      points: pts, flat: depl ? depl.fit.N : NaN, model: model, yDiv: div, yUnit: nu,
+      legendEl: $('legend-app'), modelLabel: c ? 'Chosen model, ' + D.NAMES[c.family].toLowerCase() : '',
+      emptyText: 'Not enough points.'
+    });
+    var rows = det.cands.slice().sort(function (a, z) { return (a.sc.aicc === Infinity) - (z.sc.aicc === Infinity) || a.sc.aicc - z.sc.aicc; });
+    var SHORT = { depletion: 'Depletion', gascap: 'Gas cap', water: 'Water drive', combination: 'Gas cap + water' };
+    var why = function (k) {
+      if (k === c) return 'Chosen';
+      if (!k.identifiable) return 'Cannot be told apart from expansion';
+      if (!k.valid) {
+        if (!(k.fit.N > 0)) return 'N ≤ 0';
+        if (k.gas && !(k.fit.m > 0)) return 'Negative gas cap';
+        return 'Water would leave';
+      }
+      if (!k.material) return 'Too small, under 2 % of F';
+      if (!k.robust) return 'Flips with rounding';
+      if (!isFinite(k.sc.aicc)) return 'Too few points';
+      if (c && k.sc.rms < c.sc.rms && k.k > c.k) return 'More constants than the data justify';
+      return 'Fits less well';
+    };
+    var aq = function (k) {
+      if (!k.water) return '–';
+      if (k.aquifer === 'column') return 'from the file';
+      if (k.aquifer === 'veh') return 'unsteady, <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub> = ' + esc(reText(k.reD));
+      return { pot: 'pot', steady: 'steady state' }[k.aquifer];
+    };
+    tbl.innerHTML = '<thead><tr><th scope="col">Mechanism</th><th scope="col">Aquifer</th><th scope="col"><var>N</var><span class="u">' + esc(nu) + '</span></th>' +
+      '<th scope="col"><var>m</var></th><th scope="col">Misfit<span class="u">of <var>F</var></span></th><th scope="col">Result</th></tr></thead><tbody>' +
+      rows.map(function (k) {
+        var mVal = fmtFixed(k.gas ? k.fit.m : (k.mFixed || 0), 3);
+        var res = k === c ? '<span class="verdict-chip is-yes">Chosen</span>' : rich(why(k));
+        return '<tr' + (k === c ? ' class="is-chosen"' : '') + '><th scope="row">' + esc(SHORT[k.family]) + '</th><td class="tl">' + aq(k) + '</td><td>' +
+          esc(fmtRes(k.fit.N / div)) + '</td><td>' + esc(mVal) + '</td><td class="nw">' + esc(pctText(k.sc.rms)) + '</td><td class="tl">' + res + '</td></tr>';
+      }).join('') + '</tbody>';
   }
 
   /* ---------- columns and units ---------- */
@@ -4672,26 +6012,53 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   function renderLedger(b) {
     var nu = state.out.N, gu = state.out.G;
+    var weCard = $('res-We');
     if (!hasFit(b)) {
       $('eq').innerHTML = b.blocking ? 'No data yet' : 'Not enough data for a line';
       $('fitline').textContent = '';
       setRes('res-N', '–', nu); setRes('res-m', '–', ''); setRes('res-G', '–', G_LABEL[gu]);
+      weCard.hidden = true;
+      $('ledger').classList.remove('has-we');
       return;
     }
-    var R = b.result.results, fit = b.result.fit;
-    var a = R.N / N_DIV[nu], s = R.mN / N_DIV[nu];
-    $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> ' + (s < 0 ? '−' : '+') + ' <strong class="n">' +
-      esc(fmtRes(Math.abs(s))) + '</strong> <var>x</var> <span class="ledger-label">(' + esc(nu) + ')</span>';
-    var aqText = '';
-    if (b.aquifer && b.aquifer.mode === 'pot') aqText = ', pot aquifer <var>K</var> = ' + esc(fmtFixed(b.aquifer.K, 0)) + ' rb/psi';
-    else if (b.aquifer && b.aquifer.mode === 'column') aqText = ', <var>W</var><sub>e</sub> from the file';
-    $('fitline').innerHTML = 'R² = <strong>' + fit.r2.toFixed(3) + '</strong> from ' + plural(fit.n, 'point') + aqText;
+    var R = b.result.results, fit = b.result.fit, c = b.model;
+    var a = R.N / N_DIV[nu];
+    if (b.view === 'origin') {
+      $('eq').innerHTML = (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' = <var>N</var> <var>E</var><sub>t</sub>, slope <var>N</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> <span class="ledger-label">' + esc(nu) + '</span>';
+    } else if (b.view === 'water') {
+      $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> + <var>x</var> <span class="ledger-label">(' + esc(nu) + '; slope 1)</span>';
+    } else {
+      var sl = R.mN / N_DIV[nu];
+      $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> ' + (sl < 0 ? '−' : '+') + ' <strong class="n">' +
+        esc(fmtRes(Math.abs(sl))) + '</strong> <var>x</var> <span class="ledger-label">(' + esc(nu) + ')</span>';
+    }
+    $('fitline').innerHTML = 'R² = <strong>' + fit.r2.toFixed(3) + '</strong> from ' + plural(fit.n, 'point');
     var ci = function (pair, div, fmt) {
       return pair ? '95 % range: ' + fmt(pair[0] / div) + ' to ' + fmt(pair[1] / div) : '';
     };
-    setRes('res-N', fmtRes(R.N / N_DIV[nu]), nu, ci(R.ciN, N_DIV[nu], fmtRes), R.N <= 0 ? 'Not physical: see the fit notes' : '');
-    setRes('res-m', fmtM(R.m), '', ci(R.ciM, 1, fmtM), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
-    setRes('res-G', fmtRes(R.G / G_DIV[gu]), G_LABEL[gu], ci(R.ciG, G_DIV[gu], fmtRes), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
+    var rob = c && c.robustness && c.robustness.trials >= 20 ? c.robustness : null;
+    var nCi = ci(R.ciN, N_DIV[nu], fmtRes);
+    if (rob && (rob.N[2] - rob.N[0]) > 0.02 * Math.abs(R.N)) nCi += (nCi ? '; ' : '') + 'rounding the table: ' + fmtRes(rob.N[0] / N_DIV[nu]) + ' to ' + fmtRes(rob.N[2] / N_DIV[nu]);
+    setRes('res-N', fmtRes(R.N / N_DIV[nu]), nu, nCi, R.N <= 0 ? 'Not physical: see the fit notes' : '');
+    $('res-N').querySelector('.res-how').innerHTML = b.view === 'origin' ? 'Slope of <var>F</var> against <var>E</var><sub>t</sub>' : 'Intercept of the line';
+    if (R.mFixed) {
+      setRes('res-m', fmtM(R.m), '', '');
+      $('res-m').querySelector('.res-how').innerHTML = R.m > 0 ? 'Given in the file' : 'No gas cap in this mechanism';
+    } else {
+      setRes('res-m', fmtM(R.m), '', ci(R.ciM, 1, fmtM), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
+      $('res-m').querySelector('.res-how').innerHTML = 'Slope ÷ intercept';
+    }
+    setRes('res-G', R.m === 0 ? '0' : fmtRes(R.G / G_DIV[gu]), G_LABEL[gu], R.m === 0 ? '' : ci(R.ciG, G_DIV[gu], fmtRes), R.N > 0 && R.m < 0 ? 'Negative: see the fit notes' : '');
+    // water influx at the last step in the fit
+    var inc = b.result.terms.filter(function (t) { return t.included; });
+    var last = inc[inc.length - 1];
+    var showWe = influxOn(b) && last && isFinite(last.We);
+    weCard.hidden = !showWe;
+    $('ledger').classList.toggle('has-we', !!showWe);
+    if (showWe) {
+      setRes('res-We', fmtRes(last.We / 1e6), 'MM rb', 'at ' + fmtFixed(last.p, 0) + ' psia: ' + pctText(last.We / last.F) + ' of F');
+      $('res-We-how').innerHTML = rich(aquiferText(b, c));
+    }
   }
 
   /* ---------- fit notes and statistics ---------- */
@@ -4712,10 +6079,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (b.inputs) add('warning', b.inputs.messages.warnings);
     if (b.result) add('warning', b.result.messages.warnings);
     if (!state.includeEfw) out.push({ level: 'info', text: 'E_fw is switched off, so connate water and rock expansion are neglected.' });
+    if (b.detection && b.model && b.model.sc.rms > D.POOR) {
+      out.push({ level: 'warning', text: 'Even the best model misses F by ' + pctText(b.model.sc.rms) + ' on average, so treat these results with care. Check the units and the PVT data, or leave out points that do not follow the trend.' });
+    }
     add('info', a.infos);
     if (b.inputs) add('info', b.inputs.messages.infos.filter(function (m) { return !(m.code === 'efw-default' && !state.includeEfw); }));
     if (b.result) add('info', b.result.messages.infos);
-    if (hasFit(b) && !out.some(function (m) { return m.level !== 'info'; }) && b.result.fit.n >= 3 && b.result.fit.r2 >= 0.95) {
+    if (hasFit(b) && b.view !== 'origin' && !out.some(function (m) { return m.level !== 'info'; }) && b.result.fit.n >= 3 && b.result.fit.r2 >= 0.95) {
       out.unshift({ level: 'ok', text: 'The points fall close to a straight line (R² = ' + b.result.fit.r2.toFixed(3) + ').' });
     }
     return out;
@@ -4745,17 +6115,27 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (!hasFit(b)) { st.innerHTML = '<dt>Points in the fit</dt><dd>–</dd>'; return; }
     var R = b.result.results, fit = b.result.fit, nu = state.out.N, div = N_DIV[nu];
     var usable = b.result.terms.filter(function (t) { return t.usable; }).length;
-    var pm = function (v, se, d, f) { return f(v / d) + (isFinite(se) ? ' ± ' + f(fit.tcrit * se / d) : ''); };
-    var rows = [
-      ['Points in the fit', fit.n + ' of ' + usable],
-      ['R²', fit.r2.toFixed(4)],
-      ['Intercept, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu],
-      ['Slope, <var>mN</var>', pm(R.mN, R.seMN, div, fmtRes) + ' ' + nu],
-      ['<var>m</var>', fmtM(R.m) + (isFinite(R.seM) ? ' ± ' + fmtM(fit.tcrit * R.seM) : '')],
-      ['Scatter of <var>y</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / div) + ' ' + nu : '–'],
-      ['Degrees of freedom', String(fit.dof)],
-      ['Student <var>t</var> at 95 %', isFinite(fit.tcrit) ? fit.tcrit.toFixed(3) : 'needs 3 points']
-    ];
+    var pm = function (v, se, d, f) { return f(v / d) + (isFinite(se) && isFinite(fit.tcrit) ? ' ± ' + f(fit.tcrit * se / d) : ''); };
+    var rows = [['Points in the fit', fit.n + ' of ' + usable], ['R²', fit.r2.toFixed(4)]];
+    if (b.view === 'origin') {
+      rows.push(['Slope, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu]);
+      rows.push(['<var>m</var>', fmtM(R.m) + (R.m > 0 ? ', given' : ', no gas cap')]);
+      rows.push(['Scatter of <var>F</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / 1e6) + ' MM rb' : '–']);
+    } else if (b.view === 'water') {
+      var c = b.model, uUnit = c && c.aquifer === 'steady' ? (b.detection.timeMode === 'steps' ? 'rb/psi per row' : 'rb/(psi·day)') : 'rb/psi';
+      rows.push(['Intercept, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu]);
+      rows.push(['Aquifer constant, ' + (c && c.aquifer === 'pot' ? '<var>K</var>' : c && c.aquifer === 'steady' ? '<var>C</var>' : '<var>U</var>'),
+        (isFinite(R.seU) && isFinite(fit.tcrit) ? fmtSig(R.U, 4) + ' ± ' + (fit.tcrit * R.seU < 5e-5 * Math.abs(R.U) ? '0' : fmtSig(fit.tcrit * R.seU, 2)) : fmtSig(R.U, 4) + (c && !c.waterFitted ? ', set by you' : '')) + ' ' + uUnit]);
+      rows.push(['<var>m</var>', fmtM(R.m) + (R.m > 0 ? ', given' : ', no gas cap')]);
+      rows.push(['Scatter of <var>y</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / div) + ' ' + nu : '–']);
+    } else {
+      rows.push(['Intercept, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu]);
+      rows.push(['Slope, <var>mN</var>', pm(R.mN, R.seMN, div, fmtRes) + ' ' + nu]);
+      rows.push(['<var>m</var>', fmtM(R.m) + (isFinite(R.seM) ? ' ± ' + (fit.tcrit * R.seM < 5e-4 ? '0.000' : fmtM(fit.tcrit * R.seM)) : '')]);
+      rows.push(['Scatter of <var>y</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / div) + ' ' + nu : '–']);
+    }
+    rows.push(['Degrees of freedom', String(fit.dof)]);
+    rows.push(['Student <var>t</var> at 95 %', isFinite(fit.tcrit) ? fit.tcrit.toFixed(3) : 'needs 3 points']);
     st.innerHTML = rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('');
   }
 
@@ -4793,7 +6173,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var fitOk = hasFit(b);
     var R = fitOk ? b.result.results : null;
     var efw = anyEfw(b);
-    C.hoPlot(ho, {
+    var etTitle = R && R.mFixed && R.m > 0 ? '*E*_t' : (efw ? '(*E*_o + *E*_fw)' : '*E*_o');
+    var hoOpts = {
       points: hoPoints(b),
       fit: fitOk ? { a: R.N, b: R.mN } : null,
       yDiv: div, yUnit: nu, efw: efw, influx: influxOn(b),
@@ -4804,7 +6185,32 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       animate: !opts.noAnim,
       emptyText: 'No points below the initial pressure.',
       onToggle: toggleRow
-    });
+    };
+    var title = 'Havlena–Odeh plot', sub = '';
+    if (b.view === 'origin') {
+      title = 'Havlena–Odeh plot: ' + (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' against <var>E</var><sub>t</sub>';
+      sub = 'With ' + (influxOn(b) ? 'the water influx known' : (R && R.m > 0 ? 'the gas cap known' : 'depletion alone')) + ', the points lie on a straight line through the origin, and its slope is <var>N</var> (slide 37). Click a point to leave it out of the fit.';
+      Object.assign(hoOpts, {
+        fit: fitOk ? { a: 0, b: R.N } : null, yDiv: 1e6, yUnit: 'MM rb', noIntercept: true,
+        xTitle: (R && R.m > 0 ? '*E*_t' : (efw ? '*E*_o + *E*_fw' : '*E*_o')) + ', rb/STB',
+        yTitle: (influxOn(b) ? '*F* − *W*_e' : '*F*') + ', MM rb',
+        slopeLabel: fitOk ? 'slope *N* = ' + fmtRes(R.N / div) + ' ' + nu : ''
+      });
+    } else if (b.view === 'water') {
+      title = 'Havlena–Odeh plot: <var>F</var>/<var>E</var><sub>t</sub> against <var>W</var><sub>e</sub>/<var>E</var><sub>t</sub>';
+      sub = 'With the right aquifer, the points lie on a straight line of slope 1 that meets the axis at <var>N</var> (slide 41). Click a point to leave it out of the fit.';
+      Object.assign(hoOpts, {
+        points: hoPoints(b).map(function (q) { return Object.assign({}, q, { x: q.x / div }); }),
+        fit: fitOk ? { a: R.N, b: div } : null,
+        xTitle: '*W*_e / ' + etTitle + ', ' + nu, yTitle: '*F* / ' + etTitle + ', ' + nu,
+        slopeLabel: 'slope 1'
+      });
+    } else {
+      sub = (influxOn(b) ? 'With the water influx taken off <var>F</var>, the points' : 'The points') + ' lie on a straight line that meets the axis at <var>N</var>; its slope is <var>mN</var>. Click a point to leave it out of the fit.';
+    }
+    $('ho-title').innerHTML = title;
+    $('ho-sub').innerHTML = sub;
+    C.hoPlot(ho, hoOpts);
     $('reset-points').hidden = !b.result.terms.some(function (t) { return t.usable && t.userExcluded; });
 
     var inc = b.result.terms.filter(function (t) { return t.included; });
@@ -4832,6 +6238,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   function renderExplorer(b, opts) {
     var fitOk = hasFit(b);
+    $('panel-explorer').hidden = !!(b.inputs && b.inputs.noGas);
     var range = $('m-range'), num = $('m-num'), btn = $('m-fit');
     var expEl = $('chart-exp'), scanEl = $('chart-scan');
     if (!fitOk) {
@@ -4899,6 +6306,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* ---------- table ---------- */
   var TABLE_LIMIT = 30;
 
+  function rowOf(b, id) {
+    var rows = b.inputs ? b.inputs.rows : [];
+    for (var i = 0; i < rows.length; i++) if (rows[i].id === id) return rows[i];
+    return null;
+  }
+
   function renderTable(b) {
     var tbl = $('calc'), foot = $('table-foot');
     if (!b.result || !b.result.terms.length) {
@@ -4908,7 +6321,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     }
     var nu = state.out.N, div = N_DIV[nu];
     var efw = anyEfw(b);
-    var cols = [
+    var timeCol = b.inputs && b.inputs.hasTime ? [{ g: 'Data', h: '<var>t</var>', u: 'years', v: function (t) { var r = rowOf(b, t.id); return r && isFinite(r.t) ? fmtSig(r.t / 365.25, 4) : '–'; } }] : [];
+    var cols = timeCol.concat([
       { g: 'Data', h: SYM.p, u: 'psia', v: function (t) { return fmtFixed(t.p, 0); } },
       { g: 'Data', h: SYM.Np, u: 'MMSTB', v: function (t) { return fmtSig(t.Np / 1e6, 4); } },
       { g: 'Data', h: SYM.Gp, u: 'MMSCF', v: function (t) { return fmtSig(t.Gp / 1e6, 5); } },
@@ -4918,7 +6332,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       { g: 'Data', h: SYM.Bg, u: 'rb/SCF', v: function (t) { return fmtSig(t.Bg, 4); } },
       { g: 'Expansion terms', h: 'Δ<var>p</var>', u: 'psi', v: function (t) { return fmtFixed(t.dP, 0); } },
       { g: 'Expansion terms', h: '<var>F</var>', u: 'MM rb', v: function (t) { return fmtSig(t.F / 1e6, 5); } }
-    ].concat(influxOn(b) ? [
+    ]).concat(influxOn(b) ? [
       { g: 'Expansion terms', h: '<var>W</var><sub>e</sub>', u: 'MM rb', v: function (t) { return isFinite(t.We) ? fmtSig(t.We / 1e6, 4) : '–'; } }
     ] : []).concat([
       { g: 'Expansion terms', h: '<var>E</var><sub>o</sub>', u: 'rb/STB', v: function (t) { return fmtSig(t.Eo, 4); } },
@@ -4926,12 +6340,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       { g: 'Expansion terms', h: '<var>E</var><sub>fw</sub>', u: 'rb/STB', v: function (t) { return efw ? fmtSig(t.Efw, 3) : '0'; } },
       { g: 'Straight line', h: '<var>x</var>', u: '', v: function (t) { return t.usable ? fmtSig(t.x, 4) : '–'; } },
       { g: 'Straight line', h: '<var>y</var>', u: nu, v: function (t) { return t.usable ? fmtSig(t.y / div, 5) : '–'; } },
-      { g: 'Check at the fitted <var>m</var>', h: influxOn(b) ? '(<var>F</var> − <var>W</var><sub>e</sub>)/<var>E</var><sub>t</sub>' : '<var>F</var>/<var>E</var><sub>t</sub>', u: nu, v: function (t) { return t.usable && isFinite(t.impliedN) ? fmtSig(t.impliedN / div, 5) : '–'; } },
-      { g: 'Check at the fitted <var>m</var>', h: 'DDI', u: '%', v: function (t) { return di(t, 'DDI'); } },
-      { g: 'Check at the fitted <var>m</var>', h: 'SDI', u: '%', v: function (t) { return di(t, 'SDI'); } }
+      { g: 'Check at the fitted <var>N</var> and <var>m</var>', h: influxOn(b) ? '(<var>F</var> − <var>W</var><sub>e</sub>)/<var>E</var><sub>t</sub>' : '<var>F</var>/<var>E</var><sub>t</sub>', u: nu, v: function (t) { return t.usable && isFinite(t.impliedN) ? fmtSig(t.impliedN / div, 5) : '–'; } },
+      { g: 'Check at the fitted <var>N</var> and <var>m</var>', h: 'DDI', u: '%', v: function (t) { return di(t, 'DDI'); } },
+      { g: 'Check at the fitted <var>N</var> and <var>m</var>', h: 'SDI', u: '%', v: function (t) { return di(t, 'SDI'); } }
     ]);
-    if (influxOn(b)) cols.push({ g: 'Check at the fitted <var>m</var>', h: 'WDI', u: '%', v: function (t) { return di(t, 'WDI'); } });
-    if (efw) cols.push({ g: 'Check at the fitted <var>m</var>', h: 'CDI', u: '%', v: function (t) { return di(t, 'CDI'); } });
+    if (influxOn(b)) cols.push({ g: 'Check at the fitted <var>N</var> and <var>m</var>', h: 'WDI', u: '%', v: function (t) { return di(t, 'WDI'); } });
+    if (efw) cols.push({ g: 'Check at the fitted <var>N</var> and <var>m</var>', h: 'CDI', u: '%', v: function (t) { return di(t, 'CDI'); } });
     var hideDI = negativeM(b);
     function di(t, k) {
       if (hideDI || !t.usable || !isFinite(t[k]) || !isFinite(t.sumDI) || t.sumDI === 0) return '–';
@@ -4986,7 +6400,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var s = $('status');
     if (hasFit(b)) {
       var R = b.result.results;
-      s.textContent = 'N = ' + fmtRes(R.N / N_DIV[state.out.N]) + ' ' + state.out.N + ', m = ' + fmtM(R.m) + ', G = ' + fmtRes(R.G / G_DIV[state.out.G]) + ' ' + G_LABEL[state.out.G] + '.';
+      s.textContent = familyName(b) + '. N = ' + fmtRes(R.N / N_DIV[state.out.N]) + ' ' + state.out.N + ', m = ' + fmtM(R.m) + ', G = ' + fmtRes(R.G / G_DIV[state.out.G]) + ' ' + G_LABEL[state.out.G] + '.';
     } else if (b.blocking) {
       s.textContent = 'The data could not be read. See the message at the top of the results.';
     }
@@ -5019,8 +6433,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     state.paramEdits = {};
     state.excluded = new Set();
     state.mNow = null;
-    state.aquifer = { mode: 'auto', K: 0 };
-    state.aqNote = '';
+    state.mech = 'auto';
+    state.aqModel = 'auto';
+    state.potK = null;
+    state.reD = null;
+    state.timeMode = 'auto';
     state.tableAll = false;
     state.fileError = null;
     mRange.key = '';
@@ -5089,8 +6506,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   function downloadTemplate() {
     X.writeXlsx([
-      { name: 'Production', headerRows: 1, colWidths: [13, 14, 14, 14, 14, 14],
-        rows: [['p (psia)', 'Np (MMSTB)', 'Gp (MMSCF)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)']] },
+      { name: 'Production', headerRows: 1, colWidths: [11, 13, 14, 14, 14, 14, 14, 13],
+        rows: [['t (years)', 'p (psia)', 'Np (MMSTB)', 'Gp (MMSCF)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'Wp (MMSTB)']] },
       { name: 'Initial', headerRows: 1, colWidths: [32, 14, 12, 60],
         rows: [['Property', 'Value', 'Unit', 'Notes'],
           ['Initial pressure, pi', null, 'psia', ''],
@@ -5099,7 +6516,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ['Initial solution GOR, Rsi', null, 'SCF/STB', 'Leave empty to take it from the table row at pi'],
           ['Connate water saturation, Swc', null, 'fraction', 'Swc, Cw and Cf can be left empty: then Efw = 0'],
           ['Water compressibility, Cw', null, '1/psi', ''],
-          ['Formation compressibility, Cf', null, '1/psi', '']] }
+          ['Formation compressibility, Cf', null, '1/psi', ''],
+          ['Gas-cap ratio, m', null, '-', 'Only if known from geology: then m is not fitted'],
+          ['', null, '', 'Production sheet: t and Wp are optional. Add a column We (MMrb) if the water influx is known.']] }
     ]).then(function (bytes) { download('havlena-odeh-template.xlsx', bytes, XLSX_MIME); });
   }
 
@@ -5111,14 +6530,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
 
   function calcRows(b) {
-    var head = ['p (psia)', 'Np (STB)', 'Gp (SCF)', 'Rp (SCF/STB)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'dp (psi)',
+    var head = ['t (years)', 'p (psia)', 'Np (STB)', 'Gp (SCF)', 'Rp (SCF/STB)', 'Bo (rb/STB)', 'Rs (SCF/STB)', 'Bg (rb/SCF)', 'dp (psi)',
       'F (rb)', 'We (rb)', 'Eo (rb/STB)', 'Eg (rb/STB)', 'Efw (rb/STB)', 'x', 'y (STB)', '(F-We)/Et (STB)', 'DDI', 'SDI', 'WDI', 'CDI', 'In fit', 'Note'];
     var rows = [head];
     var hideDI = negativeM(b);
     b.result.terms.forEach(function (t) {
       var s = t.sumDI;
       var norm = function (k) { return !hideDI && t.usable && isFinite(t[k]) && isFinite(s) && s !== 0 ? t[k] / s : null; };
-      rows.push([t.p, t.Np, t.Gp, t.Np > 0 ? t.Rp : null, t.Bo, t.Rs, t.Bg, t.dP, t.F, isFinite(t.We) ? t.We : null, t.Eo, t.Eg, t.Efw,
+      var r0 = rowOf(b, t.id);
+      rows.push([r0 && isFinite(r0.t) ? r0.t / 365.25 : null, t.p, t.Np, t.Gp, t.Np > 0 ? t.Rp : null, t.Bo, t.Rs, t.Bg, t.dP, t.F, isFinite(t.We) ? t.We : null, t.Eo, t.Eg, t.Efw,
         t.usable ? t.x : null, t.usable ? t.y : null, t.usable && isFinite(t.impliedN) ? t.impliedN : null,
         norm('DDI'), norm('SDI'), norm('WDI'), norm('CDI'),
         t.usable ? (t.included ? 'yes' : 'no') : 'n/a', t.reason || (t.userExcluded ? 'left out by user' : '')]);
@@ -5134,25 +6554,45 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       return;
     }
     var R = b.result.results, fit = b.result.fit, prm = b.inputs.params, info = b.inputs.paramInfo;
+    var det = b.detection, c = b.model;
+    var plain = function (t) { return String(t).replace(/_/g, ''); };
+    var lineText = {
+      origin: 'F - We = N Et through the origin, Et = Eo + m Eg + (1+m) Efw; N = slope',
+      water: 'F/Et = N + We/Et (slope 1), We = U S from the aquifer model; N = intercept',
+      line: '(F-We)/[Eo+(1+m)Efw] = N + mN Eg/[Eo+(1+m)Efw], fitted again with the new m until m stops changing; N = intercept, m = slope/intercept'
+    }[b.view];
+    var inc = b.result.terms.filter(function (t) { return t.included; });
+    var last = inc[inc.length - 1];
     var results = [
-      ['Havlena–Odeh straight-line analysis', ''],
+      ['Havlena–Odeh material balance analysis', ''],
       ['Data', state.source.name],
+      ['Drive mechanism', familyName(b) + (det.forced ? ' (chosen by the user)' : ' (found from the data)')],
+      ['', plain(familyLine(b))],
       ['Points in the fit', fit.n],
       ['', ''],
       ['Result', 'Value', 'Unit', '95 % low', '95 % high'],
       ['N, oil initially in place', R.N, 'STB', R.ciN ? R.ciN[0] : null, R.ciN ? R.ciN[1] : null],
       ['N, oil initially in place', R.N / 1e6, 'MMSTB', R.ciN ? R.ciN[0] / 1e6 : null, R.ciN ? R.ciN[1] / 1e6 : null],
       ['m, gas-cap to oil-zone volume ratio', R.m, '-', R.ciM ? R.ciM[0] : null, R.ciM ? R.ciM[1] : null],
-      ['mN, slope of the line', R.mN, 'STB', null, null],
       ['G, gas-cap gas initially in place', R.G, 'SCF', R.ciG ? R.ciG[0] : null, R.ciG ? R.ciG[1] : null],
       ['G, gas-cap gas initially in place', R.G / 1e9, 'Bscf', R.ciG ? R.ciG[0] / 1e9 : null, R.ciG ? R.ciG[1] / 1e9 : null],
+      ['We, water influx at the last step', influxOn(b) && last ? last.We : null, 'rb', null, null],
+      ['Aquifer', influxOn(b) ? plain(aquiferText(b, c)) : 'none', '', null, null],
+      ['Aquifer r_e/r_o', c && c.aquifer === 'veh' ? (c.reD === Infinity ? 'infinite' : c.reD) : null, '', null, null],
       ['R squared', fit.r2, '', null, null],
       ['', ''],
-      ['Method', '(F-We)/[Eo+(1+m)Efw] = N + mN Eg/[Eo+(1+m)Efw], fitted again with the new m until m stops changing; N = intercept, m = slope/intercept, G = mN Boi/Bgi'],
+      ['Line', lineText],
       ['Efw included', state.includeEfw ? 'yes' : 'no'],
-      ['Water influx', b.aquifer.mode === 'pot' ? 'pot aquifer, We = K (pi - p)' : b.aquifer.mode === 'column' ? 'We column from the file' : 'none'],
-      ['K, pot aquifer constant (rb/psi)', b.aquifer.mode === 'pot' ? b.aquifer.K : null]
-    ];
+      ['Time', b.inputs.hasTime ? 'from the file' : (det.assumedSteps ? 'rows taken as equal time steps' : 'none')],
+      ['', ''],
+      ['How the mechanism was found', '']
+    ].concat(det.evidence.map(function (e) { return [{ yes: 'supports', no: 'ruled out', maybe: 'weaker', info: 'note' }[e.level], plain(e.text)]; }));
+    var models = [['Mechanism', 'Aquifer', 'N (STB)', 'm', 'Aquifer constant', 'r_e/r_o', 'Misfit of F (rms, fraction)', 'AICc', 'Physical', 'Share at least 2 %', 'Robust to rounding', 'Chosen']];
+    det.cands.forEach(function (k) {
+      models.push([D.NAMES[k.family], k.water ? k.aquifer : 'none', k.fit.N, k.gas ? k.fit.m : (k.mFixed || 0), k.water ? k.fit.U : null,
+        k.aquifer === 'veh' ? (k.reD === Infinity ? 'infinite' : k.reD) : null, k.sc.rms, isFinite(k.sc.aicc) ? k.sc.aicc : null,
+        k.valid ? 'yes' : 'no', k.material ? 'yes' : 'no', k.robust ? 'yes' : 'no', k === c ? 'yes' : '']);
+    });
     var inputs = [['Parameter', 'Value', 'Unit', 'Source']];
     [['pi', 'psia'], ['Boi', 'rb/STB'], ['Bgi', 'rb/SCF'], ['Rsi', 'SCF/STB'], ['Swc', 'fraction'], ['Cw', '1/psi'], ['Cf', '1/psi']].forEach(function (p) {
       var i = info[p[0]] || {};
@@ -5161,8 +6601,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     });
     var notes = [['Level', 'Note']].concat(collectMessages(b).map(function (m) { return [m.level, m.text.replace(/_/g, '')]; }));
     X.writeXlsx([
-      { name: 'Results', headerRows: 0, colWidths: [38, 22, 10, 16, 16], rows: results },
-      { name: 'Calculations', headerRows: 1, colWidths: [10, 14, 16, 12, 11, 12, 12, 9, 16, 14, 12, 12, 12, 10, 16, 16, 9, 9, 9, 9, 8, 24], rows: calcRows(b) },
+      { name: 'Results', headerRows: 0, colWidths: [38, 60, 10, 16, 16], rows: results },
+      { name: 'Models', headerRows: 1, colWidths: [36, 10, 16, 10, 16, 9, 14, 10, 10, 12, 12, 8], rows: models },
+      { name: 'Calculations', headerRows: 1, colWidths: [10, 10, 14, 16, 12, 11, 12, 12, 9, 16, 14, 12, 12, 12, 10, 16, 16, 9, 9, 9, 9, 8, 24], rows: calcRows(b) },
       { name: 'Inputs', headerRows: 1, colWidths: [12, 14, 10, 34], rows: inputs },
       { name: 'Notes', headerRows: 1, colWidths: [10, 110], rows: notes }
     ]).then(function (bytes) {
@@ -5287,33 +6728,49 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     $('efw').addEventListener('change', function () { state.includeEfw = this.checked; recompute({ noAnim: true }); });
 
-    document.querySelectorAll('input[name="aq"]').forEach(function (r) {
+    document.querySelectorAll('input[name="mech"]').forEach(function (r) {
       r.addEventListener('change', function () {
         if (!this.checked) return;
-        state.aquifer.mode = this.value;
-        state.aqNote = '';
+        state.mech = this.value;
         recompute({ noAnim: true });
       });
+    });
+    $('aq-model').addEventListener('change', function () {
+      state.aqModel = this.value;
+      if (state.aqModel !== 'pot') state.potK = null;
+      if (state.aqModel !== 'veh') state.reD = null;
+      recompute({ noAnim: true });
     });
     var aqTimer = null;
     function setK(v, quiet) {
       if (!(isFinite(v) && v >= 0)) return false;
-      state.aquifer.K = v;
-      state.aqNote = '';
+      state.potK = v;
+      if (state.aqModel === 'auto' || state.aqModel === 'column') state.aqModel = 'pot';
       recompute({ noAnim: true, quiet: quiet });
       return true;
     }
     $('aq-k').addEventListener('input', function () {
       var el = this;
       clearTimeout(aqTimer);
-      aqTimer = setTimeout(function () { setK(U.parseNumber(el.value), true); }, 350);
+      aqTimer = setTimeout(function () {
+        if (!el.value.trim()) { state.potK = null; recompute({ noAnim: true, quiet: true }); return; }
+        setK(U.parseNumber(el.value), true);
+      }, 350);
     });
     $('aq-k').addEventListener('change', function () {
       clearTimeout(aqTimer);
-      if (!setK(U.parseNumber(this.value), false)) this.value = fmtFixed(state.aquifer.K || 0, 0);
+      if (!this.value.trim()) { state.potK = null; recompute({ noAnim: true }); return; }
+      if (!setK(U.parseNumber(this.value), false)) this.value = state.potK !== null ? fmtFixed(state.potK, 0) : '';
     });
     $('aq-range').addEventListener('input', function () { setK(+this.value, true); });
-    $('aq-best').addEventListener('click', findBestK);
+    $('aq-best').addEventListener('click', function () { state.potK = null; recompute({ noAnim: true }); });
+    $('aq-red').addEventListener('change', function () {
+      state.reD = this.value === '' ? null : (this.value === 'inf' ? Infinity : +this.value);
+      if (state.reD !== null && state.aqModel !== 'veh') state.aqModel = 'veh';
+      recompute({ noAnim: true });
+    });
+    $('aq-steps').addEventListener('change', function () { state.timeMode = this.value; recompute({ noAnim: true }); });
+    $('png-app').addEventListener('click', function () { exportPNG('chart-app', 'apparent-N.png'); });
     $('labels-all').addEventListener('change', function () { state.labelsAll = this.checked; renderCharts(state.bundle, { noAnim: true }); });
     $('reset-points').addEventListener('click', function () { state.excluded.clear(); recompute({ noAnim: true }); });
     $('out-N').addEventListener('change', function () { state.out.N = this.value; renderAll(state.bundle, { noAnim: true, quiet: true }); });
@@ -5344,13 +6801,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         });
         if (!changed) return;
         clearTimeout(timer);
-        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 120);
+        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); renderDiag(state.bundle, { noAnim: true }); }, 120);
       });
-      ['chart-ho', 'chart-check', 'chart-drive', 'chart-exp', 'chart-scan'].forEach(function (id) { ro.observe($(id)); });
+      ['chart-ho', 'chart-app', 'chart-check', 'chart-drive', 'chart-exp', 'chart-scan'].forEach(function (id) { ro.observe($(id)); });
     } else {
       window.addEventListener('resize', function () {
         clearTimeout(timer);
-        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 150);
+        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); renderDiag(state.bundle, { noAnim: true }); }, 150);
       });
     }
 

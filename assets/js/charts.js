@@ -249,10 +249,11 @@
         shape.setAttribute('cx', 9); shape.setAttribute('cy', 6); shape.setAttribute('r', 4.5);
         shape.setAttribute('fill', it.fill || 'none');
         if (it.stroke) { shape.setAttribute('stroke', it.stroke); shape.setAttribute('stroke-width', 1.6); }
-      } else if (it.type === 'line') {
+      } else if (it.type === 'line' || it.type === 'dash') {
         shape = document.createElementNS(SVGNS, 'line');
         shape.setAttribute('x1', 1); shape.setAttribute('x2', 17); shape.setAttribute('y1', 6); shape.setAttribute('y2', 6);
-        shape.setAttribute('stroke', it.stroke); shape.setAttribute('stroke-width', 2); shape.setAttribute('stroke-linecap', 'round');
+        shape.setAttribute('stroke', it.stroke); shape.setAttribute('stroke-width', it.type === 'dash' ? 1.6 : 2); shape.setAttribute('stroke-linecap', 'round');
+        if (it.type === 'dash') shape.setAttribute('stroke-dasharray', '4 3');
       } else if (it.type === 'diamond') {
         shape = document.createElementNS(SVGNS, 'path');
         shape.setAttribute('d', 'M9 1 L14 6 L9 11 L4 6 Z');
@@ -274,7 +275,8 @@
   /* =====================================================================
    * Havlena–Odeh plot
    * d = {points:[{key,x,y,p,included,F,Eo,Eg,Efw}], fit:{a,b}|null, yDiv, yUnit, efw, labelsAll,
-   *      Ntext, mNtext, legendEl, onToggle(key)}
+   *      Ntext, mNtext, legendEl, onToggle(key),
+   *      optional: xTitle, yTitle (rich text), slopeLabel (replaces "slope mN = …"), noIntercept (line through the origin)}
    * ===================================================================== */
   function hoPlot(el, d) {
     var T = tokens();
@@ -282,16 +284,15 @@
     if (d.legendEl) legend(d.legendEl, [
       { type: 'dot', fill: T.oil, html: 'Point in the fit' },
       { type: 'dot', fill: T.paper, stroke: T.muted, html: 'Left out' },
-      { type: 'line', stroke: T.ink, html: 'Fitted line' },
-      { type: 'diamond', fill: T.ink, html: 'Intercept, <var>N</var>' }
-    ], T);
+      { type: 'line', stroke: T.ink, html: d.noIntercept ? 'Line through the origin, slope <var>N</var>' : 'Fitted line' }
+    ].concat(d.noIntercept ? [] : [{ type: 'diamond', fill: T.ink, html: 'Intercept, <var>N</var>' }]), T);
     if (!pts.length) { empty(el, d.emptyText || 'No points to plot yet.'); return; }
 
     var narrow = el.clientWidth < 560;
     var f = frame(el, {
       height: d.height || (narrow ? 340 : 430), T: T,
       margin: { t: 16, r: narrow ? 14 : 24, b: 54, l: narrow ? 62 : 74 },
-      label: 'Havlena–Odeh plot of ' + pts.length + ' points' + (d.fit ? ', intercept N ' + d.Ntext + ', slope mN ' + d.mNtext : '')
+      label: 'Havlena–Odeh plot of ' + pts.length + ' points' + (d.fit ? (d.noIntercept ? ', slope N ' + d.Ntext : ', intercept N ' + d.Ntext + ', ' + String(d.slopeLabel || 'slope mN ' + d.mNtext).replace(/\*/g, '')) : '')
     });
     var yd = d.yDiv || 1;
     var xs = pts.map(function (p) { return p.x; });
@@ -310,8 +311,8 @@
 
     graphPaper(f, x, y, T);
     axes(f, x, y, T, {
-      xTitle: d.efw ? '*E*_g / [*E*_o + (1 + *m*) *E*_fw]' : '*E*_g / *E*_o',
-      yTitle: (d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / [*E*_o + (1 + *m*) *E*_fw]' : ' / *E*_o') + ', ' + d.yUnit
+      xTitle: d.xTitle || (d.efw ? '*E*_g / [*E*_o + (1 + *m*) *E*_fw]' : '*E*_g / *E*_o'),
+      yTitle: d.yTitle || ((d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / [*E*_o + (1 + *m*) *E*_fw]' : ' / *E*_o') + ', ' + d.yUnit)
     });
     // zero line for x when the domain starts left of 0
     if (x.domain()[0] < 0) {
@@ -350,7 +351,7 @@
 
     // intercept diamond and labels (drawn above the points)
     var ann = f.g.append('g');
-    if (d.fit && x.domain()[0] <= 0) {
+    if (d.fit && !d.noIntercept && x.domain()[0] <= 0) {
       var cx = x(0), cy = y(d.fit.a / yd);
       if (cy >= -2 && cy <= f.ih + 2) {
         ann.append('path').attr('d', d3.symbol(d3.symbolDiamond, 110)())
@@ -372,12 +373,13 @@
     }
     var lineY = function (xx) { return d.fit ? y((d.fit.a + d.fit.b * xx) / yd) : NaN; };
     var screenPts = pts.map(function (p) { return [x(p.x), y(p.y / yd)]; });
-    if (d.fit && d.mNtext) {
+    if (d.fit && (d.mNtext || d.slopeLabel)) {
       // slope label on the line, where it is farthest from the points and from the N label
       var dom = x.domain(), best = null;
-      var labelLen = (8 + d.mNtext.length) * 6.4;
+      var slopeText = d.slopeLabel || ('slope *mN* = ' + d.mNtext);
+      var labelLen = slopeText.replace(/\*/g, '').length * 6.4;
       var obstacles = screenPts.slice();
-      if (x.domain()[0] <= 0) {
+      if (x.domain()[0] <= 0 && !d.noIntercept) {
         var nx = x(0), ny = y(d.fit.a / yd);
         for (var k = 0; k <= 4; k++) obstacles.push([nx + 12 + k * 28, ny + (d.fit.b / yd > 0 ? 18 : -16)]);
         obstacles.push([nx, ny]);
@@ -395,7 +397,7 @@
         var sl = ann.append('text')
           .attr('transform', 'translate(' + best.px + ',' + best.py + ') rotate(' + ang + ') translate(0,-9)')
           .attr('text-anchor', 'middle').attr('fill', T.ink2).attr('font-size', 12);
-        richSvg(sl, 'slope *mN* = ' + d.mNtext, T);
+        richSvg(sl, slopeText, T);
         halo(sl, T);
       }
     }
@@ -483,6 +485,64 @@
       .on('keydown', function (ev, p) {
         if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (d.onToggle) d.onToggle(p.key, true); }
       });
+  }
+
+  /* =====================================================================
+   * Apparent N = F / (Eo + Efw) against cumulative oil: flat for depletion alone
+   * d = {points:[{key,Np,v,p,included}], flat (STB), model:[{Np,v}], yDiv, yUnit, legendEl, modelLabel}
+   * ===================================================================== */
+  function apparentPlot(el, d) {
+    var T = tokens();
+    var pts = d.points.filter(function (p) { return isFinite(p.Np) && isFinite(p.v); });
+    if (d.legendEl) legend(d.legendEl, [
+      { type: 'dot', fill: T.oil, html: 'From the data, <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>)' },
+      { type: 'dash', stroke: T.muted, html: 'Depletion alone (flat)' }
+    ].concat(d.model && d.model.length ? [{ type: 'line', stroke: T.ink, html: d.modelLabel || 'Chosen model' }] : []), T);
+    if (!pts.length) { empty(el, d.emptyText || 'No points to show.'); return; }
+    var narrow = el.clientWidth < 520;
+    var f = frame(el, {
+      height: d.height || (narrow ? 260 : 300), T: T,
+      margin: { t: 14, r: 18, b: 52, l: narrow ? 56 : 64 },
+      label: 'Apparent N at ' + pts.length + ' steps' + (isFinite(d.flat) ? ', depletion alone gives ' + d3.format(',.1f')(d.flat / (d.yDiv || 1)) + ' ' + d.yUnit : '')
+    });
+    var yd = d.yDiv || 1;
+    var xmax = d3.max(pts, function (p) { return p.Np; }) / 1e6;
+    var x = d3.scaleLinear().domain([0, xmax * 1.06]).nice().range([0, f.iw]);
+    var vals = pts.map(function (p) { return p.v / yd; });
+    if (isFinite(d.flat)) vals.push(d.flat / yd);
+    (d.model || []).forEach(function (q) { if (isFinite(q.v)) vals.push(q.v / yd); });
+    var lo = d3.min(vals), hi = d3.max(vals), pad = (hi - lo) * 0.18 || Math.abs(hi) * 0.1 || 1;
+    var y = d3.scaleLinear().domain([Math.max(0, lo - pad), hi + pad]).nice().range([f.ih, 0]);
+    hGrid(f, y, T);
+    axes(f, x, y, T, { xTitle: '*N*_p, MMSTB', yTitle: 'Apparent *N*, ' + d.yUnit });
+    var plot = f.g.append('g').attr('clip-path', clip(f));
+    if (isFinite(d.flat)) {
+      plot.append('line').attr('x1', 0).attr('x2', f.iw).attr('y1', y(d.flat / yd)).attr('y2', y(d.flat / yd))
+        .attr('stroke', T.muted).attr('stroke-width', 1.6).attr('stroke-dasharray', '5 4');
+    }
+    if (d.model && d.model.length > 1) {
+      var line = d3.line().x(function (q) { return x(q.Np / 1e6); }).y(function (q) { return y(q.v / yd); }).defined(function (q) { return isFinite(q.v); });
+      plot.append('path').datum(d.model).attr('d', line).attr('fill', 'none').attr('stroke', T.ink).attr('stroke-width', 2)
+        .attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
+    }
+    var dots = plot.append('g').selectAll('circle').data(pts).join('circle')
+      .attr('cx', function (p) { return x(p.Np / 1e6); }).attr('cy', function (p) { return y(p.v / yd); })
+      .attr('r', 5).attr('fill', function (p) { return p.included ? T.oil : T.paper; })
+      .attr('stroke', function (p) { return p.included ? T.surface : T.muted; }).attr('stroke-width', function (p) { return p.included ? 2 : 1.6; });
+    var hits = f.g.append('g').selectAll('circle').data(pts).join('circle')
+      .attr('cx', function (p) { return x(p.Np / 1e6); }).attr('cy', function (p) { return y(p.v / yd); })
+      .attr('r', 12).attr('fill', 'transparent');
+    hits.on('pointerenter', function (ev, p) {
+      dots.filter(function (q) { return q.key === p.key; }).attr('r', 6.5);
+      showTip(el, f.m.l + x(p.Np / 1e6), f.m.t + y(p.v / yd), [
+        { head: d3.format(',')(Math.round(p.p)) + ' psia' },
+        { k: 'Np', v: fmtSig(p.Np / 1e6, 4) + ' MMSTB' },
+        { k: 'Apparent N', v: fmtSig(p.v / yd, 4) + ' ' + d.yUnit }
+      ]);
+    }).on('pointerleave', function (ev, p) {
+      dots.filter(function (q) { return q.key === p.key; }).attr('r', 5);
+      hideTip(el);
+    });
   }
 
   /* =====================================================================
@@ -764,6 +824,7 @@
   return {
     tokens: tokens,
     hoPlot: hoPlot,
+    apparentPlot: apparentPlot,
     originPlot: originPlot,
     driveBars: driveBars,
     scanPlot: scanPlot,

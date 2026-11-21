@@ -132,12 +132,18 @@
     ],
     ratio: [
       { id: '-', label: '–', factor: 1 }
+    ],
+    time: [
+      { id: 'year', label: 'years', factor: 365.25 },
+      { id: 'month', label: 'months', factor: 30.4375 },
+      { id: 'day', label: 'days', factor: 1 },
+      { id: 'hour', label: 'hours', factor: 1 / 24 }
     ]
   };
 
   var DEFAULTS = {
     pressure: 'psia', oil: 'MMSTB', gas: 'MMSCF', gor: 'SCF/STB',
-    bo: 'rb/STB', bg: 'rb/SCF', bw: 'rb/STB', rvol: 'MMrb', comp: '1/psi', frac: 'fraction', ratio: '-'
+    bo: 'rb/STB', bg: 'rb/SCF', bw: 'rb/STB', rvol: 'MMrb', comp: '1/psi', frac: 'fraction', ratio: '-', time: 'year'
   };
 
   function listUnits(kind) { return (CATALOG[kind] || []).slice(); }
@@ -249,6 +255,13 @@
         if (has(k, ['bar'])) return res('1/bar');
         if (has(k, ['psi', '1/p'])) return res('1/psi');
         break;
+      case 'time':
+        if (/^(°|deg|º)|^(f|r|c|k)$|fahrenheit|rankine|celsius|kelvin/.test(k)) break; // a temperature, not a time
+        if (has(k, ['hour', 'hr', '^h$'])) return res('hour');
+        if (has(k, ['month', 'mo', 'mth'])) return res('month');
+        if (has(k, ['day', 'date']) || k === 'd') return res('day');
+        if (has(k, ['year', 'yr', 'yrs', 'annum']) || k === 'y' || k === 'a') return res('year');
+        break;
       case 'frac':
         if (has(k, ['%', 'percent', 'pct'])) return res('%');
         if (has(k, ['frac', 'v/v', 'dimensionless', '-'])) return res('fraction');
@@ -264,6 +277,7 @@
     var k = unitKey(text);
     if (!k || k.length > 24) return false;
     if (/^(psi[ag]?|bar|kpa|mpa|atm|%|percent|fraction|frac|v\/v|-)$/.test(k)) return true;
+    if (/^(years?|yrs?|months?|days?|hours?|hrs?|d|y|mo)$/.test(k)) return true;
     if (/^(m{0,3}|t|b)?(stb|scf|bbl|rb|cf|bo|mcf|scm|sm3|m3|rm3)$/.test(k)) return true;
     if (/^(rb|bbl|ft3|cf|m3|rm3|scf|mscf|mcf|sm3)\/(stb|scf|bbl|mscf|mcf|sm3|m3)$/.test(k)) return true;
     if (/^(1\/psi|psi-1|psi\^-1|\/psi|1\/bar|bar-1|1\/kpa)$/.test(k)) return true;

@@ -180,6 +180,7 @@
       if (!num(t.Efw)) t.Efw = 0;
       // cumulative water influx, rb
       if (aq.mode === 'column') t.We = num(r.We) ? r.We : (r.Np === 0 ? 0 : NaN);
+      else if (aq.mode === 'series') t.We = r.Np === 0 ? 0 : (aq.We && num(aq.We[r.id]) ? aq.We[r.id] : NaN);
       else if (potK) t.We = t.dP > 0 ? potK * t.dP : 0;
       else t.We = 0;
       t.Fnet = t.F - t.We;
@@ -373,6 +374,169 @@
     return { K: Math.max(0, K), Kraw: K, negative: K < 0, N: N, m: mN / N, n: inc.length };
   }
 
+  /* ---------------- shared by the analyses ---------------- */
+
+  /** Checks the parameters, works out the terms and the points in the fit. Returns {res, terms, inc} or {res} with errors. */
+  function prepare(rows, params, opts) {
+    var msgs = { errors: [], warnings: [], infos: [] };
+    var P = params || {};
+    var res = { ok: false, terms: [], fit: null, results: null, validation: null, messages: msgs };
+    var need = ['pi', 'Boi', 'Bgi', 'Rsi'];
+    var SYM = { pi: 'p_i', Boi: 'B_oi', Bgi: 'B_gi', Rsi: 'R_si' };
+    var missing = need.filter(function (k) { return !num(P[k]); });
+    if (missing.length) {
+      msgs.errors.push({ code: 'params', text: 'Enter ' + missing.map(function (k) { return SYM[k]; }).join(', ') + ' to run the analysis.' });
+      return { res: res };
+    }
+    if (!(P.Bgi > 0)) { msgs.errors.push({ code: 'params', text: 'B_gi must be greater than zero.' }); return { res: res }; }
+    if (num(P.Swc) && (P.Swc < 0 || P.Swc >= 1)) { msgs.errors.push({ code: 'params', text: 'S_wc must be between 0 and 1.' }); return { res: res }; }
+    var terms = computeTerms(rows, P, opts);
+    res.terms = terms;
+    var inc = terms.filter(function (t) { return t.included; });
+    var usable = terms.filter(function (t) { return t.usable; });
+    if (usable.length < 2) {
+      msgs.errors.push({ code: 'points', text: 'At least two production points below p_i are needed to draw the line. The file has ' + usable.length + '.' });
+      return { res: res };
+    }
+    if (inc.length < 2) {
+      msgs.errors.push({ code: 'points', text: 'At least two points must be included in the fit. Click excluded points on the plot to add them back.' });
+      return { res: res };
+    }
+    return { res: res, terms: terms, inc: inc, P: P, msgs: msgs };
+  }
+
+  /** Et, implied N and the drive indices at each point, for the fitted N and m. */
+  function driveIndices(terms, N, m) {
+    terms.forEach(function (tt) {
+      tt.Et = tt.Eo + m * tt.Eg + (1 + m) * tt.Efw;
+      tt.impliedN = tt.Et > 0 ? tt.Fnet / tt.Et : NaN;
+      var Fm = tt.F;
+      if (Fm > 0 && num(tt.Et)) {
+        tt.DDI = N * tt.Eo / Fm;
+        tt.SDI = N * m * tt.Eg / Fm;
+        tt.CDI = N * (1 + m) * tt.Efw / Fm;
+        tt.WDI = num(tt.We) ? tt.We / Fm : 0;
+        tt.sumDI = tt.DDI + tt.SDI + tt.CDI + tt.WDI;
+      } else { tt.DDI = tt.SDI = tt.CDI = tt.WDI = tt.sumDI = NaN; }
+    });
+  }
+
+  function commonMessages(res, terms, fit) {
+    var msgs = res.messages;
+    var excludedCount = terms.filter(function (tt) { return tt.userExcluded && tt.usable; }).length;
+    if (excludedCount) msgs.infos.push({ code: 'excluded', text: excludedCount + ' point' + (excludedCount > 1 ? 's are' : ' is') + ' left out of the fit by you.' });
+    var negDen = terms.filter(function (tt) { return tt.reason === 'E_o is not positive'; }).length;
+    if (negDen) msgs.warnings.push({ code: 'eo', text: negDen + ' point' + (negDen > 1 ? 's have' : ' has') + ' E_o ≤ 0 and cannot be plotted. Check B_oi and R_si.' });
+    var negF = terms.filter(function (tt) { return tt.reason === 'F is not positive'; }).length;
+    if (negF) msgs.warnings.push({ code: 'F', text: negF + ' point' + (negF > 1 ? 's have' : ' has') + ' F ≤ 0. Check the units of G_p and B_g.' });
+    if (fit && fit.n >= 3 && fit.r2 < 0.9) {
+      msgs.warnings.push({ code: 'r2', text: 'The points scatter around the line (R² = ' + fit.r2.toFixed(3) + '). Treat the results with care.' });
+    }
+  }
+
+  /**
+   * F − We against Et through the origin, slope N (Week 7, slide 37 for depletion, slide 39 for a known m).
+   * opts.mFixed: m (0 = no gas cap); opts.aquifer as for computeTerms (W_e known).
+   * The points get x = Et and y = F − We, for the plot.
+   */
+  function analyzeOrigin(rows, params, opts) {
+    opts = opts || {};
+    var pr = prepare(rows, params, opts);
+    if (!pr.inc) return pr.res;
+    var res = pr.res, terms = pr.terms, inc = pr.inc, P = pr.P;
+    var m = num(opts.mFixed) ? opts.mFixed : 0;
+    var et = function (t) { return t.Eo + m * t.Eg + (1 + m) * t.Efw; };
+    var sxy = 0, sxx = 0;
+    inc.forEach(function (t) { sxy += t.Fnet * et(t); sxx += et(t) * et(t); });
+    var N = sxy / sxx, n = inc.length;
+    var sse = 0, ym = 0;
+    inc.forEach(function (t) { var r = t.Fnet - N * et(t); sse += r * r; ym += t.Fnet; });
+    ym /= n;
+    var sst = 0;
+    inc.forEach(function (t) { sst += (t.Fnet - ym) * (t.Fnet - ym); });
+    var dof = n - 1, s = dof > 0 ? Math.sqrt(sse / dof) : NaN, seN = dof > 0 ? s / Math.sqrt(sxx) : NaN;
+    var tc = tCrit95(dof);
+    res.fit = { kind: 'origin', n: n, dof: dof, r2: sst > 0 ? 1 - sse / sst : 1, s: s, tcrit: tc, slope: N, intercept: 0 };
+    var G = m * N * P.Boi / P.Bgi;
+    res.results = { N: N, m: m, mN: m * N, G: G, mFixed: true, seN: seN, seMN: NaN, seM: NaN, seG: m > 0 && num(seN) ? m * seN * P.Boi / P.Bgi : NaN };
+    res.results.ciN = num(seN) && num(tc) ? [N - tc * seN, N + tc * seN] : null;
+    res.results.ciM = null;
+    res.results.ciG = m > 0 && res.results.ciN ? [res.results.ciN[0] * m * P.Boi / P.Bgi, res.results.ciN[1] * m * P.Boi / P.Bgi] : null;
+    terms.forEach(function (t) { t.x = et(t); t.y = t.Fnet; t.yFit = N * t.x; t.resid = t.y - t.yFit; });
+    driveIndices(terms, N, m);
+    var ev = evaluateM(terms, m);
+    res.validation = { N: ev.N, cv: ev.cv, r2Origin: ev.r2Origin, relRms: ev.relRms, impliedMean: ev.impliedMean };
+    if (!(N > 0)) res.messages.errors.push({ code: 'N', text: 'The slope N is zero or negative, which has no physical meaning. Check the units and the initial parameters.' });
+    commonMessages(res, terms, null);
+    res.ok = res.messages.errors.length === 0;
+    return res;
+  }
+
+  /**
+   * Water drive with an aquifer model We = U S (Week 7, slide 41; Dake, chapter 9):
+   *   F/Et = N + U S/Et,  Et = Eo + m Eg + (1 + m) Efw  (m fixed: 0 unless given),
+   * so the intercept is N and the slope is the aquifer constant U. With U given, only N is fitted.
+   * The points get x = We/Et and y = F/Et, so the plotted line has slope 1 and meets the axis at N.
+   * opts.S: {id: S}; opts.U (optional, fixed); opts.mFixed.
+   */
+  function analyzeWater(rows, params, opts) {
+    opts = opts || {};
+    var pr = prepare(rows, params, Object.assign({}, opts, { aquifer: { mode: 'none' } }));
+    if (!pr.inc) return pr.res;
+    var res = pr.res, terms = pr.terms, inc = pr.inc, P = pr.P, S = opts.S || {};
+    var m = num(opts.mFixed) ? opts.mFixed : 0;
+    var et = function (t) { return t.Eo + m * t.Eg + (1 + m) * t.Efw; };
+    var missingS = inc.filter(function (t) { return !num(S[t.id]); });
+    if (missingS.length) {
+      res.messages.errors.push({ code: 'S', text: 'The aquifer model has no value at ' + missingS.length + ' point' + (missingS.length > 1 ? 's' : '') + '. Check the time column.' });
+      return res;
+    }
+    var xs = inc.map(function (t) { return S[t.id] / et(t); }), ys = inc.map(function (t) { return t.F / et(t); });
+    var N, U, fit;
+    if (num(opts.U)) {
+      U = opts.U; N = 0;
+      for (var i = 0; i < xs.length; i++) N += ys[i] - U * xs[i];
+      N /= xs.length;
+      var sse = 0, sst = 0, ym = ys.reduce(function (a, b) { return a + b; }, 0) / ys.length;
+      for (var j = 0; j < xs.length; j++) { var r = ys[j] - N - U * xs[j]; sse += r * r; sst += (ys[j] - ym) * (ys[j] - ym); }
+      var dof = xs.length - 1, s = dof > 0 ? Math.sqrt(sse / dof) : NaN;
+      fit = { kind: 'water', n: xs.length, dof: dof, r2: sst > 0 ? 1 - sse / sst : 1, s: s, tcrit: tCrit95(dof), seIntercept: dof > 0 ? s / Math.sqrt(xs.length) : NaN, seSlope: NaN, Ufixed: true };
+    } else {
+      fit = linreg(xs, ys);
+      if (!fit || fit.degenerate) {
+        res.messages.errors.push({ code: 'degenerate', text: 'The aquifer model gives the same value at every point, so its constant cannot be found.' });
+        return res;
+      }
+      fit.kind = 'water';
+      N = fit.intercept; U = fit.slope;
+    }
+    res.fit = fit;
+    terms.forEach(function (t) {
+      t.We = num(S[t.id]) ? U * S[t.id] : (t.Np === 0 ? 0 : NaN);
+      t.S = S[t.id];
+      t.Fnet = t.F - t.We;
+      var e = et(t);
+      t.x = t.We / e; t.y = t.F / e; t.yFit = N + t.x; t.resid = t.y - t.yFit;
+    });
+    var tc = fit.tcrit;
+    var R = { N: N, m: m, mN: m * N, G: m * N * P.Boi / P.Bgi, U: U, mFixed: true,
+      seN: fit.seIntercept, seU: fit.seSlope, seM: NaN, seMN: NaN, seG: NaN };
+    R.ciN = num(R.seN) && num(tc) ? [N - tc * R.seN, N + tc * R.seN] : null;
+    R.ciU = num(R.seU) && num(tc) ? [U - tc * R.seU, U + tc * R.seU] : null;
+    R.ciM = null; R.ciG = null;
+    res.results = R;
+    driveIndices(terms, N, m);
+    var ev = evaluateM(terms, m);
+    res.validation = { N: ev.N, cv: ev.cv, r2Origin: ev.r2Origin, relRms: ev.relRms, impliedMean: ev.impliedMean };
+    if (!(N > 0)) res.messages.errors.push({ code: 'N', text: 'The intercept N is zero or negative, which has no physical meaning.' });
+    if (!(U > 0)) res.messages.warnings.push({ code: 'U', text: 'The aquifer constant comes out ≤ 0: water would leave the reservoir. This aquifer model does not fit.' });
+    var over = inc.filter(function (t) { return t.We > t.F; }).length;
+    if (over) res.messages.warnings.push({ code: 'We', text: 'At ' + over + ' point' + (over > 1 ? 's' : '') + ' the water influx is larger than F, which cannot be.' });
+    commonMessages(res, terms, fit);
+    res.ok = res.messages.errors.length === 0;
+    return res;
+  }
+
   /* ---------------- full analysis ---------------- */
 
   function analyze(rows, params, opts) {
@@ -544,6 +708,9 @@
     scanM: scanM,
     roundingCheck: roundingCheck,
     bestPotK: bestPotK,
+    driveIndices: driveIndices,
+    analyzeOrigin: analyzeOrigin,
+    analyzeWater: analyzeWater,
     analyze: analyze
   };
 });
