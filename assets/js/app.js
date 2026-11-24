@@ -608,13 +608,13 @@
     var R = b.result.results, fit = b.result.fit, c = b.model;
     var a = R.N / N_DIV[nu];
     if (b.view === 'origin') {
-      $('eq').innerHTML = (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' = <var>N</var> <var>E</var><sub>t</sub>, slope <var>N</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> <span class="ledger-label">' + esc(nu) + '</span>';
+      $('eq').innerHTML = (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' = <var>N</var> <var>E</var><sub>t</sub>, slope <var>N</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> <span class="ho-eq-label">' + esc(nu) + '</span>';
     } else if (b.view === 'water') {
-      $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> + <var>x</var> <span class="ledger-label">(' + esc(nu) + '; slope 1)</span>';
+      $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> + <var>x</var> <span class="ho-eq-label">(' + esc(nu) + '; slope 1)</span>';
     } else {
       var sl = R.mN / N_DIV[nu];
       $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> ' + (sl < 0 ? '−' : '+') + ' <strong class="n">' +
-        esc(fmtRes(Math.abs(sl))) + '</strong> <var>x</var> <span class="ledger-label">(' + esc(nu) + ')</span>';
+        esc(fmtRes(Math.abs(sl))) + '</strong> <var>x</var> <span class="ho-eq-label">(' + esc(nu) + ')</span>';
     }
     $('fitline').innerHTML = 'R² = <strong>' + fit.r2.toFixed(3) + '</strong> from ' + plural(fit.n, 'point');
     var ci = function (pair, div, fmt) {

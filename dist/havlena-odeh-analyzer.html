@@ -431,18 +431,6 @@ main {
   border-top: 2px solid var(--ink);
   border-bottom: 1px solid var(--line-strong);
 }
-.ledger-line {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px;
-  padding: 12px 2px 12px;
-  border-bottom: 1px solid var(--line);
-}
-.ledger-label { font-size: 13px; color: var(--muted); }
-.ledger-eq { font-size: 18px; color: var(--ink); }
-.ledger-eq .v { font-size: 1.12em; }
-.ledger-eq .n { font-family: var(--font-body); font-variant-numeric: lining-nums; }
-.ledger-fit { margin-left: auto; font-size: 13.5px; color: var(--ink-2); }
-.ledger-fit strong { font-weight: 600; color: var(--ink); }
-
 .ledger-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ledger.has-we .ledger-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .res-sym sub { font-family: var(--font-math); font-style: normal; font-size: 0.55em; }
@@ -511,6 +499,17 @@ main {
 .tip .t-foot { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--muted); }
 
 /* Havlena–Odeh panel */
+.ho-eq {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px;
+  margin: 0 18px 14px; padding: 10px 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.ho-eq-label { font-size: 13px; color: var(--muted); }
+.ho-eq-line { font-size: 18px; color: var(--ink); }
+.ho-eq-line .v { font-size: 1.12em; }
+.ho-eq-line .n { font-family: var(--font-body); font-variant-numeric: lining-nums; }
+.ho-eq-fit { margin-left: auto; font-size: 13.5px; color: var(--ink-2); }
+.ho-eq-fit strong { font-weight: 600; color: var(--ink); }
 .ho-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 0 22px; padding: 0 18px 18px; }
 .notes-col { border-left: 1px solid var(--line); padding-left: 20px; min-width: 0; }
 .notes-col h3 { font-size: 13px; font-weight: 600; margin: 2px 0 10px; }
@@ -657,7 +656,8 @@ footer.foot {
   .ledger-grid, .ledger.has-we .ledger-grid { grid-template-columns: minmax(0, 1fr); }
   .res + .res { border-left: 0; padding-left: 2px; border-top: 1px solid var(--line); }
   .res-val { font-size: 40px; }
-  .ledger-fit { margin-left: 0; width: 100%; }
+  .ho-eq-fit { margin-left: 0; width: 100%; }
+  .ho-eq { margin-left: 14px; margin-right: 14px; }
   .notes-col { grid-template-columns: minmax(0, 1fr); }
   .panel-head, .panel-body, .ho-grid, .explorer-controls, .explorer-read, .explorer-grid { padding-left: 14px; padding-right: 14px; }
   .eq { grid-template-columns: minmax(0, 1fr); gap: 4px; }
@@ -842,11 +842,6 @@ footer.foot {
 
     <section class="ledger" id="ledger" aria-labelledby="ledger-title">
       <h2 class="sr-only" id="ledger-title">Results</h2>
-      <div class="ledger-line">
-        <span class="ledger-label">Fitted line</span>
-        <span class="ledger-eq" id="eq">–</span>
-        <span class="ledger-fit" id="fitline"></span>
-      </div>
       <div class="ledger-grid">
         <div class="res" id="res-N">
           <div class="res-top"><span class="res-sym">N</span><span class="res-name">Stock-tank oil initially in place</span></div>
@@ -889,6 +884,11 @@ footer.foot {
             PNG
           </button>
         </div>
+      </div>
+      <div class="ho-eq">
+        <span class="ho-eq-label">Fitted line</span>
+        <span class="ho-eq-line" id="eq">–</span>
+        <span class="ho-eq-fit" id="fitline"></span>
       </div>
       <div class="ho-grid">
         <div>
@@ -5773,13 +5773,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var R = b.result.results, fit = b.result.fit, c = b.model;
     var a = R.N / N_DIV[nu];
     if (b.view === 'origin') {
-      $('eq').innerHTML = (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' = <var>N</var> <var>E</var><sub>t</sub>, slope <var>N</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> <span class="ledger-label">' + esc(nu) + '</span>';
+      $('eq').innerHTML = (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' = <var>N</var> <var>E</var><sub>t</sub>, slope <var>N</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> <span class="ho-eq-label">' + esc(nu) + '</span>';
     } else if (b.view === 'water') {
-      $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> + <var>x</var> <span class="ledger-label">(' + esc(nu) + '; slope 1)</span>';
+      $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> + <var>x</var> <span class="ho-eq-label">(' + esc(nu) + '; slope 1)</span>';
     } else {
       var sl = R.mN / N_DIV[nu];
       $('eq').innerHTML = '<var>y</var> = <strong class="n">' + esc(fmtRes(a)) + '</strong> ' + (sl < 0 ? '−' : '+') + ' <strong class="n">' +
-        esc(fmtRes(Math.abs(sl))) + '</strong> <var>x</var> <span class="ledger-label">(' + esc(nu) + ')</span>';
+        esc(fmtRes(Math.abs(sl))) + '</strong> <var>x</var> <span class="ho-eq-label">(' + esc(nu) + ')</span>';
     }
     $('fitline').innerHTML = 'R² = <strong>' + fit.r2.toFixed(3) + '</strong> from ' + plural(fit.n, 'point');
     var ci = function (pair, div, fmt) {
