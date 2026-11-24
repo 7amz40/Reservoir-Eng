@@ -189,6 +189,7 @@
     renderSource(b);
     renderParams(b);
     renderColumns(b);
+    openWhereNeeded(b);
     renderLedger(b);
     renderNotes(b);
     renderCharts(b, opts);
@@ -197,6 +198,12 @@
   }
 
   function hasFit(b) { return !!(b.result && b.result.fit && b.result.results); }
+
+  /** Reservoir parameters and Columns and units start folded; a section opens when something in it needs fixing. */
+  function openWhereNeeded(b) {
+    if (b.analysis.errors.some(function (e) { return e.code === 'missing-columns'; })) $('sec-cols').open = true;
+    if (b.inputs && b.inputs.messages.errors.length) $('sec-params').open = true;
+  }
 
   /* ---------- alert (file problems) ---------- */
   var ICON = {
@@ -1270,12 +1277,6 @@
         clearTimeout(timer);
         timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 150);
       });
-    }
-
-    // start with the sidebar sections folded on small screens
-    if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) {
-      $('sec-params').open = false;
-      $('sec-cols').open = false;
     }
   }
 

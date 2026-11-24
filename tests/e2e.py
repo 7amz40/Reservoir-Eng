@@ -17,7 +17,7 @@ import tempfile
 import time
 import traceback
 
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -66,6 +66,15 @@ class Page:
         self.page.wait_for_function("(n) => document.querySelector('#source').textContent.includes(n) || !document.querySelector('#alert').hidden", arg=name)
         self.page.wait_for_timeout(150)
 
+    def unfold(self, *ids):
+        """Open sidebar sections by their headings (Reservoir parameters and Columns and units start folded)."""
+        for i in ids:
+            if not self.page.evaluate("(id) => document.getElementById(id).open", i):
+                self.page.click("#%s > summary" % i)
+
+    def is_open(self, sid):
+        return self.page.evaluate("(id) => document.getElementById(id).open", sid)
+
     def model(self):
         """The model the dashboard chose from the data: family, aquifer, water, U, reD."""
         return self.page.evaluate("""() => { const b = HOApp.bundle(), c = b && b.model;
@@ -103,8 +112,9 @@ def shot(pg, name, full=False):
 def t_example(b):
     pg = Page(b)
     assert pg.page.locator("#alert").is_hidden()
-    # the Q1 data: a gas-cap reservoir, found from the data and named in the sidebar
+    # the Q1 data: a gas-cap reservoir, found from the data
     assert pg.title() == "Gas-cap drive"
+    assert pg.is_open("sec-data") and not pg.is_open("sec-params") and not pg.is_open("sec-cols"), "only Data source starts open"
     assert pg.page.locator("#verdict, #evidence, #shares").count() == 0, "no verdict box"
     assert pg.page.locator("#sec-drive, input[name=mech], #aq-box").count() == 0, "no drive mechanism settings"
     assert pg.page.locator("#panel-diag, #models, #chart-app").count() == 0, "no models panel on the page"
@@ -115,6 +125,7 @@ def t_example(b):
     assert pg.page.locator("#calc tbody tr").count() == 7
     assert "Example" in pg.text("#source")
     # initial values from the second sheet; S_wc, C_w and C_f are not given, so E_fw = 0 and the line is F/Eo against Eg/Eo
+    pg.unfold("sec-params")
     assert pg.text("#src-pi").endswith("Initial!B2") and pg.text("#src-Bgi").endswith("Initial!B4")
     assert pg.text("#src-Swc").startswith("Not in the file")
     axes = lambda: pg.page.locator("#chart-ho svg").text_content()
@@ -207,6 +218,7 @@ def t_errors(b):
     pg.upload(os.path.join(FIX, "err_missing_bg.xlsx"))
     assert "Missing column" in pg.text("#alert")
     assert pg.val("res-N") == "–"
+    assert pg.is_open("sec-cols") and not pg.is_open("sec-params"), "Columns and units opens to pick the column"
     shot(pg, "desktop-error")
     pg.upload(os.path.join(FIX, "err_no_table.xlsx"))
     assert "No production table" in pg.text("#alert")
@@ -214,6 +226,24 @@ def t_errors(b):
     assert "no rows with numbers" in pg.text("#alert")
     pg.page.click("#alert button[data-act=example]")
     assert pg.val("res-N") == "108.6"
+    pg.close()
+    # a file without B_oi, B_gi and R_si opens Reservoir parameters, where they can be typed
+    pg = Page(b)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Production"
+    for r in [["p (psia)", "Np (MMSTB)", "Gp (MMMSCF)", "Bo (bbl/STB)", "Rs (SCF/STB)", "Bg (cuft/SCF)"],
+              [3150, 3.295, 3.460, 1.2353, 477, 0.0051658], [3000, 5.903, 6.257, 1.2222, 450, 0.0053904],
+              [2850, 8.852, 10.268, 1.2122, 425, 0.00567115], [2700, 11.503, 14.206, 1.2022, 401, 0.00600805]]:
+        ws.append(r)
+    ws2 = wb.create_sheet("Initial")
+    ws2.append(["Property", "Value", "Unit"])
+    ws2.append(["Initial pressure, pi", 3300, "psia"])
+    path = os.path.join(tempfile.mkdtemp(), "no_initial_fvf.xlsx")
+    wb.save(path)
+    pg.upload(path)
+    assert pg.is_open("sec-params") and not pg.is_open("sec-cols"), "Reservoir parameters opens to type the missing values"
+    assert "is missing" in pg.text("#notes") and pg.text("#src-Boi").startswith("Missing")
     pg.close()
 
 
@@ -243,6 +273,7 @@ def t_inputs(b):
     # built with N = 150 MMSTB and m = 0.40, with S_wc = 0.2, C_w = 3e-6 and C_f = 5e-6
     pg.upload(os.path.join(SAMPLES, "known_answer_N150_m040.xlsx"))
     assert pg.title() == "Gas-cap drive" and pg.val("res-N") == "150.0" and pg.val("res-m") == "0.400"
+    pg.unfold("sec-params", "sec-cols")
     axes = lambda: pg.page.locator("#chart-ho svg").text_content()
     assert "Eg / [Eo + (1 + m) Efw]" in axes() and "F / [Eo + (1 + m) Efw], MMSTB" in axes(), axes()
     pg.page.uncheck("#efw")
@@ -444,6 +475,7 @@ def t_mobile(b):
 @check("keyboard: drop zone, focus order and labels")
 def t_a11y(b):
     pg = Page(b)
+    pg.unfold("sec-params", "sec-cols")
     unlabeled = pg.page.evaluate("""() => [...document.querySelectorAll('input:not([type=file]), select, button')]
       .filter(el => el.offsetParent !== null)
       .filter(el => !(el.labels && el.labels.length) && !el.getAttribute('aria-label') && !el.textContent.trim())

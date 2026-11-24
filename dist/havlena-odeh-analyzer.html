@@ -735,7 +735,7 @@ footer.foot {
       </div>
     </details>
 
-    <details class="side-sec" id="sec-params" open>
+    <details class="side-sec" id="sec-params">
       <summary>Reservoir parameters <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
       <div class="side-body">
         <p class="side-note">Read from your file. Change a value to see how the results move.</p>
@@ -747,7 +747,7 @@ footer.foot {
       </div>
     </details>
 
-    <details class="side-sec" id="sec-cols" open>
+    <details class="side-sec" id="sec-cols">
       <summary>Columns and units <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
       <div class="side-body">
         <p class="side-note">Columns are matched from the header names. Fix a match or a unit here if needed.</p>
@@ -5277,6 +5277,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     renderSource(b);
     renderParams(b);
     renderColumns(b);
+    openWhereNeeded(b);
     renderLedger(b);
     renderNotes(b);
     renderCharts(b, opts);
@@ -5285,6 +5286,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
 
   function hasFit(b) { return !!(b.result && b.result.fit && b.result.results); }
+
+  /** Reservoir parameters and Columns and units start folded; a section opens when something in it needs fixing. */
+  function openWhereNeeded(b) {
+    if (b.analysis.errors.some(function (e) { return e.code === 'missing-columns'; })) $('sec-cols').open = true;
+    if (b.inputs && b.inputs.messages.errors.length) $('sec-params').open = true;
+  }
 
   /* ---------- alert (file problems) ---------- */
   var ICON = {
@@ -6358,12 +6365,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         clearTimeout(timer);
         timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 150);
       });
-    }
-
-    // start with the sidebar sections folded on small screens
-    if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) {
-      $('sec-params').open = false;
-      $('sec-cols').open = false;
     }
   }
 
