@@ -198,7 +198,6 @@
     renderLedger(b);
     renderNotes(b);
     renderCharts(b, opts);
-    renderDiag(b, opts);
     renderTable(b);
     announce(b, opts);
   }
@@ -541,57 +540,6 @@
     $('evidence').innerHTML = det.evidence.map(function (e) {
       return '<li data-level="' + e.level + '">' + EV_ICON[e.level] + '<span><span class="sr-only">' + EV_SR[e.level] + '</span>' + rich(e.text) + '</span></li>';
     }).join('');
-  }
-
-  /* ---------- how the mechanism was found ---------- */
-  function renderDiag(b, opts) {
-    var det = b.detection, nu = state.out.N, div = N_DIV[nu];
-    var el = $('chart-app'), tbl = $('models');
-    $('panel-diag').hidden = !det;
-    if (!det) { C.empty(el, 'No data.'); tbl.innerHTML = ''; C.legend($('legend-app'), [], {}); return; }
-    var mK = det.mKnown || 0;
-    var etOf = function (t) { return t.Eo + mK * t.Eg + (1 + mK) * t.Efw; };
-    var depl = det.cands.filter(function (c) { return c.key === 'depletion' || c.key === 'gascap-known'; })[0];
-    var c = b.model;
-    var incIds = {};
-    b.result.terms.forEach(function (t) { incIds[t.id] = t.included; });
-    var pts = det.trend.points.map(function (q) { return { key: q.id, Np: q.Np, v: q.v, p: q.p, included: incIds[q.id] !== false }; });
-    var model = c && c.key !== 'depletion' ? c.inc.slice().sort(function (a, z) { return a.Np - z.Np; }).map(function (t) { return { Np: t.Np, v: c.fit.Fhat(t) / etOf(t) }; }) : [];
-    C.apparentPlot(el, {
-      points: pts, flat: depl ? depl.fit.N : NaN, model: model, yDiv: div, yUnit: nu,
-      legendEl: $('legend-app'), modelLabel: c ? 'Chosen model, ' + D.NAMES[c.family].toLowerCase() : '',
-      emptyText: 'Not enough points.'
-    });
-    var rows = det.cands.slice().sort(function (a, z) { return (a.sc.aicc === Infinity) - (z.sc.aicc === Infinity) || a.sc.aicc - z.sc.aicc; });
-    var SHORT = { depletion: 'Depletion', gascap: 'Gas cap', water: 'Water drive', combination: 'Gas cap + water' };
-    var why = function (k) {
-      if (k === c) return 'Chosen';
-      if (!k.identifiable) return 'Cannot be told apart from expansion';
-      if (!k.valid) {
-        if (!(k.fit.N > 0)) return 'N ≤ 0';
-        if (k.gas && !(k.fit.m > 0)) return 'Negative gas cap';
-        return 'Water would leave';
-      }
-      if (!k.material) return 'Too small, under 2 % of F';
-      if (!k.robust) return 'Flips with rounding';
-      if (!isFinite(k.sc.aicc)) return 'Too few points';
-      if (c && k.sc.rms < c.sc.rms && k.k > c.k) return 'More constants than the data justify';
-      return 'Fits less well';
-    };
-    var aq = function (k) {
-      if (!k.water) return '–';
-      if (k.aquifer === 'column') return 'from the file';
-      if (k.aquifer === 'veh') return 'unsteady, <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub> = ' + esc(reText(k.reD));
-      return { pot: 'pot', steady: 'steady state' }[k.aquifer];
-    };
-    tbl.innerHTML = '<thead><tr><th scope="col">Mechanism</th><th scope="col">Aquifer</th><th scope="col"><var>N</var><span class="u">' + esc(nu) + '</span></th>' +
-      '<th scope="col"><var>m</var></th><th scope="col">Misfit<span class="u">of <var>F</var></span></th><th scope="col">Result</th></tr></thead><tbody>' +
-      rows.map(function (k) {
-        var mVal = fmtFixed(k.gas ? k.fit.m : (k.mFixed || 0), 3);
-        var res = k === c ? '<span class="verdict-chip is-yes">Chosen</span>' : rich(why(k));
-        return '<tr' + (k === c ? ' class="is-chosen"' : '') + '><th scope="row">' + esc(SHORT[k.family]) + '</th><td class="tl">' + aq(k) + '</td><td>' +
-          esc(fmtRes(k.fit.N / div)) + '</td><td>' + esc(mVal) + '</td><td class="nw">' + esc(pctText(k.sc.rms)) + '</td><td class="tl">' + res + '</td></tr>';
-      }).join('') + '</tbody>';
   }
 
   /* ---------- columns and units ---------- */
@@ -1460,7 +1408,6 @@
       recompute({ noAnim: true });
     });
     $('aq-steps').addEventListener('change', function () { state.timeMode = this.value; recompute({ noAnim: true }); });
-    $('png-app').addEventListener('click', function () { exportPNG('chart-app', 'apparent-N.png'); });
     $('labels-all').addEventListener('change', function () { state.labelsAll = this.checked; renderCharts(state.bundle, { noAnim: true }); });
     $('reset-points').addEventListener('click', function () { state.excluded.clear(); recompute({ noAnim: true }); });
     $('out-N').addEventListener('change', function () { state.out.N = this.value; renderAll(state.bundle, { noAnim: true, quiet: true }); });
@@ -1491,13 +1438,13 @@
         });
         if (!changed) return;
         clearTimeout(timer);
-        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); renderDiag(state.bundle, { noAnim: true }); }, 120);
+        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 120);
       });
-      ['chart-ho', 'chart-app', 'chart-check', 'chart-drive', 'chart-exp', 'chart-scan'].forEach(function (id) { ro.observe($(id)); });
+      ['chart-ho', 'chart-check', 'chart-drive', 'chart-exp', 'chart-scan'].forEach(function (id) { ro.observe($(id)); });
     } else {
       window.addEventListener('resize', function () {
         clearTimeout(timer);
-        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); renderDiag(state.bundle, { noAnim: true }); }, 150);
+        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 150);
       });
     }
 

@@ -581,19 +581,6 @@ main {
 .explorer-read strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .explorer-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px; padding: 0 18px 18px; }
 .mini-h { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
-.diag-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 22px; padding: 0 18px 18px; }
-.models-wrap .table-wrap { border-top: 0; }
-.models { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
-.models th, .models td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); vertical-align: top; }
-.models thead th { font-weight: 500; color: var(--ink-2); vertical-align: bottom; border-bottom-color: var(--line-strong); }
-.models thead th .u { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
-.models th[scope="row"], .models .tl, .models thead th:first-child, .models thead th:nth-child(2), .models thead th:last-child { text-align: left; }
-.models th[scope="row"] { font-weight: 500; color: var(--ink); }
-.models td.tl { color: var(--ink-2); }
-.models .nw, .models td:nth-child(3), .models td:nth-child(4) { white-space: nowrap; }
-.models tr.is-chosen th, .models tr.is-chosen td { background: var(--oil-soft); }
-.verdict-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-.verdict-chip.is-yes { color: var(--ink); background: var(--surface); box-shadow: inset 0 0 0 1px var(--oil); }
 .mini-h span { font-weight: 400; color: var(--muted); }
 
 /* table */
@@ -675,7 +662,6 @@ footer.foot {
 
 @media (max-width: 1280px) {
   :root { --side-w: 310px; }
-  .diag-grid { grid-template-columns: minmax(0, 1fr); }
   .ledger.has-we .ledger-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ledger.has-we .res:nth-child(3) { border-left: 0; padding-left: 2px; }
   .ledger.has-we .res:nth-child(n+3) { border-top: 1px solid var(--line); }
@@ -708,7 +694,6 @@ footer.foot {
   .appbar .btn { padding: 0 10px; }
   .ledger-grid, .ledger.has-we .ledger-grid { grid-template-columns: minmax(0, 1fr); }
   .verdict-title { font-size: 36px; }
-  .diag-grid { padding-left: 14px; padding-right: 14px; }
   .res + .res { border-left: 0; padding-left: 2px; border-top: 1px solid var(--line); }
   .res-val { font-size: 40px; }
   .ledger-fit { margin-left: 0; width: 100%; }
@@ -901,7 +886,7 @@ footer.foot {
         <p class="verdict-sub" id="verdict-sub"></p>
         <div class="shares" id="shares"></div>
       </div>
-      <ul class="evidence" id="evidence" aria-label="How the mechanism was found"></ul>
+      <ul class="evidence" id="evidence" aria-label="Evidence for each mechanism"></ul>
     </section>
 
     <section class="ledger" id="ledger" aria-labelledby="ledger-title">
@@ -968,29 +953,6 @@ footer.foot {
             <h3>Fit statistics</h3>
             <dl class="stats" id="stats"></dl>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel" id="panel-diag" aria-labelledby="diag-title">
-      <div class="panel-head">
-        <div>
-          <h2 id="diag-title">How the mechanism was found</h2>
-          <p class="panel-sub">With depletion alone, <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>) is the same at every step: an apparent <var>N</var>. A gas cap or an aquifer makes it drift. Each mechanism is then fitted the Havlena–Odeh way and kept only if it makes physical sense and fits <var>F</var>.</p>
-        </div>
-        <div class="panel-tools">
-          <button class="btn-quiet" type="button" id="png-app" data-download>PNG</button>
-        </div>
-      </div>
-      <div class="diag-grid">
-        <div>
-          <p class="mini-h">Apparent <var>N</var> at each step</p>
-          <ul class="legend" id="legend-app"></ul>
-          <div class="chart" id="chart-app"></div>
-        </div>
-        <div class="models-wrap">
-          <p class="mini-h">Models tried <span>(misfit = root mean square of the relative error in <var>F</var>)</span></p>
-          <div class="table-wrap"><table class="models" id="models"></table></div>
         </div>
       </div>
     </section>
@@ -4958,64 +4920,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
 
   /* =====================================================================
-   * Apparent N = F / (Eo + Efw) against cumulative oil: flat for depletion alone
-   * d = {points:[{key,Np,v,p,included}], flat (STB), model:[{Np,v}], yDiv, yUnit, legendEl, modelLabel}
-   * ===================================================================== */
-  function apparentPlot(el, d) {
-    var T = tokens();
-    var pts = d.points.filter(function (p) { return isFinite(p.Np) && isFinite(p.v); });
-    if (d.legendEl) legend(d.legendEl, [
-      { type: 'dot', fill: T.oil, html: 'From the data, <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>)' },
-      { type: 'dash', stroke: T.muted, html: 'Depletion alone (flat)' }
-    ].concat(d.model && d.model.length ? [{ type: 'line', stroke: T.ink, html: d.modelLabel || 'Chosen model' }] : []), T);
-    if (!pts.length) { empty(el, d.emptyText || 'No points to show.'); return; }
-    var narrow = el.clientWidth < 520;
-    var f = frame(el, {
-      height: d.height || (narrow ? 260 : 300), T: T,
-      margin: { t: 14, r: 18, b: 52, l: narrow ? 56 : 64 },
-      label: 'Apparent N at ' + pts.length + ' steps' + (isFinite(d.flat) ? ', depletion alone gives ' + d3.format(',.1f')(d.flat / (d.yDiv || 1)) + ' ' + d.yUnit : '')
-    });
-    var yd = d.yDiv || 1;
-    var xmax = d3.max(pts, function (p) { return p.Np; }) / 1e6;
-    var x = d3.scaleLinear().domain([0, xmax * 1.06]).nice().range([0, f.iw]);
-    var vals = pts.map(function (p) { return p.v / yd; });
-    if (isFinite(d.flat)) vals.push(d.flat / yd);
-    (d.model || []).forEach(function (q) { if (isFinite(q.v)) vals.push(q.v / yd); });
-    var lo = d3.min(vals), hi = d3.max(vals), pad = (hi - lo) * 0.18 || Math.abs(hi) * 0.1 || 1;
-    var y = d3.scaleLinear().domain([Math.max(0, lo - pad), hi + pad]).nice().range([f.ih, 0]);
-    hGrid(f, y, T);
-    axes(f, x, y, T, { xTitle: '*N*_p, MMSTB', yTitle: 'Apparent *N*, ' + d.yUnit });
-    var plot = f.g.append('g').attr('clip-path', clip(f));
-    if (isFinite(d.flat)) {
-      plot.append('line').attr('x1', 0).attr('x2', f.iw).attr('y1', y(d.flat / yd)).attr('y2', y(d.flat / yd))
-        .attr('stroke', T.muted).attr('stroke-width', 1.6).attr('stroke-dasharray', '5 4');
-    }
-    if (d.model && d.model.length > 1) {
-      var line = d3.line().x(function (q) { return x(q.Np / 1e6); }).y(function (q) { return y(q.v / yd); }).defined(function (q) { return isFinite(q.v); });
-      plot.append('path').datum(d.model).attr('d', line).attr('fill', 'none').attr('stroke', T.ink).attr('stroke-width', 2)
-        .attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
-    }
-    var dots = plot.append('g').selectAll('circle').data(pts).join('circle')
-      .attr('cx', function (p) { return x(p.Np / 1e6); }).attr('cy', function (p) { return y(p.v / yd); })
-      .attr('r', 5).attr('fill', function (p) { return p.included ? T.oil : T.paper; })
-      .attr('stroke', function (p) { return p.included ? T.surface : T.muted; }).attr('stroke-width', function (p) { return p.included ? 2 : 1.6; });
-    var hits = f.g.append('g').selectAll('circle').data(pts).join('circle')
-      .attr('cx', function (p) { return x(p.Np / 1e6); }).attr('cy', function (p) { return y(p.v / yd); })
-      .attr('r', 12).attr('fill', 'transparent');
-    hits.on('pointerenter', function (ev, p) {
-      dots.filter(function (q) { return q.key === p.key; }).attr('r', 6.5);
-      showTip(el, f.m.l + x(p.Np / 1e6), f.m.t + y(p.v / yd), [
-        { head: d3.format(',')(Math.round(p.p)) + ' psia' },
-        { k: 'Np', v: fmtSig(p.Np / 1e6, 4) + ' MMSTB' },
-        { k: 'Apparent N', v: fmtSig(p.v / yd, 4) + ' ' + d.yUnit }
-      ]);
-    }).on('pointerleave', function (ev, p) {
-      dots.filter(function (q) { return q.key === p.key; }).attr('r', 5);
-      hideTip(el);
-    });
-  }
-
-  /* =====================================================================
    * F against Et through the origin (check of the fit, and the m explorer)
    * d = {points:[{key,p,Et,F,included}], slope (STB per unit Et), slopeText, xUnit, legendEl, lineLabel}
    * ===================================================================== */
@@ -5294,7 +5198,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   return {
     tokens: tokens,
     hoPlot: hoPlot,
-    apparentPlot: apparentPlot,
     originPlot: originPlot,
     driveBars: driveBars,
     scanPlot: scanPlot,
@@ -5509,7 +5412,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     renderLedger(b);
     renderNotes(b);
     renderCharts(b, opts);
-    renderDiag(b, opts);
     renderTable(b);
     announce(b, opts);
   }
@@ -5852,57 +5754,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('evidence').innerHTML = det.evidence.map(function (e) {
       return '<li data-level="' + e.level + '">' + EV_ICON[e.level] + '<span><span class="sr-only">' + EV_SR[e.level] + '</span>' + rich(e.text) + '</span></li>';
     }).join('');
-  }
-
-  /* ---------- how the mechanism was found ---------- */
-  function renderDiag(b, opts) {
-    var det = b.detection, nu = state.out.N, div = N_DIV[nu];
-    var el = $('chart-app'), tbl = $('models');
-    $('panel-diag').hidden = !det;
-    if (!det) { C.empty(el, 'No data.'); tbl.innerHTML = ''; C.legend($('legend-app'), [], {}); return; }
-    var mK = det.mKnown || 0;
-    var etOf = function (t) { return t.Eo + mK * t.Eg + (1 + mK) * t.Efw; };
-    var depl = det.cands.filter(function (c) { return c.key === 'depletion' || c.key === 'gascap-known'; })[0];
-    var c = b.model;
-    var incIds = {};
-    b.result.terms.forEach(function (t) { incIds[t.id] = t.included; });
-    var pts = det.trend.points.map(function (q) { return { key: q.id, Np: q.Np, v: q.v, p: q.p, included: incIds[q.id] !== false }; });
-    var model = c && c.key !== 'depletion' ? c.inc.slice().sort(function (a, z) { return a.Np - z.Np; }).map(function (t) { return { Np: t.Np, v: c.fit.Fhat(t) / etOf(t) }; }) : [];
-    C.apparentPlot(el, {
-      points: pts, flat: depl ? depl.fit.N : NaN, model: model, yDiv: div, yUnit: nu,
-      legendEl: $('legend-app'), modelLabel: c ? 'Chosen model, ' + D.NAMES[c.family].toLowerCase() : '',
-      emptyText: 'Not enough points.'
-    });
-    var rows = det.cands.slice().sort(function (a, z) { return (a.sc.aicc === Infinity) - (z.sc.aicc === Infinity) || a.sc.aicc - z.sc.aicc; });
-    var SHORT = { depletion: 'Depletion', gascap: 'Gas cap', water: 'Water drive', combination: 'Gas cap + water' };
-    var why = function (k) {
-      if (k === c) return 'Chosen';
-      if (!k.identifiable) return 'Cannot be told apart from expansion';
-      if (!k.valid) {
-        if (!(k.fit.N > 0)) return 'N ≤ 0';
-        if (k.gas && !(k.fit.m > 0)) return 'Negative gas cap';
-        return 'Water would leave';
-      }
-      if (!k.material) return 'Too small, under 2 % of F';
-      if (!k.robust) return 'Flips with rounding';
-      if (!isFinite(k.sc.aicc)) return 'Too few points';
-      if (c && k.sc.rms < c.sc.rms && k.k > c.k) return 'More constants than the data justify';
-      return 'Fits less well';
-    };
-    var aq = function (k) {
-      if (!k.water) return '–';
-      if (k.aquifer === 'column') return 'from the file';
-      if (k.aquifer === 'veh') return 'unsteady, <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub> = ' + esc(reText(k.reD));
-      return { pot: 'pot', steady: 'steady state' }[k.aquifer];
-    };
-    tbl.innerHTML = '<thead><tr><th scope="col">Mechanism</th><th scope="col">Aquifer</th><th scope="col"><var>N</var><span class="u">' + esc(nu) + '</span></th>' +
-      '<th scope="col"><var>m</var></th><th scope="col">Misfit<span class="u">of <var>F</var></span></th><th scope="col">Result</th></tr></thead><tbody>' +
-      rows.map(function (k) {
-        var mVal = fmtFixed(k.gas ? k.fit.m : (k.mFixed || 0), 3);
-        var res = k === c ? '<span class="verdict-chip is-yes">Chosen</span>' : rich(why(k));
-        return '<tr' + (k === c ? ' class="is-chosen"' : '') + '><th scope="row">' + esc(SHORT[k.family]) + '</th><td class="tl">' + aq(k) + '</td><td>' +
-          esc(fmtRes(k.fit.N / div)) + '</td><td>' + esc(mVal) + '</td><td class="nw">' + esc(pctText(k.sc.rms)) + '</td><td class="tl">' + res + '</td></tr>';
-      }).join('') + '</tbody>';
   }
 
   /* ---------- columns and units ---------- */
@@ -6771,7 +6622,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       recompute({ noAnim: true });
     });
     $('aq-steps').addEventListener('change', function () { state.timeMode = this.value; recompute({ noAnim: true }); });
-    $('png-app').addEventListener('click', function () { exportPNG('chart-app', 'apparent-N.png'); });
     $('labels-all').addEventListener('change', function () { state.labelsAll = this.checked; renderCharts(state.bundle, { noAnim: true }); });
     $('reset-points').addEventListener('click', function () { state.excluded.clear(); recompute({ noAnim: true }); });
     $('out-N').addEventListener('change', function () { state.out.N = this.value; renderAll(state.bundle, { noAnim: true, quiet: true }); });
@@ -6802,13 +6652,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         });
         if (!changed) return;
         clearTimeout(timer);
-        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); renderDiag(state.bundle, { noAnim: true }); }, 120);
+        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 120);
       });
-      ['chart-ho', 'chart-app', 'chart-check', 'chart-drive', 'chart-exp', 'chart-scan'].forEach(function (id) { ro.observe($(id)); });
+      ['chart-ho', 'chart-check', 'chart-drive', 'chart-exp', 'chart-scan'].forEach(function (id) { ro.observe($(id)); });
     } else {
       window.addEventListener('resize', function () {
         clearTimeout(timer);
-        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); renderDiag(state.bundle, { noAnim: true }); }, 150);
+        timer = setTimeout(function () { renderCharts(state.bundle, { noAnim: true }); }, 150);
       });
     }
 

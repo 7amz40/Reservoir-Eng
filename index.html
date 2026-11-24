@@ -182,7 +182,7 @@
         <p class="verdict-sub" id="verdict-sub"></p>
         <div class="shares" id="shares"></div>
       </div>
-      <ul class="evidence" id="evidence" aria-label="How the mechanism was found"></ul>
+      <ul class="evidence" id="evidence" aria-label="Evidence for each mechanism"></ul>
     </section>
 
     <section class="ledger" id="ledger" aria-labelledby="ledger-title">
@@ -249,29 +249,6 @@
             <h3>Fit statistics</h3>
             <dl class="stats" id="stats"></dl>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel" id="panel-diag" aria-labelledby="diag-title">
-      <div class="panel-head">
-        <div>
-          <h2 id="diag-title">How the mechanism was found</h2>
-          <p class="panel-sub">With depletion alone, <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>) is the same at every step: an apparent <var>N</var>. A gas cap or an aquifer makes it drift. Each mechanism is then fitted the Havlena–Odeh way and kept only if it makes physical sense and fits <var>F</var>.</p>
-        </div>
-        <div class="panel-tools">
-          <button class="btn-quiet" type="button" id="png-app" data-download>PNG</button>
-        </div>
-      </div>
-      <div class="diag-grid">
-        <div>
-          <p class="mini-h">Apparent <var>N</var> at each step</p>
-          <ul class="legend" id="legend-app"></ul>
-          <div class="chart" id="chart-app"></div>
-        </div>
-        <div class="models-wrap">
-          <p class="mini-h">Models tried <span>(misfit = root mean square of the relative error in <var>F</var>)</span></p>
-          <div class="table-wrap"><table class="models" id="models"></table></div>
         </div>
       </div>
     </section>

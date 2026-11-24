@@ -488,64 +488,6 @@
   }
 
   /* =====================================================================
-   * Apparent N = F / (Eo + Efw) against cumulative oil: flat for depletion alone
-   * d = {points:[{key,Np,v,p,included}], flat (STB), model:[{Np,v}], yDiv, yUnit, legendEl, modelLabel}
-   * ===================================================================== */
-  function apparentPlot(el, d) {
-    var T = tokens();
-    var pts = d.points.filter(function (p) { return isFinite(p.Np) && isFinite(p.v); });
-    if (d.legendEl) legend(d.legendEl, [
-      { type: 'dot', fill: T.oil, html: 'From the data, <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>)' },
-      { type: 'dash', stroke: T.muted, html: 'Depletion alone (flat)' }
-    ].concat(d.model && d.model.length ? [{ type: 'line', stroke: T.ink, html: d.modelLabel || 'Chosen model' }] : []), T);
-    if (!pts.length) { empty(el, d.emptyText || 'No points to show.'); return; }
-    var narrow = el.clientWidth < 520;
-    var f = frame(el, {
-      height: d.height || (narrow ? 260 : 300), T: T,
-      margin: { t: 14, r: 18, b: 52, l: narrow ? 56 : 64 },
-      label: 'Apparent N at ' + pts.length + ' steps' + (isFinite(d.flat) ? ', depletion alone gives ' + d3.format(',.1f')(d.flat / (d.yDiv || 1)) + ' ' + d.yUnit : '')
-    });
-    var yd = d.yDiv || 1;
-    var xmax = d3.max(pts, function (p) { return p.Np; }) / 1e6;
-    var x = d3.scaleLinear().domain([0, xmax * 1.06]).nice().range([0, f.iw]);
-    var vals = pts.map(function (p) { return p.v / yd; });
-    if (isFinite(d.flat)) vals.push(d.flat / yd);
-    (d.model || []).forEach(function (q) { if (isFinite(q.v)) vals.push(q.v / yd); });
-    var lo = d3.min(vals), hi = d3.max(vals), pad = (hi - lo) * 0.18 || Math.abs(hi) * 0.1 || 1;
-    var y = d3.scaleLinear().domain([Math.max(0, lo - pad), hi + pad]).nice().range([f.ih, 0]);
-    hGrid(f, y, T);
-    axes(f, x, y, T, { xTitle: '*N*_p, MMSTB', yTitle: 'Apparent *N*, ' + d.yUnit });
-    var plot = f.g.append('g').attr('clip-path', clip(f));
-    if (isFinite(d.flat)) {
-      plot.append('line').attr('x1', 0).attr('x2', f.iw).attr('y1', y(d.flat / yd)).attr('y2', y(d.flat / yd))
-        .attr('stroke', T.muted).attr('stroke-width', 1.6).attr('stroke-dasharray', '5 4');
-    }
-    if (d.model && d.model.length > 1) {
-      var line = d3.line().x(function (q) { return x(q.Np / 1e6); }).y(function (q) { return y(q.v / yd); }).defined(function (q) { return isFinite(q.v); });
-      plot.append('path').datum(d.model).attr('d', line).attr('fill', 'none').attr('stroke', T.ink).attr('stroke-width', 2)
-        .attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round');
-    }
-    var dots = plot.append('g').selectAll('circle').data(pts).join('circle')
-      .attr('cx', function (p) { return x(p.Np / 1e6); }).attr('cy', function (p) { return y(p.v / yd); })
-      .attr('r', 5).attr('fill', function (p) { return p.included ? T.oil : T.paper; })
-      .attr('stroke', function (p) { return p.included ? T.surface : T.muted; }).attr('stroke-width', function (p) { return p.included ? 2 : 1.6; });
-    var hits = f.g.append('g').selectAll('circle').data(pts).join('circle')
-      .attr('cx', function (p) { return x(p.Np / 1e6); }).attr('cy', function (p) { return y(p.v / yd); })
-      .attr('r', 12).attr('fill', 'transparent');
-    hits.on('pointerenter', function (ev, p) {
-      dots.filter(function (q) { return q.key === p.key; }).attr('r', 6.5);
-      showTip(el, f.m.l + x(p.Np / 1e6), f.m.t + y(p.v / yd), [
-        { head: d3.format(',')(Math.round(p.p)) + ' psia' },
-        { k: 'Np', v: fmtSig(p.Np / 1e6, 4) + ' MMSTB' },
-        { k: 'Apparent N', v: fmtSig(p.v / yd, 4) + ' ' + d.yUnit }
-      ]);
-    }).on('pointerleave', function (ev, p) {
-      dots.filter(function (q) { return q.key === p.key; }).attr('r', 5);
-      hideTip(el);
-    });
-  }
-
-  /* =====================================================================
    * F against Et through the origin (check of the fit, and the m explorer)
    * d = {points:[{key,p,Et,F,included}], slope (STB per unit Et), slopeText, xUnit, legendEl, lineLabel}
    * ===================================================================== */
@@ -824,7 +766,6 @@
   return {
     tokens: tokens,
     hoPlot: hoPlot,
-    apparentPlot: apparentPlot,
     originPlot: originPlot,
     driveBars: driveBars,
     scanPlot: scanPlot,

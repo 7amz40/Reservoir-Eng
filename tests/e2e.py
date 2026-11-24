@@ -112,9 +112,7 @@ def t_example(b):
     assert pg.page.locator("#res-We").is_hidden()
     assert "rounding the table" in pg.text("#res-N .res-ci")
     assert pg.page.locator("#shares .shares-bar span").count() == 2, "depletion and gas cap"
-    assert pg.page.locator("#models tbody tr").count() == 4
-    assert pg.page.locator("#models tr.is-chosen").count() == 1
-    assert pg.page.locator("#chart-app svg").count() == 1
+    assert pg.page.locator("#panel-diag, #models, #chart-app").count() == 0, "no models panel on the page"
     assert pg.page.locator("#chart-ho circle.hit").count() == 6 and pg.fit_points() == 6
     assert pg.page.locator("#calc tbody tr").count() == 7
     assert "Example" in pg.text("#source")
@@ -154,9 +152,6 @@ def t_q2(b):
     assert "rounding the table" in pg.text("#res-N .res-ci")
     assert pg.page.locator("#shares .shares-bar span").count() == 3, "depletion, water and rock"
     assert "slope 1" in pg.page.locator("#chart-ho svg").text_content()
-    assert pg.page.locator("#models tbody tr").count() == 8
-    assert pg.page.locator("#models tr.is-chosen").count() == 1
-    assert pg.page.locator("#chart-app svg").count() == 1
     assert pg.page.locator("#chart-ho circle.hit").count() == 10
     assert pg.page.locator("#calc tbody tr").count() == 11
     shot(pg, "desktop-q2", full=True)
