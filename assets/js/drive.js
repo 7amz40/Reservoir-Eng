@@ -1,7 +1,7 @@
 /*
  * drive.js
- * Finds the drive mechanism from the production and PVT data with Havlena–Odeh diagnostics
- * (Week 7, slides 35–41), then hands the chosen model to the engine for the full results.
+ * Finds the drive mechanism from the production and PVT data with Havlena–Odeh diagnostics,
+ * then hands the chosen model to the engine for the full results.
  *
  *   1. Apparent N = F / (Eo + Efw) at each step. With depletion alone it is the same at every step.
  *   2. Candidate models, each fitted the Havlena–Odeh way:
@@ -115,7 +115,7 @@
 
   function etOf(t, m) { return t.Eo + m * t.Eg + (1 + m) * t.Efw; }
 
-  /** F (or F − We) against Et through the origin: slide 37 (depletion), slide 38 (known m). */
+  /** F (or F − We) against Et through the origin: depletion, or a gas cap of known m. */
   function fitOrigin(inc, m) {
     var sxy = 0, sxx = 0;
     inc.forEach(function (t) { var e = etOf(t, m); sxy += t.Fnet * e; sxx += e * e; });

@@ -435,7 +435,7 @@
   }
 
   /**
-   * F − We against Et through the origin, slope N (Week 7, slide 37 for depletion, slide 39 for a known m).
+   * F − We against Et through the origin, slope N (depletion, or a gas cap of known m).
    * opts.mFixed: m (0 = no gas cap); opts.aquifer as for computeTerms (W_e known).
    * The points get x = Et and y = F − We, for the plot.
    */
@@ -473,7 +473,7 @@
   }
 
   /**
-   * Water drive with an aquifer model We = U S (Week 7, slide 41; Dake, chapter 9):
+   * Water drive with an aquifer model We = U S (Dake, chapter 9):
    *   F/Et = N + U S/Et,  Et = Eo + m Eg + (1 + m) Efw  (m fixed: 0 unless given),
    * so the intercept is N and the slope is the aquifer constant U. With U given, only N is fitted.
    * The points get x = We/Et and y = F/Et, so the plotted line has slope 1 and meets the axis at N.

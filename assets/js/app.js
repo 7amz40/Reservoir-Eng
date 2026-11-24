@@ -775,7 +775,7 @@
     var title = 'Havlena–Odeh plot', sub = '';
     if (b.view === 'origin') {
       title = 'Havlena–Odeh plot: ' + (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' against <var>E</var><sub>t</sub>';
-      sub = 'With ' + (influxOn(b) ? 'the water influx known' : (R && R.m > 0 ? 'the gas cap known' : 'depletion alone')) + ', the points lie on a straight line through the origin, and its slope is <var>N</var> (slide 37). Click a point to leave it out of the fit.';
+      sub = 'With ' + (influxOn(b) ? 'the water influx known' : (R && R.m > 0 ? 'the gas cap known' : 'depletion alone')) + ', the points lie on a straight line through the origin, and its slope is <var>N</var>. Click a point to leave it out of the fit.';
       Object.assign(hoOpts, {
         fit: fitOk ? { a: 0, b: R.N } : null, yDiv: 1e6, yUnit: 'MM rb', noIntercept: true,
         xTitle: (R && R.m > 0 ? '*E*_t' : (efw ? '*E*_o + *E*_fw' : '*E*_o')) + ', rb/STB',
@@ -784,7 +784,7 @@
       });
     } else if (b.view === 'water') {
       title = 'Havlena–Odeh plot: <var>F</var>/<var>E</var><sub>t</sub> against <var>W</var><sub>e</sub>/<var>E</var><sub>t</sub>';
-      sub = 'With the right aquifer, the points lie on a straight line of slope 1 that meets the axis at <var>N</var> (slide 41). Click a point to leave it out of the fit.';
+      sub = 'With the right aquifer, the points lie on a straight line of slope 1 that meets the axis at <var>N</var>. Click a point to leave it out of the fit.';
       Object.assign(hoOpts, {
         points: hoPoints(b).map(function (q) { return Object.assign({}, q, { x: q.x / div }); }),
         fit: fitOk ? { a: R.N, b: div } : null,
