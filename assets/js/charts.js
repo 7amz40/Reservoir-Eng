@@ -276,7 +276,8 @@
    * Havlena–Odeh plot
    * d = {points:[{key,x,y,p,included,F,Eo,Eg,Efw}], fit:{a,b}|null, yDiv, yUnit, efw, labelsAll,
    *      Ntext, mNtext, legendEl, onToggle(key),
-   *      optional: xTitle, yTitle (rich text), slopeLabel (replaces "slope mN = …"), noIntercept (line through the origin)}
+   *      optional: xTitle, yTitle (rich text), slopeLabel (replaces "slope mN = …"), noIntercept (line through the origin),
+   *      height, paperTitles (axis titles as F/Eo (MMSTB), for print)}
    * ===================================================================== */
   function hoPlot(el, d) {
     var T = tokens();
@@ -308,11 +309,19 @@
     var ylo = d3.min(yv), yhi = d3.max(yv);
     var ypad = (yhi - ylo) * 0.12 || Math.abs(yhi) * 0.1 || 1;
     var y = d3.scaleLinear().domain([ylo - ypad, yhi + ypad]).nice().range([f.ih, 0]);
+    // room for the N label at the intercept: below a rising line, above a falling one
+    if (d.fit && !d.noIntercept && x.domain()[0] <= 0) {
+      var aY = d.fit.a / yd, dm = y.domain(), rr;
+      if (d.fit.b > 0 && y(aY) > f.ih - 34) { rr = 34 / f.ih; y.domain([(aY - rr * dm[1]) / (1 - rr), dm[1]]).nice(); }
+      if (d.fit.b <= 0 && y(aY) < 28) { rr = 28 / f.ih; y.domain([dm[0], (aY - rr * dm[0]) / (1 - rr)]).nice(); }
+    }
 
     graphPaper(f, x, y, T);
+    // on screen "F / Eo, MMSTB"; on paper (paperTitles) "F/Eo (MMSTB)"
+    var axisTitle = function (t) { return d.paperTitles ? t.replace(/ \/ /g, '/').replace(/, ([^,]+)$/, ' ($1)') : t; };
     axes(f, x, y, T, {
-      xTitle: d.xTitle || (d.efw ? '*E*_g / [*E*_o + (1 + *m*) *E*_fw]' : '*E*_g / *E*_o'),
-      yTitle: d.yTitle || ((d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / [*E*_o + (1 + *m*) *E*_fw]' : ' / *E*_o') + ', ' + d.yUnit)
+      xTitle: axisTitle(d.xTitle || (d.efw ? '*E*_g / [*E*_o + (1 + *m*) *E*_fw]' : '*E*_g / *E*_o')),
+      yTitle: axisTitle(d.yTitle || ((d.influx ? '(*F* − *W*_e)' : '*F*') + (d.efw ? ' / [*E*_o + (1 + *m*) *E*_fw]' : ' / *E*_o') + ', ' + d.yUnit))
     });
     // zero line for x when the domain starts left of 0
     if (x.domain()[0] < 0) {
@@ -353,6 +362,7 @@
 
     // intercept diamond and labels (drawn above the points)
     var ann = f.g.append('g');
+    var nBox = null;   // where the N label sits, so the slope label keeps clear of it
     if (d.fit && !d.noIntercept && x.domain()[0] <= 0) {
       var cx = x(0), cy = y(d.fit.a / yd);
       if (cy >= -2 && cy <= f.ih + 2) {
@@ -368,6 +378,7 @@
           .attr('fill', T.ink).attr('font-size', 13).attr('font-weight', 600);
         richSvg(lab, '*N* = ' + d.Ntext, T);
         halo(lab, T);
+        nBox = [cx + 12, ly - 11, ('N = ' + d.Ntext).length * 7.4, 14];
         if (anim) {
           ann.attr('opacity', 0).transition().delay(450).duration(300).attr('opacity', 1);
         }
@@ -386,26 +397,29 @@
       var slopeText = d.slopeLabel || ('slope *mN* = ' + d.mNtext);
       var labelLen = slopeText.replace(/\*/g, '').length * 6.4;
       var obstacles = screenPts.slice();
-      if (x.domain()[0] <= 0 && !d.noIntercept) {
-        var nx = x(0), ny = y(d.fit.a / yd);
-        for (var k = 0; k <= 4; k++) obstacles.push([nx + 12 + k * 28, ny + (d.fit.b / yd > 0 ? 18 : -16)]);
-        obstacles.push([nx, ny]);
-      }
+      if (x.domain()[0] <= 0 && !d.noIntercept) obstacles.push([x(0), y(d.fit.a / yd)]);
+      if (nBox) for (var k = 0; k <= 4; k++) obstacles.push([nBox[0] + k * nBox[2] / 4, nBox[1] + nBox[3] / 2]);
       // keep away from where the pressure labels will go
       labelled.forEach(function (p) {
         var lx = x(p.x), ly = y(p.y / yd), hw = labelText(p).length * 3.1 + 8;
         obstacles.push([lx + hw, ly - 12], [lx - hw, ly - 12], [lx + hw, ly + 10], [lx - hw, ly + 10]);
       });
-      [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].forEach(function (tt) {
+      var dx = x(dom[1]) - x(dom[0]), dyy = lineY(dom[1]) - lineY(dom[0]);
+      var ang = Math.atan2(dyy, dx) * 180 / Math.PI, ca = Math.cos(ang * Math.PI / 180), sa = Math.sin(ang * Math.PI / 180);
+      d3.range(0.1, 0.91, 0.05).forEach(function (tt) {
         var xa = dom[0] + (dom[1] - dom[0]) * tt, px = x(xa), py = lineY(xa);
         if (!(py > 16 && py < f.ih - 16)) return;
-        if (px - labelLen / 2 < 4 || px + labelLen / 2 > f.iw - 4) return;
-        var dmin = d3.min(obstacles, function (q) { return Math.hypot(q[0] - px, q[1] - py); });
+        var ex = labelLen / 2 * Math.abs(ca);
+        if (px - ex < 4 || px + ex > f.iw - 4) return;
+        // the label runs along the line, 9 px above it: measure from five spots along its length
+        var dmin = Infinity;
+        [-0.5, -0.25, 0, 0.25, 0.5].forEach(function (sx) {
+          var qx = px + 9 * sa + sx * labelLen * ca, qy = py - 9 * ca + sx * labelLen * sa;
+          obstacles.forEach(function (q) { dmin = Math.min(dmin, Math.hypot(q[0] - qx, q[1] - qy)); });
+        });
         if (!best || dmin > best.dmin) best = { px: px, py: py, dmin: dmin };
       });
-      var dx = x(dom[1]) - x(dom[0]), dyy = lineY(dom[1]) - lineY(dom[0]);
-      var ang = Math.atan2(dyy, dx) * 180 / Math.PI;
-      if (best && best.dmin > 26 && Math.abs(ang) < 50) {
+      if (best && best.dmin > 15 && Math.abs(ang) < 50) {
         var sl = ann.append('text')
           .attr('transform', 'translate(' + best.px + ',' + best.py + ') rotate(' + ang + ') translate(0,-9)')
           .attr('text-anchor', 'middle').attr('fill', T.ink2).attr('font-size', 12);
@@ -414,6 +428,22 @@
         var rad = ang * Math.PI / 180, cx = best.px + 9 * Math.sin(rad), cy = best.py - 9 * Math.cos(rad);
         var bw = Math.abs(labelLen * Math.cos(rad)) + Math.abs(13 * Math.sin(rad)), bh = Math.abs(labelLen * Math.sin(rad)) + Math.abs(13 * Math.cos(rad));
         slopeBox = [cx - bw / 2, cy - bh / 2, bw, bh];
+      } else if (Math.abs(ang) < 80) {
+        // no room along the line (points all the way along it): the corner the line leaves free
+        var rise = ang < 0, bx = 8, by = rise ? 4 : f.ih - 18, bW = labelLen, bH = 14;
+        var clear = obstacles.every(function (q) {
+          var ddx = Math.max(0, bx - q[0], q[0] - (bx + bW)), ddy = Math.max(0, by - q[1], q[1] - (by + bH));
+          return Math.hypot(ddx, ddy) > 10;
+        }) && [0, 0.5, 1].every(function (tt) {
+          var lx = bx + bW * tt, lyy = lineY(x.invert(lx));
+          return lyy < by - 6 || lyy > by + bH + 6;
+        });
+        if (clear) {
+          var sc = ann.append('text').attr('x', bx).attr('y', by + 11).attr('fill', T.ink2).attr('font-size', 12);
+          richSvg(sc, slopeText, T);
+          halo(sc, T);
+          slopeBox = [bx, by, bW, bH];
+        }
       }
     }
 

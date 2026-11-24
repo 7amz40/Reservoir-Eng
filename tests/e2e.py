@@ -409,12 +409,18 @@ def pdf_pages(data):
 @check("one-page report: results, plot and inputs, printed or as a file")
 def t_report(b):
     pg = Page(b)
-    # laid out for print: one A4 page with the mechanism, the results, the plot and the inputs
+    # laid out for print like a short paper, on one A4 page: summary, method, results, data, references
     assert pg.page.evaluate("HOApp.report.prepare()")
     text = pg.page.locator("#report").text_content()
-    for t in ("Drive mechanism: Gas-cap drive", "108.6", "0.542", "84.62", "16.3", "Initial parameters", "Production data", "3,150", "2,400"):
+    for t in ("Summary.", "gas-cap drive", "108.6", "0.542", "84.62", "16.3", "1Method", "2Results", "3Data", "Table 1.", "Table 2.", "Table 3.",
+              "Figure 1.", "Havlena, D. and Odeh, A.S. 1963", "3,150", "2,400"):
         assert t in text, t
-    assert pg.page.locator("#report .rp-chart svg").count() == 1 and pg.page.locator("#report .rp-res").count() == 4
+    assert pg.page.locator("#report .rp-chart svg").count() == 1 and pg.page.locator("#report .rp-cols").count() == 1
+    assert pg.page.locator("#report table").count() == 3 and pg.page.locator("#report .rp-eqn").count() == 2
+    # one face throughout: the dashboard's own styles for symbols and subscripts do not reach the report
+    assert pg.page.evaluate("""() => { const f = getComputedStyle(document.getElementById('report')).fontFamily;
+      return ['var', 'sub', 'th', 'figcaption'].every(s => getComputedStyle(document.querySelector('#report ' + s)).fontFamily === f); }""")
+    assert pg.page.evaluate("(() => { const el = document.getElementById('report'); return el.scrollWidth <= el.clientWidth + 1; })()")
     assert pdf_pages(pg.page.pdf(prefer_css_page_size=True, print_background=True)) == 1
     pg.page.evaluate("HOApp.report.clear()")
     assert pg.page.locator("#report").count() == 0
@@ -446,12 +452,12 @@ def t_report(b):
     paper_dark = pg.page.get_attribute("#chart-ho .paper rect", "fill")
     assert paper_dark != paper_light
     assert pg.page.evaluate("HOApp.report.prepare()")
-    assert pg.page.get_attribute("#report .rp-chart .paper rect", "fill") == paper_light
+    assert pg.page.get_attribute("#report .rp-chart .paper rect", "fill").lower() == "#ffffff"
     assert pg.page.get_attribute("#chart-ho .paper rect", "fill") == paper_dark
     pg.page.evaluate("HOApp.report.clear()")
     pg.page.click("#theme-btn")
     # a longer file and one with water influx still fit one page
-    for f, expect in (("synthetic_large.xlsx", "more rows"), ("q2_example.xlsx", "Water drive")):
+    for f, expect in (("synthetic_large.xlsx", "more rows"), ("q2_example.xlsx", "water drive")):
         pg.upload(os.path.join(FIX, f))
         assert pg.page.evaluate("HOApp.report.prepare()")
         assert expect in pg.page.locator("#report").text_content(), f

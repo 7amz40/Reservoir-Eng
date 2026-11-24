@@ -14,8 +14,9 @@ with the Havlena–Odeh straight-line method:
 It opens with an example already loaded: a gas-cap oil reservoir, for which it finds a gas-cap drive
 with *N* = 108.6 MMSTB, *m* = 0.542 and *G* = 84.6 Bscf, of which 16.3 % has been produced.
 
-**Print report** puts the mechanism, the results, the Havlena–Odeh plot and the inputs on one A4 page;
-the print dialog can save it as a PDF. **Export results** writes the results and the full calculation
+**Print report** writes one A4 page in the style of a short technical paper: a summary, the method with
+its numbered equations, the results table and the Havlena–Odeh plot, the input data and the references.
+The print dialog can save it as a PDF. **Export results** writes the results and the full calculation
 to an Excel file.
 
 ## How it finds the drive mechanism

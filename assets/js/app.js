@@ -624,12 +624,12 @@
     add('warning', a.warnings);
     if (b.inputs) add('warning', b.inputs.messages.warnings);
     if (b.result) add('warning', b.result.messages.warnings);
-    if (!state.includeEfw) out.push({ level: 'info', text: 'E_fw is switched off, so connate water and rock expansion are neglected.' });
+    if (!state.includeEfw) out.push({ level: 'info', code: 'efw-off', text: 'E_fw is switched off, so connate water and rock expansion are neglected.' });
     if (b.detection && b.model && b.model.sc.rms > D.POOR) {
-      out.push({ level: 'warning', text: 'Even the best model misses F by ' + pctText(b.model.sc.rms) + ' on average, so treat these results with care. Check the units and the PVT data, or leave out points that do not follow the trend.' });
+      out.push({ level: 'warning', code: 'poor-fit', text: 'Even the best model misses F by ' + pctText(b.model.sc.rms) + ' on average, so treat these results with care. Check the units and the PVT data, or leave out points that do not follow the trend.' });
     }
-    if (b.detection && !b.model) out.push({ level: 'warning', text: 'No mechanism both makes physical sense and fits the data. The results are for depletion alone.' });
-    if (b.detection && b.detection.assumedSteps) out.push({ level: 'info', text: 'There is no time column, so the rows are taken as equal time steps (for example, one per year) for the aquifer. If they are not, add a time column.' });
+    if (b.detection && !b.model) out.push({ level: 'warning', code: 'no-model', text: 'No mechanism both makes physical sense and fits the data. The results are for depletion alone.' });
+    if (b.detection && b.detection.assumedSteps) out.push({ level: 'info', code: 'steps', text: 'There is no time column, so the rows are taken as equal time steps (for example, one per year) for the aquifer. If they are not, add a time column.' });
     add('info', a.infos);
     if (b.inputs) add('info', b.inputs.messages.infos.filter(function (m) { return !(m.code === 'efw-default' && !state.includeEfw); }));
     if (b.result) add('info', b.result.messages.infos);
@@ -1177,58 +1177,69 @@
    * It goes through the browser's print dialog, where it can be saved as a PDF. Where printing
    * is blocked (the hosted preview), the same page comes as an HTML file to open and print.
    * ------------------------------------------------------------------ */
+  var SERIF = '"STIX Two Text", Cambria, "Times New Roman", Times, serif';
+
+  /* One serif face in four sizes (title 15 pt, headings 10.5 pt, text 9.5 pt; tables, captions and notes 8.5 pt), black on white.
+     Every rule the report needs is set here, so it looks the same printed from the dashboard and as a file of its own. */
   var REPORT_CSS = [
-    '#report { color: #15191c; background: #fff; font-family: var(--rp-body); font-size: 9.2pt; line-height: 1.38; -webkit-print-color-adjust: exact; print-color-adjust: exact; }',
+    '#report { color: #000; background: #fff; font-family: var(--rp-serif); font-size: 9.5pt; font-weight: 400; line-height: 1.34; font-variant-numeric: lining-nums; hyphens: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }',
     '#report * { box-sizing: border-box; }',
-    '#report h1, #report h2, #report p, #report ul, #report table { margin: 0; }',
-    '#report var { font-family: var(--rp-math); font-style: italic; }',
-    '#report sub { font-size: 0.72em; line-height: 0; }',
-    '#report .rp-head { display: flex; align-items: center; gap: 4mm; padding-bottom: 2.6mm; border-bottom: 1.4pt solid #15191c; }',
-    '#report .rp-crest { height: 13mm; width: auto; flex: none; }',
-    '#report .rp-title { min-width: 0; }',
-    '#report .rp-course { font-size: 8.6pt; color: #4a5258; }',
-    '#report .rp-course strong { color: #15191c; }',
-    '#report h1 { font-family: var(--rp-display); font-size: 15.5pt; font-weight: 700; line-height: 1.12; }',
-    '#report .rp-org { font-size: 7.8pt; color: #6b7379; margin-top: 0.4mm; }',
-    '#report .rp-meta { margin-left: auto; flex: none; text-align: right; font-size: 8.2pt; color: #4a5258; line-height: 1.45; white-space: nowrap; }',
-    '#report .rp-meta strong { color: #15191c; font-weight: 600; }',
-    '#report .rp-mech { margin-top: 2.6mm; font-size: 10.2pt; }',
-    '#report .rp-mech b { font-weight: 700; }',
-    '#report .rp-mech span { color: #4a5258; }',
-    '#report .rp-results { display: grid; grid-template-columns: repeat(var(--rp-n, 4), minmax(0, 1fr)); margin-top: 2.6mm; border-top: 0.6pt solid #c9cfd3; border-bottom: 0.6pt solid #c9cfd3; }',
-    '#report .rp-res { padding: 2mm 2.6mm 2.2mm; min-width: 0; }',
-    '#report .rp-res:first-child { padding-left: 0; }',
-    '#report .rp-res + .rp-res { border-left: 0.6pt solid #dfe3e6; }',
-    '#report .rp-k { font-size: 7.6pt; color: #4a5258; }',
-    '#report .rp-sym { font-family: var(--rp-math); font-style: italic; font-size: 1.3em; color: #15191c; margin-right: 1mm; }',
-    '#report .rp-sym.rp-abbr { font-style: normal; font-size: 1.1em; }',
-    '#report .rp-v { font-family: var(--rp-display); font-size: 16pt; font-weight: 600; line-height: 1.15; margin-top: 0.5mm; }',
-    '#report .rp-v small { font-family: var(--rp-body); font-size: 8pt; font-weight: 500; color: #4a5258; margin-left: 1.2mm; }',
-    '#report .rp-h, #report .rp-r { font-size: 7.2pt; color: #4a5258; margin-top: 0.4mm; }',
-    '#report .rp-r { color: #6b7379; }',
-    '#report .rp-f { font-size: 7.2pt; color: #9a5b00; font-weight: 600; margin-top: 0.4mm; }',
-    '#report h2 { font-family: var(--rp-display); font-size: 11pt; font-weight: 600; margin: 3.2mm 0 1.2mm; }',
-    '#report .rp-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1mm 6mm; font-size: 9.4pt; }',
-    '#report .rp-line strong { font-weight: 600; }',
-    '#report .rp-line .ho-eq-label { color: #6b7379; font-size: 0.9em; }',
-    '#report .rp-line .rp-r2 { margin-left: auto; color: #4a5258; }',
-    '#report .legend { display: flex; flex-wrap: wrap; gap: 1mm 5mm; margin: 1.6mm 0 0; padding: 0; list-style: none; font-size: 8pt; color: #4a5258; }',
-    '#report .legend li { display: inline-flex; align-items: center; gap: 1.6mm; }',
-    '#report .legend svg { width: 16px; height: 10px; flex: none; overflow: visible; }',
-    '#report .rp-chart svg { display: block; width: 100%; height: auto; }',
-    '#report .rp-di { font-size: 8.6pt; color: #4a5258; margin-top: 0.8mm; }',
-    '#report .rp-two { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.28fr); gap: 7mm; }',
-    '#report table { border-collapse: collapse; width: 100%; font-size: 8pt; font-variant-numeric: tabular-nums; }',
-    '#report th, #report td { padding: 0.45mm 1.3mm; text-align: right; border-bottom: 0.4pt solid #e1e5e8; vertical-align: baseline; white-space: nowrap; }',
+    '#report h1, #report h2, #report p, #report ol, #report table, #report figure { margin: 0; }',
+    '#report b, #report strong { font-weight: 600; }',
+    // math: italic symbols; upright sub- and superscripts in the same face, kept off the line spacing
+    '#report var { font-family: inherit; font-size: 1em; font-style: italic; line-height: inherit; }',
+    '#report sub, #report sup { position: relative; vertical-align: baseline; font-family: inherit; font-size: 0.72em; font-style: normal; line-height: 0; }',
+    '#report sub { top: 0.3em; }',
+    '#report sup { top: -0.45em; }',
+    '#report var + sub { margin-left: 0.03em; }',
+    // letterhead and title
+    '#report .rp-letter { display: flex; align-items: center; gap: 3mm; padding-bottom: 2mm; font-size: 8.5pt; line-height: 1.3; }',
+    '#report .rp-crest { flex: none; width: auto; height: 10mm; }',
+    '#report .rp-date { margin-left: auto; align-self: flex-end; }',
+    '#report .rp-head { padding: 2.6mm 0 2.4mm; border-top: 1pt solid #000; border-bottom: 0.5pt solid #000; text-align: center; }',
+    '#report h1 { font-size: 15pt; font-weight: 600; line-height: 1.2; }',
+    '#report .rp-sub { margin-top: 0.8mm; }',
+    // text, headings, and the two columns of method and results
+    '#report .rp-text { text-align: justify; }',
+    '#report .rp-text + .rp-text { margin-top: 1.2mm; }',
+    '#report .rp-summary { margin-top: 2.6mm; }',
+    '#report h2 { margin: 3mm 0 1.2mm; font-size: 10.5pt; font-weight: 600; line-height: 1.25; }',
+    '#report h2 .rp-no { display: inline-block; min-width: 6mm; }',
+    '#report .rp-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 7mm; align-items: start; }',
+    // displayed equations: centred, numbered at the right
+    '#report .rp-eqn { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 1.2mm 0; }',
+    '#report .rp-eqn > span:first-child { grid-column: 2; }',
+    '#report .rp-eqn > .rp-no { grid-column: 3; justify-self: end; }',
+    '#report .rp-defs { display: grid; grid-template-columns: auto auto; justify-content: center; column-gap: 0.3em; row-gap: 0.5mm; margin: 1.2mm 0; }',
+    '#report .rp-defs > span:nth-child(odd) { text-align: right; }',
+    '#report .rp-frac { display: inline-flex; flex-direction: column; vertical-align: middle; margin: 0 0.12em; text-align: center; }',
+    '#report .rp-frac > span { padding: 0 0.2em; line-height: 1.25; }',
+    '#report .rp-frac > span + span { border-top: 0.5pt solid #000; }',
+    // tables: caption above, three rules
+    '#report table { width: 100%; border-collapse: collapse; border-bottom: 1pt solid #000; font-size: 8.5pt; line-height: 1.3; font-variant-numeric: lining-nums tabular-nums; }',
+    '#report caption { caption-side: top; padding-bottom: 1mm; text-align: left; }',
+    '#report thead tr:first-child th { border-top: 1pt solid #000; }',
+    '#report thead th { border-bottom: 0.5pt solid #000; font-weight: 600; vertical-align: bottom; }',
+    '#report thead th .rp-u { display: block; font-weight: 400; }',
+    '#report thead th var, #report thead th sub { font-weight: 400; }',   // symbols stay as in the text
+    '#report table.rp-narrow { width: auto; min-width: 55%; }',   // a table of few columns keeps to its content
+    '#report th, #report td { padding: 0.45mm 1.4mm; text-align: right; vertical-align: baseline; white-space: nowrap; }',
     '#report th:first-child, #report td:first-child { padding-left: 0; text-align: left; }',
-    '#report thead th { font-weight: 600; color: #15191c; border-bottom: 0.8pt solid #15191c; vertical-align: bottom; }',
-    '#report thead th small { display: block; font-weight: 400; color: #6b7379; }',
-    '#report td.rp-src { text-align: left; color: #6b7379; white-space: normal; }',
-    '#report tr.rp-out td { color: #8a9297; }',
-    '#report tr.rp-gap td { text-align: center; color: #6b7379; font-style: italic; }',
-    '#report .rp-notes { padding-left: 4mm; font-size: 7.8pt; color: #333a3f; }',
-    '#report .rp-notes li + li { margin-top: 0.5mm; }',
-    '#report .rp-foot { margin-top: 3mm; padding-top: 1.6mm; border-top: 0.6pt solid #c9cfd3; font-size: 7.2pt; color: #6b7379; }'
+    '#report th:last-child, #report td:last-child { padding-right: 0; }',
+    '#report .rp-l { text-align: left; }',
+    '#report .rp-c { text-align: center; }',
+    '#report tr.rp-gap td { font-style: italic; text-align: center; }',
+    '#report .rp-note, #report figcaption { margin-top: 0.8mm; font-size: 8.5pt; text-align: justify; }',
+    '#report .rp-tables { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7mm; align-items: start; }',
+    '#report .rp-tables .rp-note { width: 0; min-width: 100%; }',   // a note wraps to its table and does not widen it
+    '#report figure { margin-top: 2.6mm; }',
+    '#report .rp-chart svg { display: block; width: 100%; height: auto; }',
+    // remarks and references
+    '#report .rp-list { padding-left: 5mm; font-size: 8.5pt; }',
+    '#report .rp-list li { text-align: justify; }',
+    '#report .rp-list li + li { margin-top: 0.4mm; }',
+    '#report .rp-refs p { padding-left: 5mm; text-indent: -5mm; font-size: 8.5pt; }',
+    '#report .rp-refs p + p { margin-top: 0.4mm; }'
   ].join('\n');
 
   /** In the dashboard: the report is laid out off screen (so its chart can be drawn at size) and is all that prints. */
@@ -1252,18 +1263,37 @@
     '@media print { body { background: #fff; } #report { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; } .rp-tools { display: none; } }'
   ].join('\n');
 
-  var REPORT_ROWS = 12;   // production rows shown in full; a longer table shows its first six and last three
+  var REPORT_ROWS = 10;   // production rows shown in full; a longer table shows its first six and last three
   var REPORT_PAGE_PX = 271 * 96 / 25.4;   // the height of an A4 page less its margins, in CSS pixels
+  var REPORT_CHART_ASPECT = 0.75;   // height of the plot over its width
 
-  /** A number from the data table: up to six significant digits, thousands separated. */
-  function fmtData(v) {
-    if (!isFinite(v)) return '–';
-    if (v === 0) return '0';
-    var a = Math.abs(v);
-    if (a >= 1e7 || a < 1e-5) return C.minus(v.toExponential(3));
-    var parts = String(Number(v.toPrecision(6))).split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return C.minus(parts.join('.'));
+  /** Math in the report: an italic symbol with an upright subscript, and a stacked fraction. */
+  function rv(sym, sub) { return '<var>' + sym + '</var>' + (sub ? '<sub>' + sub + '</sub>' : ''); }
+  function rfrac(num, den) { return '<span class="rp-frac"><span>' + num + '</span><span>' + den + '</span></span>'; }
+  function reqn(body, no) { return '<p class="rp-eqn"><span>' + body + '</span><span class="rp-no">(' + no + ')</span></p>'; }
+  function andList(a) { return a.length <= 2 ? a.join(' and ') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
+
+  /** Decimals that write x as given (up to six), and decimals for about four significant digits. */
+  function decimalsOf(x) {
+    if (!isFinite(x)) return 0;
+    for (var d = 0; d < 6; d++) if (Math.abs(x - Number(x.toFixed(d))) <= 1e-9 * Math.max(1, Math.abs(x))) return d;
+    return 6;
+  }
+  function dec4(x) { return !isFinite(x) || x === 0 ? 0 : Math.max(0, Math.min(6, 3 - Math.floor(Math.log10(Math.abs(x))))); }
+  /** One number of decimals for a column: as many as its values are given to, at most six significant digits for the largest. */
+  function colDecimals(xs) {
+    var fin = xs.filter(function (x) { return isFinite(x); });
+    if (!fin.length) return 0;
+    var d = Math.max.apply(null, fin.map(decimalsOf)), big = Math.max.apply(null, fin.map(Math.abs));
+    return big > 0 ? Math.min(d, Math.max(0, 5 - Math.floor(Math.log10(big)))) : d;
+  }
+  /** 3 × 10⁻⁶ style, for compressibilities. */
+  function sciText(x) {
+    if (!isFinite(x)) return '–';
+    if (x === 0) return '0';
+    var e = Math.floor(Math.log10(Math.abs(x))), mant = x / Math.pow(10, e);
+    mant = Number(mant.toPrecision(6));
+    return fmtFixed(mant, decimalsOf(mant)) + ' × 10<sup>' + C.minus(String(e)) + '</sup>';
   }
 
   function reportName(ext) {
@@ -1271,91 +1301,223 @@
     return base + (/havlena-odeh/i.test(base) ? '_report' : '_Havlena-Odeh_report') + ext;
   }
 
-  /** The report's text: everything but the chart, which is drawn into .rp-chart afterwards. */
+  /** The report in the style of a short technical paper; the chart is drawn into .rp-chart afterwards. */
   function reportBody(b) {
-    var det = b.detection, R = b.result.results;
-    var h = [];
-    // heading: the course and the university when the page shows them
-    var crest = document.querySelector('.brand-crest');
-    var course = document.querySelector('.brand .course');
-    var org = document.querySelector('.foot-course p + p');
-    var day = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-    h.push('<header class="rp-head">' +
-      (crest ? '<img class="rp-crest" src="' + esc(crest.src) + '" alt="">' : '') +
-      '<div class="rp-title">' + (course ? '<p class="rp-course">' + course.innerHTML + '</p>' : '') +
-      '<h1>Havlena–Odeh material balance analysis</h1>' +
-      (org ? '<p class="rp-org">' + esc(org.textContent) + '</p>' : '') + '</div>' +
-      '<p class="rp-meta">Data: <strong>' + esc(state.source.name) + '</strong>' +
-      (state.source.fileName && state.source.fileName !== state.source.name ? '<br>' + esc(state.source.fileName) : '') +
-      '<br>' + esc(day) + '</p></header>');
-    // the mechanism found
-    h.push('<p class="rp-mech">' + (b.model ? '<b>Drive mechanism: ' + esc(familyName(b)) + '</b>, ' + (det.forced ? 'chosen by the user' : 'found from the data') + '. '
-      : '<b>Drive mechanism: no clear match.</b> ') +
-      '<span>' + rich(familyLine(b)) + (det.assumedSteps ? ' Rows taken as equal time steps.' : '') + '</span></p>');
-    // the result cards, as the dashboard shows them
-    var cards = Array.prototype.filter.call(document.querySelectorAll('#ledger .res'), function (c) { return !c.hidden; });
-    h.push('<div class="rp-results" style="--rp-n: ' + cards.length + '">' + cards.map(function (c) {
-      var sym = c.querySelector('.res-sym'), flag = c.querySelector('.res-flag');
-      var how = c.querySelector('.res-how').innerHTML, ci = c.querySelector('.res-ci').textContent;
-      return '<div class="rp-res"><p class="rp-k"><span class="rp-sym' + (sym.classList.contains('res-abbr') ? ' rp-abbr' : '') + '">' + sym.innerHTML + '</span>' +
-        esc(c.querySelector('.res-name').textContent) + '</p>' +
-        '<p class="rp-v">' + esc(c.querySelector('.val').textContent) + '<small>' + esc(c.querySelector('.u').textContent) + '</small></p>' +
-        (how ? '<p class="rp-h">' + how + '</p>' : '') + (ci ? '<p class="rp-r">' + esc(ci) + '</p>' : '') +
-        (flag ? '<p class="rp-f">' + esc(flag.textContent) + '</p>' : '') + '</div>';
-    }).join('') + '</div>');
-    // the plot and its line
-    var spec = hoSpec(b);
-    h.push('<h2>' + spec.title + '</h2>');
-    h.push('<p class="rp-line"><span>Fitted line: ' + $('eq').innerHTML + '</span><span class="rp-r2">' + $('fitline').innerHTML + '</span></p>');
-    h.push('<ul class="legend"></ul><div class="rp-chart"></div>');
-    var inc = b.result.terms.filter(function (t) { return t.included && isFinite(t.sumDI) && t.sumDI > 0; });
+    var det = b.detection, R = b.result.results, fit = b.result.fit, c = b.model;
+    var fam = c ? c.family : 'depletion';
+    var water = !!(c && c.water) && influxOn(b);
+    var aq = water ? c.aquifer : null;
+    var gas = R.m > 0;
+    var efw = anyEfw(b);
+    var terms = b.result.terms;
+    var inc = terms.filter(function (t) { return t.included; });
     var last = inc[inc.length - 1];
-    if (last && !negativeM(b)) {
-      var di = [['DDI', 'depletion'], ['SDI', 'gas cap'], ['WDI', 'water influx'], ['CDI', 'rock and water expansion']]
-        .map(function (k) { return { name: k[1], v: Math.max(0, last[k[0]] / last.sumDI) }; })
-        .filter(function (it) { return it.v >= 0.005; });
-      h.push('<p class="rp-di">Drive indices at ' + esc(fmtFixed(last.p, 0)) + ' psia: ' + esc(di.map(function (it) { return it.name + ' ' + pctText(it.v); }).join(', ')) + '.</p>');
+    var weRow = water && last && isFinite(last.We);
+    var rec = E.recovery(terms, R.N);
+    var rows = b.inputs.rows;
+    var nD = dec4(R.N / 1e6), gD = dec4(R.G / 1e9);
+    var npD = colDecimals(rows.map(function (r) { return r.Np / 1e6; }));
+    var mm = function (x) { return fmtFixed(x / 1e6, nD); };
+    var range = function (pair, f) { return pair ? f(pair[0]) + '–' + f(pair[1]) : '–'; };
+    var F = rv('F'), N = rv('N'), m = rv('m'), We = rv('W', 'e'), Eo = rv('E', 'o'), Eg = rv('E', 'g'), Efw = rv('E', 'fw'), Et = rv('E', 't'), Np = rv('N', 'p');
+    var aqWords = { pot: 'a pot aquifer', steady: 'a steady-state aquifer (Schilthuis, 1936)', veh: 'an unsteady-state radial aquifer (van Everdingen and Hurst, 1949)', column: 'a water influx given in the data file' }[aq] || '';
+    var mech = !c ? 'no drive mechanism that is both physically valid and consistent with the data; the results are therefore those for depletion alone'
+      : fam === 'depletion' ? (b.inputs.noGas || (det.saturation || {}).allAbove ? 'a depletion drive above the bubble point, with no gas cap and no water influx' : 'a solution-gas (depletion) drive with no gas cap and no water influx')
+      : fam === 'gascap' ? (c.key === 'gascap-known' ? 'a gas-cap drive, with the gas-cap size given in the data file, and no water influx' : 'a gas-cap drive with no water influx')
+      : fam === 'water' ? 'a water drive with ' + aqWords + (c.mFixed > 0 ? '' : ' and no gas cap')
+      : 'a combination drive: a gas cap together with ' + aqWords;
+    var mechShort = !c ? 'depletion alone' : { depletion: 'a depletion drive', gascap: 'a gas-cap drive', water: 'a water drive', combination: 'a combined gas-cap and water drive' }[fam];
+    var h = [];
+
+    // letterhead and title
+    var crest = document.querySelector('.brand-crest'), course = document.querySelector('.brand .course'), org = document.querySelector('.foot-course p + p');
+    var day = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    var letter = !!(crest || course || org);
+    if (letter) {
+      h.push('<div class="rp-letter">' + (crest ? '<img class="rp-crest" src="' + esc(crest.src) + '" alt="">' : '') +
+        '<div>' + (course ? '<p>' + course.innerHTML + '</p>' : '') + (org ? '<p>' + esc(org.textContent) + '</p>' : '') + '</div>' +
+        '<p class="rp-date">' + esc(day) + '</p></div>');
     }
-    // the inputs: initial parameters and the production table
-    var info = b.inputs.paramInfo, prm = b.inputs.params;
-    var prmRows = PARAM_UI.map(function (d) {
-      var unitId = paramUnit(d, b), v = prm[d.k];
-      var shown = d.kind === 'frac' ? v : U.fromBase(d.kind, unitId, v);
-      var inf = info[d.k] || {};
-      var src = { file: 'File, ' + (inf.where || ''), derived: 'Table, ' + (inf.from || ''), 'default': 'Not in the file, 0', user: 'Typed in', 'not-needed': 'Not needed: no free gas' }[inf.source] || '';
-      if (inf.source === 'not-needed') shown = NaN;
-      return '<tr><td>' + SYM[d.k] + '</td><td>' + esc(isFinite(shown) ? fmtInput(shown) : '–') + '</td><td class="rp-src">' + esc(U.label(d.kind, unitId)) + '</td><td class="rp-src">' + esc(src) + '</td></tr>';
+    var dataName = state.source.name + (state.source.fileName && state.source.fileName !== state.source.name ? ' (' + state.source.fileName + ')' : '');
+    h.push('<header class="rp-head"><h1>Material Balance Analysis by the Havlena–Odeh Method</h1>' +
+      '<p class="rp-sub">Data: ' + esc(dataName) + '</p>' + (letter ? '' : '<p>' + esc(day) + '</p>') + '</header>');
+
+    // summary
+    var sum = ['The production and PVT data were analysed with the straight-line form of the material balance equation (Havlena and Odeh, 1963). The data indicate ' + mech + '.'];
+    sum.push('The stock-tank oil initially in place is ' + N + ' = ' + mm(R.N) + ' MMSTB' + (R.ciN ? ' (95 % confidence interval ' + range(R.ciN, mm) + ' MMSTB)' : '') +
+      (gas ? (R.mFixed ? '; with the given gas-cap ratio ' + m + ' = ' + fmtFixed(R.m, 3) : '; the ratio of gas-cap to oil-zone volume is ' + m + ' = ' + fmtFixed(R.m, 3)) +
+        ', so the gas cap initially holds ' + rv('G') + ' = ' + fmtFixed(R.G / 1e9, gD) + ' Bscf' : '') + '.');
+    if (weRow) sum.push('At ' + fmtFixed(last.p, 0) + ' psia the cumulative water influx is ' + We + ' = ' + fmtFixed(last.We / 1e6, dec4(last.We / 1e6)) + ' MM rb, ' + pctText(last.We / last.F) + ' of the underground withdrawal.');
+    if (rec) sum.push('By ' + fmtFixed(rec.p, 0) + ' psia, ' + fmtFixed(rec.Np / 1e6, npD) + ' MMSTB had been produced, a recovery factor of ' + rfText(rec.RF) + ' %.');
+    var diT = inc.filter(function (t) { return isFinite(t.sumDI) && t.sumDI > 0; });
+    var diLast = diT[diT.length - 1];
+    if (diLast && !negativeM(b)) {
+      var di = [['DDI', 'depletion'], ['SDI', 'gas cap'], ['WDI', 'water'], ['CDI', 'rock and connate water']]
+        .map(function (k) { return { name: k[1], v: Math.max(0, diLast[k[0]] / diLast.sumDI) }; })
+        .filter(function (it) { return it.v >= 0.005; });
+      sum.push('The drive indices at ' + fmtFixed(diLast.p, 0) + ' psia are ' + andList(di.map(function (it) { return fmtFixed(it.v, 2) + ' (' + it.name + ')'; })) + '.');
+    }
+    h.push('<p class="rp-text rp-summary"><b>Summary.</b> ' + sum.join(' ') + '</p>');
+
+    // 1 Method
+    var withEt = b.view !== 'line';
+    var defs = [
+      [F, '= ' + Np + ' [' + rv('B', 'o') + ' + (' + rv('R', 'p') + ' − ' + rv('R', 's') + ') ' + rv('B', 'g') + '] + ' + rv('W', 'p') + ' ' + rv('B', 'w')],
+      [Eo, '= (' + rv('B', 'o') + ' − ' + rv('B', 'oi') + ') + (' + rv('R', 'si') + ' − ' + rv('R', 's') + ') ' + rv('B', 'g')],
+      [Eg, '= ' + rv('B', 'oi') + ' (' + rv('B', 'g') + '/' + rv('B', 'gi') + ' − 1)'],
+      [Efw, '= ' + rv('B', 'oi') + ' (' + rv('c', 'w') + ' ' + rv('S', 'wc') + ' + ' + rv('c', 'f') + ')(' + rv('p', 'i') + ' − ' + rv('p') + ')/(1 − ' + rv('S', 'wc') + ')']
+    ];
+    if (withEt) defs.push([Et, '= ' + Eo + ' + ' + m + ' ' + Eg + ' + (1 + ' + m + ') ' + Efw]);
+    var why = [];
+    if (b.view === 'origin' && !gas) why.push(m + ' = 0');
+    if (!water) why.push(We + ' = 0');
+    if (!efw) why.push(Efw + ' = 0' + (state.includeEfw ? ' (' + rv('S', 'wc') + ', ' + rv('c', 'w') + ' and ' + rv('c', 'f') + ' not given)' : ' (rock and connate-water expansion neglected)'));
+    var meth = ['<h2><span class="rp-no">1</span>Method</h2>',
+      '<p class="rp-text">The material balance of an oil reservoir with a gas cap and water influx is</p>',
+      reqn(F + ' = ' + N + ' [' + Eo + ' + ' + m + ' ' + Eg + ' + (1 + ' + m + ') ' + Efw + '] + ' + We, 1),
+      '<p class="rp-text">where ' + F + ' is the underground withdrawal and ' + Eo + ', ' + Eg + ' and ' + Efw + ' are the expansions of the oil, the gas cap, and the connate water and rock' + (withEt ? '; ' + Et + ' is the total expansion' : '') + ':</p>',
+      '<div class="rp-defs">' + defs.map(function (d) { return '<span>' + d[0] + '</span><span>' + d[1] + '</span>'; }).join('') + '</div>',
+      '<p class="rp-text">The drive mechanism was identified by fitting every candidate model (depletion; gas cap; water drive with a pot, steady-state or unsteady-state aquifer; gas cap with water drive) and keeping, of the physically valid models, the one with the lowest corrected Akaike information criterion (AICc); a model with fewer constants is preferred when it is within 2 of the lowest.</p>'];
+    var lead = '<p class="rp-text">For ' + mechShort + (why.length ? ', with ' + andList(why) : '') + ', ';
+    var fitWhat;
+    if (b.view === 'water') {
+      meth.push(lead + 'dividing Eq. (1) by ' + Et + ' gives</p>');
+      meth.push(reqn(rfrac(F, Et) + ' = ' + N + ' + ' + rfrac(We, Et), 2));
+      fitWhat = 'With the correct aquifer model the points lie on a straight line of unit slope whose intercept is ' + N + '.';
+    } else if (b.view === 'origin') {
+      meth.push(lead + 'Eq. (1) becomes a straight line through the origin,</p>');
+      meth.push(reqn((water ? F + ' − ' + We : F) + ' = ' + N + ' ' + Et, 2));
+      fitWhat = 'Its slope is ' + N + (gas ? ', with ' + m + ' given in the data file.' : '.');
+    } else {
+      var den = efw ? Eo + ' + (1 + ' + m + ') ' + Efw : Eo;
+      meth.push(lead + 'Eq. (1) becomes the straight line</p>');
+      meth.push(reqn(rfrac(water ? F + ' − ' + We : F, den) + ' = ' + N + ' + ' + m + N + ' ' + rfrac(Eg, den), 2));
+      fitWhat = 'Its intercept is ' + N + ' and its slope ' + m + N + ', so ' + m + ' = slope/intercept and ' + rv('G') + ' = ' + m + N + ' ' + rv('B', 'oi') + '/' + rv('B', 'gi') + '.' +
+        (efw ? ' Because ' + m + ' appears on both axes, the fit is repeated with each new ' + m + ' until ' + m + ' no longer changes.' : '');
+    }
+    var out = terms.filter(function (t) { return t.usable && !t.included; }).length;
+    var aqFit = water && aq !== 'column';
+    var fitText = 'The line was fitted by least squares' + (aqFit ? ', together with the aquifer constant' + (aq === 'veh' ? 's' : '') + ',' : '') +
+      ' to the ' + fit.n + ' points below the initial pressure' + (out ? ' (' + plural(out, 'point') + ' left out)' : '') + '.';
+    if (aqFit) {
+      var aqEq = aq === 'pot' ? We + ' = ' + rv('K') + ' (' + rv('p', 'i') + ' − ' + rv('p') + ')'
+        : aq === 'steady' ? We + ' = ' + rv('C') + ' ∫<sub>0</sub><sup><var>t</var></sup> (' + rv('p', 'i') + ' − ' + rv('p') + ') d' + rv('t')
+        : We + ' = ' + rv('U') + ' Σ<sub><var>j</var></sub> Δ' + rv('p', 'j') + ' ' + rv('W', 'D') + '(' + rv('t', 'D') + ' − ' + rv('t', 'D<var>j</var>') + '),&emsp;' + rv('t', 'D') + ' = ' + rv('a') + ' ' + rv('t');
+      meth.push('<p class="rp-text">' + fitWhat + ' The water influx was modelled with ' + aqWords + ',</p>');
+      meth.push(reqn(aqEq, 3));
+      meth.push('<p class="rp-text">' + (aq === 'veh' ? 'where ' + rv('W', 'D') + ' is the dimensionless influx of a radial aquifer at constant terminal pressure and Δ' + rv('p', 'j') + ' are the averaged pressure steps (Dake, 1978). ' : '') + fitText + '</p>');
+    } else {
+      meth.push('<p class="rp-text">' + fitWhat + (aq === 'column' ? ' The water influx ' + We + ' is taken from the data file.' : '') + ' ' + fitText + '</p>');
+    }
+
+    // 2 Results
+    var t1 = [['Oil initially in place', N, mm(R.N), 'MMSTB', range(R.ciN, mm)]];
+    if (gas) {
+      t1.push(['Gas-cap ratio', m, fmtFixed(R.m, 3), '–', R.mFixed ? 'given' : range(R.ciM, function (x) { return fmtFixed(x, 3); })]);
+      t1.push(['Gas-cap gas in place', rv('G'), fmtFixed(R.G / 1e9, gD), 'Bscf', R.mFixed ? '–' : range(R.ciG, function (x) { return fmtFixed(x / 1e9, gD); })]);
+    }
+    if (weRow) {
+      t1.push(['Water influx', We, fmtFixed(last.We / 1e6, dec4(last.We / 1e6)), 'MM rb', '–']);
+      if (aq === 'pot' || aq === 'veh') {
+        var uD = dec4(c.fit.U);
+        t1.push(['Aquifer constant', rv(aq === 'pot' ? 'K' : 'U'), fmtFixed(c.fit.U, uD), 'rb/psi', b.view === 'water' && R.ciU ? range(R.ciU, function (x) { return fmtFixed(x, uD); }) : '–']);
+      }
+      if (aq === 'steady') {
+        var perRow = det.timeMode === 'steps', Cv = c.fit.U * (perRow ? 1 : 365.25);
+        t1.push(['Aquifer constant', rv('C'), fmtFixed(Cv, dec4(Cv)), perRow ? 'rb/psi per row' : 'rb/(psi year)', '–']);
+      }
+      if (aq === 'veh') {
+        t1.push(['Aquifer radius ratio', rv('r', 'e') + '/' + rv('r', 'o'), reText(c.reD), '–', '–']);
+        var aV = det.timeMode === 'steps' ? c.a : c.a * 365.25;
+        t1.push(['Dimensionless time constant', rv('a'), fmtFixed(aV, dec4(aV)), det.timeMode === 'steps' ? 'per row' : 'per year', '–']);
+      }
+    }
+    if (rec) {
+      t1.push(['Cumulative oil produced', Np, fmtFixed(rec.Np / 1e6, npD), 'MMSTB', '–']);
+      t1.push(['Recovery factor', 'RF', rfText(rec.RF), '%', '–']);
+    }
+    t1.push(['Coefficient of determination', rv('R') + '<sup>2</sup>', fit.r2.toFixed(3), '–', '–']);
+    var at = [];
+    if (weRow && rec && last.p === rec.p) at.push(We + ', ' + Np + ' and RF are at ' + fmtFixed(rec.p, 0) + ' psia');
+    else {
+      if (weRow) at.push(We + ' is at ' + fmtFixed(last.p, 0) + ' psia');
+      if (rec) at.push(Np + ' and RF are at ' + fmtFixed(rec.p, 0) + ' psia');
+    }
+    var hasOut = out > 0;
+    var axisY = b.view === 'water' ? F + '/' + Et : b.view === 'origin' ? (water ? F + ' − ' + We : F) : (water ? '(' + F + ' − ' + We + ')' : F) + '/' + (efw ? '[' + Eo + ' + (1 + ' + m + ') ' + Efw + ']' : Eo);
+    var axisX = b.view === 'water' ? We + '/' + Et : b.view === 'origin' ? Et : Eg + '/' + (efw ? '[' + Eo + ' + (1 + ' + m + ') ' + Efw + ']' : Eo);
+    var lineTold = b.view === 'origin' ? 'The line through the origin has slope ' + N
+      : b.view === 'water' ? 'The line has unit slope and intercept ' + N
+      : 'The intercept of the line is ' + N + ' and its slope ' + m + N;
+    var res = '<h2><span class="rp-no">2</span>Results</h2>' +
+      '<table><caption><b>Table 1.</b> Results of the analysis' + (at.length ? '; ' + at.join('; ') : '') + '. CI: 95 % confidence interval of the least-squares fit.</caption>' +
+      '<thead><tr><th>Quantity</th><th class="rp-c">Symbol</th><th>Value</th><th class="rp-l">Unit</th><th>95 % CI</th></tr></thead><tbody>' +
+      t1.map(function (r) { return '<tr><td>' + r[0] + '</td><td class="rp-c">' + r[1] + '</td><td>' + r[2] + '</td><td class="rp-l">' + r[3] + '</td><td>' + r[4] + '</td></tr>'; }).join('') +
+      '</tbody></table>' +
+      '<figure><div class="rp-chart"></div><figcaption><b>Figure 1.</b> Havlena–Odeh plot of ' + axisY + ' against ' + axisX + '. ' + lineTold +
+      '; filled points are used in the fit' + (hasOut ? ' and open points are left out' : '') + '.</figcaption></figure>';
+    h.push('<div class="rp-cols"><section>' + meth.join('') + '</section><section>' + res + '</section></div>');
+
+    // 3 Data
+    var PNAME = { pi: 'Initial pressure', Boi: 'Initial oil FVF', Bgi: 'Initial gas FVF', Rsi: 'Initial solution GOR', Swc: 'Connate water saturation', Cw: 'Water compressibility', Cf: 'Formation compressibility' };
+    var PSYM = { pi: rv('p', 'i'), Boi: rv('B', 'oi'), Bgi: rv('B', 'gi'), Rsi: rv('R', 'si'), Swc: rv('S', 'wc'), Cw: rv('c', 'w'), Cf: rv('c', 'f') };
+    var PUNIT = { pi: 'psia', Boi: 'rb/STB', Bgi: 'rb/SCF', Rsi: 'SCF/STB', Swc: '–', Cw: 'psi<sup>−1</sup>', Cf: 'psi<sup>−1</sup>' };
+    var info = b.inputs.paramInfo, prm = b.inputs.params, src = { file: [], derived: [], 'default': [], user: [], 'not-needed': [] };
+    var t2 = ['pi', 'Boi', 'Bgi', 'Rsi', 'Swc', 'Cw', 'Cf'].map(function (k) {
+      var inf = info[k] || {}, x = prm[k];
+      if (src[inf.source]) src[inf.source].push(PSYM[k]);
+      var val = inf.source === 'not-needed' ? '–' : (k === 'Cw' || k === 'Cf') ? sciText(x) : fmtFixed(x, decimalsOf(x));
+      return '<tr><td>' + PNAME[k] + '</td><td class="rp-c">' + PSYM[k] + '</td><td>' + val + '</td><td class="rp-l">' + PUNIT[k] + '</td></tr>';
     });
-    var rows = b.inputs.rows, gas = !b.inputs.noGas;
-    var has = function (k) { return rows.some(function (r) { return isFinite(r[k]) && r[k] !== 0; }); };
+    var srcNote = [];
+    if (src.file.length) srcNote.push(andList(src.file) + ' from the data file');
+    if (src.derived.length) srcNote.push(andList(src.derived) + ' from the table row at the initial pressure');
+    if (src.user.length) srcNote.push(andList(src.user) + ' entered by the user');
+    if (src['default'].length) srcNote.push(andList(src['default']) + ' not given and taken as 0');
+    if (src['not-needed'].length) srcNote.push(andList(src['not-needed']) + ' not needed (no free gas)');
     var cols = [];
-    if (b.inputs.hasTime) cols.push({ h: '<var>t</var>', u: 'years', f: function (r) { return r.t / 365.25; } });
-    cols.push({ h: SYM.p, u: 'psia', f: function (r) { return r.p; } });
-    cols.push({ h: SYM.Np, u: 'MMSTB', f: function (r) { return r.Np / 1e6; } });
-    if (gas) cols.push({ h: SYM.Gp, u: 'MMSCF', f: function (r) { return r.Gp / 1e6; } });
-    cols.push({ h: SYM.Bo, u: 'rb/STB', f: function (r) { return r.Bo; } });
-    if (gas) cols.push({ h: SYM.Rs, u: 'SCF/STB', f: function (r) { return r.Rs; } });
-    if (gas) cols.push({ h: SYM.Bg, u: 'rb/SCF', f: function (r) { return r.Bg; } });
-    if (has('Wp')) cols.push({ h: SYM.Wp, u: 'MMSTB', f: function (r) { return r.Wp / 1e6; } });
-    if (b.inputs.hasWe && has('We')) cols.push({ h: '<var>W</var><sub>e</sub>', u: 'MM rb', f: function (r) { return r.We / 1e6; } });
+    if (b.inputs.hasTime) cols.push({ h: rv('t'), u: 'years', f: function (r) { return r.t / 365.25; } });
+    cols.push({ h: rv('p'), u: 'psia', f: function (r) { return r.p; } });
+    cols.push({ h: Np, u: 'MMSTB', f: function (r) { return r.Np / 1e6; } });
+    if (!b.inputs.noGas) cols.push({ h: rv('G', 'p'), u: 'Bscf', f: function (r) { return r.Gp / 1e9; } });
+    cols.push({ h: rv('B', 'o'), u: 'rb/STB', f: function (r) { return r.Bo; } });
+    if (!b.inputs.noGas) {
+      cols.push({ h: rv('R', 's'), u: 'SCF/STB', f: function (r) { return r.Rs; } });
+      cols.push({ h: rv('B', 'g'), u: 'rb/SCF', f: function (r) { return r.Bg; } });
+    }
+    if (rows.some(function (r) { return isFinite(r.Wp) && r.Wp !== 0; })) cols.push({ h: rv('W', 'p'), u: 'MMSTB', f: function (r) { return r.Wp / 1e6; } });
+    if (b.inputs.hasWe && rows.some(function (r) { return isFinite(r.We) && r.We !== 0; })) cols.push({ h: We, u: 'MM rb', f: function (r) { return r.We / 1e6; } });
+    cols.forEach(function (col) {
+      var d = colDecimals(rows.map(col.f));
+      col.fmt = function (r) { var x = col.f(r); return isFinite(x) ? fmtFixed(x, d) : '–'; };
+    });
     var termBy = {};
-    b.result.terms.forEach(function (t) { termBy[t.id] = t; });
+    terms.forEach(function (t) { termBy[t.id] = t; });
     var line = function (r) {
-      var t = termBy[r.id], inFit = !!(t && t.included);
-      return '<tr' + (inFit || !(t && t.usable) ? '' : ' class="rp-out"') + '>' + cols.map(function (c) { return '<td>' + esc(fmtData(c.f(r))) + '</td>'; }).join('') +
-        '<td>' + (inFit ? '✓' : (t && t.usable ? 'left out' : '')) + '</td></tr>';
+      var t = termBy[r.id];
+      return '<tr>' + cols.map(function (col) { return '<td>' + col.fmt(r) + '</td>'; }).join('') + '<td class="rp-c">' + (t && t.included ? 'yes' : t && t.usable ? 'no' : '–') + '</td></tr>';
     };
-    var body;
-    if (rows.length <= REPORT_ROWS) body = rows.map(line).join('');
-    else body = rows.slice(0, 6).map(line).join('') + '<tr class="rp-gap"><td colspan="' + (cols.length + 1) + '">' + plural(rows.length - 9, 'more row') + '</td></tr>' + rows.slice(-3).map(line).join('');
-    h.push('<div class="rp-two"><section><h2>Initial parameters</h2><table><tbody>' + prmRows.join('') + '</tbody></table></section>' +
-      '<section><h2>Production data</h2><table><thead><tr>' + cols.map(function (c) { return '<th>' + c.h + '<small>' + esc(c.u) + '</small></th>'; }).join('') +
-      '<th>Fit</th></tr></thead><tbody>' + body + '</tbody></table></section></div>');
-    // notes
-    var notes = collectMessages(b).slice(0, 4);
-    if (notes.length) h.push('<h2>Notes</h2><ul class="rp-notes">' + notes.map(function (m) { return '<li>' + rich(m.text) + '</li>'; }).join('') + '</ul>');
-    h.push('<p class="rp-foot"><var>F</var> = <var>N</var> [<var>E</var><sub>o</sub> + <var>m E</var><sub>g</sub> + (1 + <var>m</var>) <var>E</var><sub>fw</sub>] + <var>W</var><sub>e</sub> ' +
-      'as a straight line (Havlena and Odeh, 1963), fitted by least squares. Havlena–Odeh analyzer.</p>');
+    var shown = rows.length <= REPORT_ROWS ? rows.map(line).join('')
+      : rows.slice(0, 6).map(line).join('') + '<tr class="rp-gap"><td colspan="' + (cols.length + 1) + '">' + plural(rows.length - 9, 'more row') + '</td></tr>' + rows.slice(-3).map(line).join('');
+    h.push('<h2><span class="rp-no">3</span>Data</h2><div class="rp-tables">' +
+      '<div><table><caption><b>Table 2.</b> Initial reservoir parameters.</caption><thead><tr><th>Parameter</th><th class="rp-c">Symbol</th><th>Value</th><th class="rp-l">Unit</th></tr></thead><tbody>' + t2.join('') + '</tbody></table>' +
+      '<p class="rp-note">FVF: formation volume factor; GOR: gas–oil ratio. ' + (srcNote.length ? srcNote.join('; ').replace(/^./, function (ch) { return ch.toUpperCase(); }) + '.' : '') + '</p></div>' +
+      '<div><table' + (cols.length < 5 ? ' class="rp-narrow"' : '') + '><caption><b>Table 3.</b> Production and PVT data.</caption><thead><tr>' + cols.map(function (col) { return '<th>' + col.h + '<span class="rp-u">' + col.u + '</span></th>'; }).join('') +
+      '<th class="rp-c">In fit</th></tr></thead><tbody>' + shown + '</tbody></table>' +
+      '<p class="rp-note">The first row is the initial state, not a point of the line' + (hasOut ? '; “no” marks points left out of the fit' : '') + '.</p></div></div>');
+
+    // 4 Remarks: the notes the text above does not already give
+    var skip = { 'efw-default': 1, 'efw-off': 1, steps: 1, 'no-model': 1 };
+    var notes = collectMessages(b).filter(function (msg) { return msg.level !== 'ok' && !skip[msg.code]; }).slice(0, 3);
+    if (notes.length) h.push('<h2><span class="rp-no">4</span>Remarks</h2><ol class="rp-list">' + notes.map(function (msg) { return '<li>' + rich(msg.text) + '</li>'; }).join('') + '</ol>');
+
+    // references
+    var refs = [];
+    if (aq === 'veh') refs.push('Dake, L.P. 1978. <i>Fundamentals of Reservoir Engineering</i>. Amsterdam: Elsevier.');
+    refs.push('Havlena, D. and Odeh, A.S. 1963. The Material Balance as an Equation of a Straight Line. <i>J Pet Technol</i> 15 (8): 896–900. https://doi.org/10.2118/559-PA.');
+    if (aq === 'steady') refs.push('Schilthuis, R.J. 1936. Active Oil and Reservoir Energy. <i>Trans. AIME</i> 118 (1): 33–52. https://doi.org/10.2118/936033-G.');
+    if (aq === 'veh') refs.push('van Everdingen, A.F. and Hurst, W. 1949. The Application of the Laplace Transformation to Flow Problems in Reservoirs. <i>J Pet Technol</i> 1 (12): 305–324. https://doi.org/10.2118/949305-G.');
+    h.push('<h2>References</h2><div class="rp-refs">' + refs.map(function (r) { return '<p>' + r + '</p>'; }).join('') + '</div>');
     return h.join('');
   }
 
@@ -1372,29 +1534,53 @@
     el.setAttribute('style', reportFonts());
     el.innerHTML = reportBody(b);
     document.body.appendChild(el);
+    var chart = el.querySelector('.rp-chart');
+    // the plot in print colours and the report's serif face, whatever the theme on screen
     var root = document.documentElement, theme = root.getAttribute('data-theme');
+    var TOKENS = { '--paper': '#ffffff', '--surface': '#ffffff', '--grid-minor': '#f0f0f0', '--grid-major': '#d4d4d4', '--ink': '#000000', '--ink-2': '#1a1a1a',
+      '--muted': '#4d4d4d', '--line': '#d9d9d9', '--line-strong': '#8c8c8c', '--font-body': SERIF, '--font-math': SERIF };
     root.setAttribute('data-theme', 'light');
+    Object.keys(TOKENS).forEach(function (k) { root.style.setProperty(k, TOKENS[k]); });
     try {
-      C.hoPlot(el.querySelector('.rp-chart'), hoSpec(b, { legendEl: el.querySelector('.legend'), animate: false, height: 285 }).opts);
+      var opts = hoSpec(b, { animate: false, paperTitles: true }).opts;
+      var z = fitToPage(el, function () {
+        C.hoPlot(chart, Object.assign({}, opts, { height: Math.round(chart.clientWidth * REPORT_CHART_ASPECT) }));
+      });
+      if (z < 1) {
+        el.dataset.zoom = z.toFixed(4);
+        el.style.zoom = el.dataset.zoom;
+      }
     } finally {
+      Object.keys(TOKENS).forEach(function (k) { root.style.removeProperty(k); });
       if (theme === null) root.removeAttribute('data-theme'); else root.setAttribute('data-theme', theme);
-    }
-    // one page: a report that still runs long is shrunk to fit (wider first, so it keeps the page width)
-    var high = el.scrollHeight, room = REPORT_PAGE_PX - 24;   // a little to spare for the printer's fonts
-    if (high > room) {
-      var z = Math.max(0.6, room / high);
-      el.dataset.zoom = z.toFixed(4);
-      el.style.zoom = el.dataset.zoom;
-      el.style.width = (180 / z).toFixed(2) + 'mm';
     }
     root.classList.add('print-report');
     return el;
   }
 
-  function reportFonts() {
-    var cs = getComputedStyle(document.documentElement);
-    return '--rp-body: ' + cs.getPropertyValue('--font-body').trim() + '; --rp-display: ' + cs.getPropertyValue('--font-display').trim() + '; --rp-math: ' + cs.getPropertyValue('--font-math').trim();
+  /**
+   * One page: a report that runs long is laid out wider and shrunk back to the page width, by the
+   * largest zoom that fits (found by halving). The plot is drawn again at each width, so its lettering
+   * shrinks with the text. Returns the zoom, 1 when the report fits as it is.
+   */
+  function fitToPage(el, draw) {
+    var room = REPORT_PAGE_PX - 24;   // a little to spare for the printer's fonts
+    var fits = function (z) {
+      el.style.width = (180 / z).toFixed(2) + 'mm';
+      draw();
+      return el.scrollHeight * z <= room && el.scrollWidth <= el.clientWidth + 1;   // and nothing sticks out at the side
+    };
+    if (fits(1)) return 1;
+    var lo = 0.6, hi = 1;
+    for (var i = 0; i < 7; i++) {
+      var mid = (lo + hi) / 2;
+      if (fits(mid)) lo = mid; else hi = mid;
+    }
+    fits(lo);
+    return lo;
   }
+
+  function reportFonts() { return '--rp-serif: ' + SERIF; }
 
   function clearReport() {
     var el = $('report'), style = $('report-style');
@@ -1523,6 +1709,10 @@
     $('dl-example').addEventListener('click', downloadExample);
     $('export-btn').addEventListener('click', exportResults);
     $('report-btn').addEventListener('click', printReport);
+    // the report's serif, fetched ahead so that it is ready when the print dialog opens
+    if (document.fonts && document.fonts.load) {
+      ['400', '600', 'italic 400'].forEach(function (w) { document.fonts.load(w + ' 10pt "STIX Two Text"', 'Ag−Δ').catch(function () {}); });
+    }
     $('csv-btn').addEventListener('click', exportCSV);
     $('png-ho').addEventListener('click', function () { exportPNG('chart-ho', 'havlena-odeh-plot.png'); });
     $('png-check').addEventListener('click', function () { exportPNG('chart-check', 'F-vs-Et-check.png'); });
