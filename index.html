@@ -100,53 +100,6 @@
       </div>
     </details>
 
-    <details class="side-sec" id="sec-drive" open>
-      <summary>Drive mechanism <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
-      <div class="side-body">
-        <p class="side-note">The dashboard tries every mechanism and keeps the one the data support. Pick one to see its results instead.</p>
-        <div class="aq-opts" role="radiogroup" aria-label="Drive mechanism">
-          <label class="radio"><input type="radio" name="mech" value="auto" checked> <span>Find it from the data<small id="mech-found" aria-live="polite"></small></span></label>
-          <label class="radio"><input type="radio" name="mech" value="depletion"> <span>Depletion (solution gas, rock and fluid expansion)</span></label>
-          <label class="radio"><input type="radio" name="mech" value="gascap"> <span>Gas cap</span></label>
-          <label class="radio"><input type="radio" name="mech" value="water"> <span>Water drive</span></label>
-          <label class="radio"><input type="radio" name="mech" value="combination"> <span>Gas cap and water drive</span></label>
-        </div>
-        <div class="aq-box" id="aq-box">
-          <label class="field-l" for="aq-model">Aquifer model</label>
-          <select id="aq-model">
-            <option value="auto">Best fit of the models below</option>
-            <option value="pot">Pot aquifer</option>
-            <option value="steady">Steady state (Schilthuis)</option>
-            <option value="veh">Unsteady state (van Everdingen–Hurst)</option>
-            <option value="column">From the file (W_e column)</option>
-          </select>
-          <p class="field-note" id="aq-note"></p>
-          <div class="aq-pot" id="aq-pot" hidden>
-            <div class="prm">
-              <label for="aq-k"><span class="sym"><var>K</var></span> <span class="nm">Pot aquifer constant</span></label>
-              <div class="prm-input"><input id="aq-k" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="fitted"><span class="unit">rb/psi</span></div>
-            </div>
-            <input type="range" id="aq-range" min="0" max="100000" step="100" value="0" aria-label="Pot aquifer constant K, rb/psi">
-            <button class="btn-quiet" type="button" id="aq-best">Fit <var>K</var> again</button>
-          </div>
-          <div class="aq-veh" id="aq-veh" hidden>
-            <label class="field-l" for="aq-red">Aquifer size, <var>r</var><sub>e</sub>/<var>r</var><sub>o</sub></label>
-            <select id="aq-red"></select>
-          </div>
-          <div class="aq-time" id="aq-time" hidden>
-            <label class="field-l" for="aq-steps">Time between rows</label>
-            <select id="aq-steps">
-              <option value="auto">Equal steps, only if needed</option>
-              <option value="steps">Equal steps</option>
-              <option value="none">Unknown</option>
-            </select>
-            <p class="field-note">The file has no time column. Steady- and unsteady-state aquifers need time.</p>
-          </div>
-          <p class="aq-read" id="aq-read" aria-live="polite"></p>
-        </div>
-      </div>
-    </details>
-
     <details class="side-sec" id="sec-cols" open>
       <summary>Columns and units <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
       <div class="side-body">
@@ -331,7 +284,7 @@
       <p>Havlena and Odeh (1963) wrote the material balance as a straight line, one for each drive mechanism. The dashboard uses them to find the mechanism in three steps.</p>
       <ol class="method-steps">
         <li><strong>Depletion check.</strong> With depletion alone, the apparent <var>N</var> = <var>F</var> / (<var>E</var><sub>o</sub> + <var>E</var><sub>fw</sub>) is the same at every step. If it drifts, more energy is acting.</li>
-        <li><strong>Fit every mechanism.</strong> Depletion: <var>F</var> against <var>E</var><sub>t</sub> through the origin. Gas cap: the straight line below, with <var>N</var> as the intercept and <var>mN</var> as the slope. Water drive: <var>F</var>/<var>E</var><sub>t</sub> against <var>W</var><sub>e</sub>/<var>E</var><sub>t</sub>, a line of slope 1 that meets the axis at <var>N</var>, with a pot, steady-state or unsteady-state aquifer. Gas cap and water drive together. The aquifer constants are found by least squares, which does the trial and error for you; you can also set them by hand.</li>
+        <li><strong>Fit every mechanism.</strong> Depletion: <var>F</var> against <var>E</var><sub>t</sub> through the origin. Gas cap: the straight line below, with <var>N</var> as the intercept and <var>mN</var> as the slope. Water drive: <var>F</var>/<var>E</var><sub>t</sub> against <var>W</var><sub>e</sub>/<var>E</var><sub>t</sub>, a line of slope 1 that meets the axis at <var>N</var>, with a pot, steady-state or unsteady-state aquifer. Gas cap and water drive together. The aquifer constants are found by least squares, which does the trial and error for you.</li>
         <li><strong>Keep what the data support.</strong> A model counts only if <var>N</var>, <var>m</var> and the aquifer constant are positive, each mechanism in it supplies at least 2 % of <var>F</var>, and their signs survive rounding the table within its last digit (90 % of 120 trials). Of those, the one with the lowest AICc (Akaike’s criterion, corrected for few points) on the relative misfit of <var>F</var> wins; within 2 of it, the one with fewer constants wins. Without a time column, steady- and unsteady-state aquifers are tried only when nothing simpler fits, with the rows taken as equal time steps.</li>
       </ol>
       <div class="eqs">

@@ -32,7 +32,7 @@ without one the rows can be taken as equal time steps. A *W*<sub>e</sub> column 
 A mechanism is set aside when it needs a negative gas cap or water leaving the reservoir, when its
 extra energy supplies under 2 % of *F*, when it cannot be told apart from rock and fluid expansion,
 or when rounding the table within its last digit flips it. Of the rest, the best fit by AICc wins,
-and the one with fewer constants wins a near tie. The mechanism and the aquifer can also be set by hand.
+and the one with fewer constants wins a near tie.
 
 The file needs *p*, *N*<sub>p</sub> and *B*<sub>o</sub>, plus *R*<sub>s</sub>, *B*<sub>g</sub> and *G*<sub>p</sub> (or *R*<sub>p</sub>) when the oil goes
 below the bubble point; without them the oil is taken as undersaturated. Time or date, *W*<sub>p</sub>,

@@ -353,28 +353,10 @@ a { color: var(--focus); }
 .switch input:checked::after { transform: translateX(14px); }
 .switch small { display: block; color: var(--muted); font-size: 12px; }
 
-/* water influx */
-.aq-opts { display: grid; gap: 9px; }
-.radio { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; line-height: 1.35; cursor: pointer; }
-.radio input { margin: 2px 0 0; width: 15px; height: 15px; flex: none; accent-color: var(--ink); }
-.radio small { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
-.radio small strong { color: var(--ink); font-weight: 600; }
-.radio input:disabled, .radio input:disabled + span { cursor: not-allowed; color: var(--muted); }
-.aq-box { display: grid; gap: 7px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-.field-l { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
-.field-note { font-size: 12px; color: var(--muted); line-height: 1.4; }
-.field-note:empty, .aq-read:empty { display: none; }
-.aq-veh, .aq-time { display: grid; gap: 6px; margin-top: 4px; }
-.aq-pot { display: grid; gap: 8px; margin-top: 4px; }
-.aq-pot .prm { padding: 6px 0 0; }
-.aq-pot input[type="range"] { width: 100%; height: 24px; accent-color: var(--water); }
-.aq-pot .btn-quiet { justify-self: start; }
-.aq-read { font-size: 12.5px; color: var(--ink-2); line-height: 1.45; }
-
 /* columns and units */
 .colmap { display: grid; grid-template-columns: 44px minmax(0, 1fr) 96px; gap: 6px 8px; align-items: center; }
 .colmap .sym { font-size: 15px; }
-.colmap select, .sheet-pick select, .outunits select, .aq-box select {
+.colmap select, .sheet-pick select, .outunits select {
   width: 100%; height: 32px; padding: 0 26px 0 8px; font-size: 13px;
   border: 1px solid var(--line-strong); border-radius: var(--r-s); background-color: var(--surface);
   appearance: none; -webkit-appearance: none;

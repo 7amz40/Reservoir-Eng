@@ -102,11 +102,6 @@
     mNow: null,
     out: { N: 'MMSTB', G: 'MMMSCF' },
     tableAll: false,
-    mech: 'auto',        // drive mechanism: 'auto' (found from the data), 'depletion', 'gascap', 'water', 'combination'
-    aqModel: 'auto',     // aquifer: 'auto' (best fit, or the W_e column when the file has one), 'pot', 'steady', 'veh', 'column'
-    potK: null,          // pot aquifer constant set by hand (rb/psi); null = fitted
-    reD: null,           // aquifer size r_e/r_o set by hand; null = fitted
-    timeMode: 'auto',    // without a time column: 'auto' (equal steps only if needed), 'steps', 'none'
     bundle: null,
     fileError: null
   };
@@ -141,18 +136,19 @@
     return Object.assign({ includeEfw: state.includeEfw, excluded: excludedIds(b), precision: b.inputs.precision }, extra || {});
   }
 
+  /** A W_e column in the file is used as it is, instead of an aquifer model. */
   function useWeColumn(inputs) {
-    return !!(inputs && inputs.hasWe) && (state.aqModel === 'auto' || state.aqModel === 'column');
+    return !!(inputs && inputs.hasWe);
   }
 
-  /** Runs the drive-mechanism detection (or the mechanism chosen by hand). */
+  /** Finds the drive mechanism from the data: every mechanism is fitted and the one the data support is kept. */
   function detect(b) {
     var inp = b.inputs, P0 = inp.params, col = useWeColumn(inp);
     return D.detect(inp.rows, P0, {
       includeEfw: state.includeEfw, excluded: excludedIds(b), precision: inp.precision,
-      hasTime: inp.hasTime, time: state.timeMode, mech: state.mech,
-      aquifer: col || state.aqModel === 'column' ? 'auto' : state.aqModel, weColumn: col,
-      potK: isFinite(state.potK) && state.potK !== null ? state.potK : null, reD: state.reD,
+      hasTime: inp.hasTime, time: 'auto', mech: 'auto',
+      aquifer: 'auto', weColumn: col,
+      potK: null, reD: null,
       mKnown: isFinite(P0.m) && P0.m >= 0 ? P0.m : null,
       undersaturated: inp.noGas ? true : undefined,
       undersaturatedText: inp.noGas ? 'There are no R_s, B_g or G_p columns, so the oil is taken as undersaturated: no free gas and no gas cap.' : undefined
@@ -192,7 +188,6 @@
     renderAlert(b);
     renderSource(b);
     renderParams(b);
-    renderDrive(b);
     renderColumns(b);
     renderLedger(b);
     renderNotes(b);
@@ -389,9 +384,8 @@
   /** The aquifer of a model, in words (rich text). */
   function aquiferText(b, c) {
     if (!c || !c.water) return '';
-    var set = c.waterFitted ? '' : ' (set by you)';
     if (c.aquifer === 'column') return 'W_e from the file';
-    if (c.aquifer === 'pot') return 'Pot aquifer, K = ' + fmtFixed(c.fit.U, 0) + ' rb/psi' + set;
+    if (c.aquifer === 'pot') return 'Pot aquifer, K = ' + fmtFixed(c.fit.U, 0) + ' rb/psi';
     if (c.aquifer === 'steady') return 'Steady-state aquifer, C = ' + fmtSig(c.fit.U * (b.detection.timeMode === 'steps' ? 1 : 365.25), 4) + (b.detection.timeMode === 'steps' ? ' rb/psi per row' : ' rb/psi per year');
     if (c.aquifer === 'veh') return 'Unsteady-state aquifer (van Everdingen–Hurst), r_e/r_o = ' + reText(c.reD) + ', U = ' + fmtFixed(c.fit.U, 0) + ' rb/psi, t_D = ' + tdText(b, c.a);
     return '';
@@ -423,69 +417,6 @@
       parts.push(aquiferText(b, c).replace(/^./, function (x) { return x.toLowerCase(); }));
     }
     return parts.join('; ') + '.';
-  }
-
-  /* ---------- drive mechanism (sidebar) ---------- */
-  function potKmax(b) {
-    var k = 0;
-    (b.result ? b.result.terms : []).forEach(function (t) {
-      if (t.Np > 0 && t.dP > 0 && t.F > 0) k = Math.max(k, t.F / t.dP);
-    });
-    if (!(k > 0)) k = 1e5;
-    var mag = Math.pow(10, Math.floor(Math.log10(k)));
-    return Math.ceil(k / mag) * mag;
-  }
-
-  var redBuilt = false;
-  function renderDrive(b) {
-    document.querySelectorAll('input[name="mech"]').forEach(function (r) {
-      r.checked = r.value === state.mech;
-      r.disabled = !b.inputs;
-      if (r.value === 'gascap' || r.value === 'combination') r.disabled = !b.inputs || !!b.inputs.noGas;
-    });
-    var c = b.model, det = b.detection;
-    $('mech-found').innerHTML = state.mech === 'auto' && det ? 'Found: <strong>' + esc(familyName(b)) + '</strong>' : '';
-    if (!redBuilt) {
-      $('aq-red').innerHTML = '<option value="">Best fit</option>' + D.REDS.map(function (r) {
-        return '<option value="' + (r === Infinity ? 'inf' : r) + '">' + reText(r) + (r === Infinity ? ' (infinite aquifer)' : '') + '</option>';
-      }).join('');
-      redBuilt = true;
-    }
-    // the aquifer settings stay in view while water drive is possible: in automatic mode, and for the two water mechanisms
-    var waterShown = state.mech === 'auto' || state.mech === 'water' || state.mech === 'combination';
-    var hasWe = !!(b.inputs && b.inputs.hasWe);
-    $('aq-box').hidden = !b.inputs || !waterShown;
-    var sel = $('aq-model');
-    sel.value = state.aqModel;
-    sel.querySelector('option[value="column"]').disabled = !hasWe;
-    var active = c && c.water ? c.aquifer : (state.aqModel !== 'auto' ? state.aqModel : '');
-    var note = '';
-    if (hasWe && useWeColumn(b.inputs)) {
-      var prod = b.analysis.production;
-      note = 'Using W_e from column ' + P.colLetter(prod.mapping.We) + '. Choose another model to fit an aquifer instead.';
-    } else if (state.aqModel === 'auto' && c && c.water) {
-      note = 'Best fit: ' + ({ pot: 'pot aquifer', steady: 'steady state', veh: 'unsteady state' }[c.aquifer] || '') + '.';
-    }
-    $('aq-note').innerHTML = rich(note);
-    // pot aquifer: K by hand (trial and error) or fitted
-    $('aq-pot').hidden = active !== 'pot';
-    if (active === 'pot') {
-      var K = c && c.aquifer === 'pot' ? c.fit.U : (isFinite(state.potK) ? state.potK : 0);
-      var range = $('aq-range');
-      var max = Math.max(potKmax(b), K || 0, state.potK || 0);
-      range.max = max; range.step = max / 1000; range.value = Math.max(0, K || 0);
-      var kin = $('aq-k');
-      if (document.activeElement !== kin) kin.value = state.potK !== null && isFinite(state.potK) ? fmtFixed(state.potK, 0) : '';
-      kin.placeholder = c && c.aquifer === 'pot' && c.waterFitted ? 'fitted: ' + fmtFixed(c.fit.U, 0) : 'fitted';
-      $('aq-best').hidden = state.potK === null;
-    }
-    // unsteady state: aquifer size
-    $('aq-veh').hidden = active !== 'veh';
-    $('aq-red').value = state.reD === null ? '' : (state.reD === Infinity ? 'inf' : String(state.reD));
-    // time between rows (only when the file has none)
-    $('aq-time').hidden = !b.inputs || b.inputs.hasTime || hasWe && useWeColumn(b.inputs);
-    $('aq-steps').value = state.timeMode;
-    $('aq-read').innerHTML = c && c.water ? rich(aquiferText(b, c)) + '.' : '';
   }
 
   /* ---------- columns and units ---------- */
@@ -710,8 +641,9 @@
     } else if (b.view === 'water') {
       var c = b.model, uUnit = c && c.aquifer === 'steady' ? (b.detection.timeMode === 'steps' ? 'rb/psi per row' : 'rb/(psi·day)') : 'rb/psi';
       rows.push(['Intercept, <var>N</var>', pm(R.N, R.seN, div, fmtRes) + ' ' + nu]);
-      rows.push(['Aquifer constant, ' + (c && c.aquifer === 'pot' ? '<var>K</var>' : c && c.aquifer === 'steady' ? '<var>C</var>' : '<var>U</var>'),
-        (isFinite(R.seU) && isFinite(fit.tcrit) ? fmtSig(R.U, 4) + ' ± ' + (fit.tcrit * R.seU < 5e-5 * Math.abs(R.U) ? '0' : fmtSig(fit.tcrit * R.seU, 2)) : fmtSig(R.U, 4) + (c && !c.waterFitted ? ', set by you' : '')) + ' ' + uUnit]);
+      if (c && c.aquifer === 'column') rows.push(['Water influx', '<var>W</var><sub>e</sub> from the file']);
+      else rows.push(['Aquifer constant, ' + (c && c.aquifer === 'pot' ? '<var>K</var>' : c && c.aquifer === 'steady' ? '<var>C</var>' : '<var>U</var>'),
+        (isFinite(R.seU) && isFinite(fit.tcrit) ? fmtSig(R.U, 4) + ' ± ' + (fit.tcrit * R.seU < 5e-5 * Math.abs(R.U) ? '0' : fmtSig(fit.tcrit * R.seU, 2)) : fmtSig(R.U, 4)) + ' ' + uUnit]);
       rows.push(['<var>m</var>', fmtM(R.m) + (R.m > 0 ? ', given' : ', no gas cap')]);
       rows.push(['Scatter of <var>y</var> about the line', isFinite(fit.s) ? fmtRes(fit.s / div) + ' ' + nu : '–']);
     } else {
@@ -1019,11 +951,6 @@
     state.paramEdits = {};
     state.excluded = new Set();
     state.mNow = null;
-    state.mech = 'auto';
-    state.aqModel = 'auto';
-    state.potK = null;
-    state.reD = null;
-    state.timeMode = 'auto';
     state.tableAll = false;
     state.fileError = null;
     mRange.key = '';
@@ -1305,48 +1232,6 @@
 
     $('efw').addEventListener('change', function () { state.includeEfw = this.checked; recompute({ noAnim: true }); });
 
-    document.querySelectorAll('input[name="mech"]').forEach(function (r) {
-      r.addEventListener('change', function () {
-        if (!this.checked) return;
-        state.mech = this.value;
-        recompute({ noAnim: true });
-      });
-    });
-    $('aq-model').addEventListener('change', function () {
-      state.aqModel = this.value;
-      if (state.aqModel !== 'pot') state.potK = null;
-      if (state.aqModel !== 'veh') state.reD = null;
-      recompute({ noAnim: true });
-    });
-    var aqTimer = null;
-    function setK(v, quiet) {
-      if (!(isFinite(v) && v >= 0)) return false;
-      state.potK = v;
-      if (state.aqModel === 'auto' || state.aqModel === 'column') state.aqModel = 'pot';
-      recompute({ noAnim: true, quiet: quiet });
-      return true;
-    }
-    $('aq-k').addEventListener('input', function () {
-      var el = this;
-      clearTimeout(aqTimer);
-      aqTimer = setTimeout(function () {
-        if (!el.value.trim()) { state.potK = null; recompute({ noAnim: true, quiet: true }); return; }
-        setK(U.parseNumber(el.value), true);
-      }, 350);
-    });
-    $('aq-k').addEventListener('change', function () {
-      clearTimeout(aqTimer);
-      if (!this.value.trim()) { state.potK = null; recompute({ noAnim: true }); return; }
-      if (!setK(U.parseNumber(this.value), false)) this.value = state.potK !== null ? fmtFixed(state.potK, 0) : '';
-    });
-    $('aq-range').addEventListener('input', function () { setK(+this.value, true); });
-    $('aq-best').addEventListener('click', function () { state.potK = null; recompute({ noAnim: true }); });
-    $('aq-red').addEventListener('change', function () {
-      state.reD = this.value === '' ? null : (this.value === 'inf' ? Infinity : +this.value);
-      if (state.reD !== null && state.aqModel !== 'veh') state.aqModel = 'veh';
-      recompute({ noAnim: true });
-    });
-    $('aq-steps').addEventListener('change', function () { state.timeMode = this.value; recompute({ noAnim: true }); });
     $('labels-all').addEventListener('change', function () { state.labelsAll = this.checked; renderCharts(state.bundle, { noAnim: true }); });
     $('reset-points').addEventListener('click', function () { state.excluded.clear(); recompute({ noAnim: true }); });
     $('out-N').addEventListener('change', function () { state.out.N = this.value; renderAll(state.bundle, { noAnim: true, quiet: true }); });
