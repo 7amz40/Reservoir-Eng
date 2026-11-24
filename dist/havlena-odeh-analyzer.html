@@ -6435,16 +6435,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       ['', ''],
       ['Line', lineText],
       ['Efw included', state.includeEfw ? 'yes' : 'no'],
-      ['Time', b.inputs.hasTime ? 'from the file' : (det.assumedSteps ? 'rows taken as equal time steps' : 'none')],
-      ['', ''],
-      ['How the mechanism was found', '']
-    ].concat(det.evidence.map(function (e) { return [{ yes: 'supports', no: 'ruled out', maybe: 'weaker', info: 'note' }[e.level], plain(e.text)]; }));
-    var models = [['Mechanism', 'Aquifer', 'N (STB)', 'm', 'Aquifer constant', 'r_e/r_o', 'Misfit of F (rms, fraction)', 'AICc', 'Physical', 'Share at least 2 %', 'Robust to rounding', 'Chosen']];
-    det.cands.forEach(function (k) {
-      models.push([D.NAMES[k.family], k.water ? k.aquifer : 'none', k.fit.N, k.gas ? k.fit.m : (k.mFixed || 0), k.water ? k.fit.U : null,
-        k.aquifer === 'veh' ? (k.reD === Infinity ? 'infinite' : k.reD) : null, k.sc.rms, isFinite(k.sc.aicc) ? k.sc.aicc : null,
-        k.valid ? 'yes' : 'no', k.material ? 'yes' : 'no', k.robust ? 'yes' : 'no', k === c ? 'yes' : '']);
-    });
+      ['Time', b.inputs.hasTime ? 'from the file' : (det.assumedSteps ? 'rows taken as equal time steps' : 'none')]
+    ];
     var inputs = [['Parameter', 'Value', 'Unit', 'Source']];
     [['pi', 'psia'], ['Boi', 'rb/STB'], ['Bgi', 'rb/SCF'], ['Rsi', 'SCF/STB'], ['Swc', 'fraction'], ['Cw', '1/psi'], ['Cf', '1/psi']].forEach(function (p) {
       var i = info[p[0]] || {};
@@ -6454,7 +6446,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var notes = [['Level', 'Note']].concat(collectMessages(b).map(function (m) { return [m.level, m.text.replace(/_/g, '')]; }));
     X.writeXlsx([
       { name: 'Results', headerRows: 0, colWidths: [38, 60, 10, 16, 16], rows: results },
-      { name: 'Models', headerRows: 1, colWidths: [36, 10, 16, 10, 16, 9, 14, 10, 10, 12, 12, 8], rows: models },
       { name: 'Calculations', headerRows: 1, colWidths: [10, 10, 14, 16, 12, 11, 12, 12, 9, 16, 14, 12, 12, 12, 10, 16, 16, 9, 9, 9, 9, 8, 24], rows: calcRows(b) },
       { name: 'Inputs', headerRows: 1, colWidths: [12, 14, 10, 34], rows: inputs },
       { name: 'Notes', headerRows: 1, colWidths: [10, 110], rows: notes }

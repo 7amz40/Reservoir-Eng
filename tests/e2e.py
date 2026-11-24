@@ -372,7 +372,7 @@ def t_downloads(b):
     assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542"
     p = grab("#export-btn")
     wb = load_workbook(p)
-    assert wb.sheetnames == ["Results", "Models", "Calculations", "Inputs", "Notes"]
+    assert wb.sheetnames == ["Results", "Calculations", "Inputs", "Notes"]
     res = [r for r in wb["Results"].iter_rows(values_only=True) if r and r[0]]
     by = {(r[0], r[2]): r for r in res}
     assert any(r[0] == "Drive mechanism" and r[1].startswith("Gas-cap drive (found from the data)") for r in res)
@@ -380,8 +380,7 @@ def t_downloads(b):
     approx(by[("m, gas-cap to oil-zone volume ratio", "-")][1], 0.5416, 1e-3)
     approx(by[("G, gas-cap gas initially in place", "Bscf")][1], 84.619, 1e-4)
     assert by[("We, water influx at the last step", "rb")][1] is None
-    models = list(wb["Models"].iter_rows(values_only=True))
-    assert len(models) == 5 and sum(1 for r in models[1:] if r[-1] == "yes") == 1
+    assert not any("How the mechanism" in str(r[0]) for r in res), "no list of models or evidence in the export"
     # F at 3,150 psia: Np Bo + (Gp - Np Rs) Bg = 3.295e6 x 1.2353 + (3.460e9 - 3.295e6 x 477) x 0.00092 rb
     approx(wb["Calculations"]["J3"].value, 5807535.7, 1e-6)
     p = grab("#csv-btn")
