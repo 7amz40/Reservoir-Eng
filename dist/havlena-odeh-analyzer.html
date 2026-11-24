@@ -370,6 +370,7 @@ a { color: var(--focus); }
 .radio { display: flex; align-items: flex-start; gap: 9px; font-size: 13.5px; line-height: 1.35; cursor: pointer; }
 .radio input { margin: 2px 0 0; width: 15px; height: 15px; flex: none; accent-color: var(--ink); }
 .radio small { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.radio small strong { color: var(--ink); font-weight: 600; }
 .radio input:disabled, .radio input:disabled + span { cursor: not-allowed; color: var(--muted); }
 .aq-box { display: grid; gap: 7px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .field-l { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
@@ -424,50 +425,12 @@ main {
 .alert .alert-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .alert .close { margin-left: auto; }
 
-/* ---------- verdict: the drive mechanism ---------- */
-
-.verdict {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px 34px;
-  padding: 16px 2px 20px;
-  border-top: 2px solid var(--ink);
-}
-.verdict-k { font-size: 13px; color: var(--muted); }
-.verdict-title {
-  margin-top: 2px;
-  font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 1.02; letter-spacing: -0.01em; color: var(--ink);
-  text-wrap: balance;
-}
-.verdict-sub { margin-top: 8px; font-size: 14.5px; line-height: 1.45; color: var(--ink-2); max-width: 58ch; }
-.verdict-sub .assume { display: inline-block; margin-top: 2px; color: var(--warn); }
-.shares { margin-top: 16px; max-width: 520px; }
-.shares-bar { display: flex; gap: 2px; height: 14px; border-radius: 4px; overflow: hidden; background: var(--surface); }
-.shares-bar span { flex-basis: 0; min-width: 3px; }
-.sh-oil { background: var(--oil); }
-.sh-gas { background: var(--gas); }
-.sh-water { background: var(--water); }
-.sh-rock { background: var(--rock); }
-.shares-key { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 12.5px; color: var(--ink-2); }
-.shares-key li { display: inline-flex; align-items: center; gap: 6px; }
-.shares-key strong { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
-.shares-key .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-.shares-at { margin-top: 4px; font-size: 12px; color: var(--muted); }
-
-.evidence { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; align-content: start; }
-.evidence li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
-.evidence li svg { width: 22px; height: 22px; padding: 3px; border-radius: 50%; margin-top: -1px; }
-.evidence li[data-level="yes"] svg { color: var(--oil); background: var(--oil-soft); }
-.evidence li[data-level="yes"] { color: var(--ink); }
-.evidence li[data-level="no"] svg { color: var(--muted); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
-.evidence li[data-level="maybe"] svg { color: var(--warn); background: var(--warn-soft); }
-.evidence li[data-level="info"] svg { color: var(--muted); background: var(--info-soft); }
-
 /* ---------- ledger (results) ---------- */
 
 .ledger {
-  border-top: 1px solid var(--line-strong);
+  border-top: 2px solid var(--ink);
   border-bottom: 1px solid var(--line-strong);
 }
-.verdict[hidden] + .ledger { border-top: 2px solid var(--ink); }
 .ledger-line {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px;
   padding: 12px 2px 12px;
@@ -670,7 +633,6 @@ footer.foot {
 }
 
 @media (max-width: 1080px) {
-  .verdict { grid-template-columns: minmax(0, 1fr); }
   .pair { grid-template-columns: minmax(0, 1fr); }
   .explorer-grid { grid-template-columns: minmax(0, 1fr); }
   .eqs { grid-template-columns: minmax(0, 1fr); }
@@ -693,7 +655,6 @@ footer.foot {
   .appbar .btn span { display: none; }
   .appbar .btn { padding: 0 10px; }
   .ledger-grid, .ledger.has-we .ledger-grid { grid-template-columns: minmax(0, 1fr); }
-  .verdict-title { font-size: 36px; }
   .res + .res { border-left: 0; padding-left: 2px; border-top: 1px solid var(--line); }
   .res-val { font-size: 40px; }
   .ledger-fit { margin-left: 0; width: 100%; }
@@ -809,7 +770,7 @@ footer.foot {
       <div class="side-body">
         <p class="side-note">The dashboard tries every mechanism and keeps the one the data support. Pick one to see its results instead.</p>
         <div class="aq-opts" role="radiogroup" aria-label="Drive mechanism">
-          <label class="radio"><input type="radio" name="mech" value="auto" checked> <span>Find it from the data<small id="mech-found"></small></span></label>
+          <label class="radio"><input type="radio" name="mech" value="auto" checked> <span>Find it from the data<small id="mech-found" aria-live="polite"></small></span></label>
           <label class="radio"><input type="radio" name="mech" value="depletion"> <span>Depletion (solution gas, rock and fluid expansion)</span></label>
           <label class="radio"><input type="radio" name="mech" value="gascap"> <span>Gas cap</span></label>
           <label class="radio"><input type="radio" name="mech" value="water"> <span>Water drive</span></label>
@@ -878,16 +839,6 @@ footer.foot {
 
   <main id="main" tabindex="-1">
     <div class="alert" id="alert" role="alert" hidden></div>
-
-    <section class="verdict" id="verdict" aria-labelledby="verdict-title" aria-live="polite">
-      <div class="verdict-main">
-        <p class="verdict-k" id="verdict-k">Drive mechanism, found from the data</p>
-        <h2 class="verdict-title" id="verdict-title">–</h2>
-        <p class="verdict-sub" id="verdict-sub"></p>
-        <div class="shares" id="shares"></div>
-      </div>
-      <ul class="evidence" id="evidence" aria-label="Evidence for each mechanism"></ul>
-    </section>
 
     <section class="ledger" id="ledger" aria-labelledby="ledger-title">
       <h2 class="sr-only" id="ledger-title">Results</h2>
@@ -5408,7 +5359,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     renderParams(b);
     renderDrive(b);
     renderColumns(b);
-    renderVerdict(b);
     renderLedger(b);
     renderNotes(b);
     renderCharts(b, opts);
@@ -5591,7 +5541,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('efw').checked = state.includeEfw;
   }
 
-  /* ---------- drive mechanism: wording shared by the sidebar, the verdict and the tables ---------- */
+  /* ---------- drive mechanism: wording shared by the sidebar, the notes and the export ---------- */
   function reText(r) { return r === Infinity || r === 'inf' ? '∞' : String(r); }
   function pctText(v) { var a = Math.abs(v * 100); return (a >= 10 ? a.toFixed(0) : a >= 1 ? a.toFixed(1) : a.toFixed(2)) + ' %'; }
 
@@ -5659,7 +5609,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (r.value === 'gascap' || r.value === 'combination') r.disabled = !b.inputs || !!b.inputs.noGas;
     });
     var c = b.model, det = b.detection;
-    $('mech-found').innerHTML = state.mech === 'auto' && det ? 'Found: ' + esc(familyName(b)) : '';
+    $('mech-found').innerHTML = state.mech === 'auto' && det ? 'Found: <strong>' + esc(familyName(b)) + '</strong>' : '';
     if (!redBuilt) {
       $('aq-red').innerHTML = '<option value="">Best fit</option>' + D.REDS.map(function (r) {
         return '<option value="' + (r === Infinity ? 'inf' : r) + '">' + reText(r) + (r === Infinity ? ' (infinite aquifer)' : '') + '</option>';
@@ -5701,59 +5651,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('aq-time').hidden = !b.inputs || b.inputs.hasTime || hasWe && useWeColumn(b.inputs);
     $('aq-steps').value = state.timeMode;
     $('aq-read').innerHTML = c && c.water ? rich(aquiferText(b, c)) + '.' : '';
-  }
-
-  /* ---------- verdict ---------- */
-  var EV_ICON = {
-    yes: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.4l3.2 3.2L15 6.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    no: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-    maybe: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
-    info: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="6" r="1.2" fill="currentColor"/></svg>'
-  };
-  var EV_SR = { yes: 'Supports: ', no: 'Ruled out: ', maybe: 'Possible but weaker: ', info: 'Note: ' };
-
-  function renderVerdict(b) {
-    var det = b.detection;
-    var el = $('verdict');
-    if (!det) {
-      el.hidden = !b.blocking && !b.inputs ? true : false;
-      $('verdict-k').textContent = 'Drive mechanism';
-      $('verdict-title').textContent = b.blocking ? 'No data yet' : '–';
-      $('verdict-sub').textContent = b.inputs && b.inputs.messages.errors.length ? 'Fix the reservoir parameters on the left to run the analysis.' : '';
-      $('shares').innerHTML = '';
-      $('evidence').innerHTML = '';
-      el.removeAttribute('data-fam');
-      return;
-    }
-    el.hidden = false;
-    $('verdict-k').textContent = det.forced ? 'Drive mechanism, chosen by you' : 'Drive mechanism, found from the data';
-    $('verdict-title').textContent = familyName(b);
-    el.setAttribute('data-fam', b.model ? b.model.family : 'none');
-    $('verdict-sub').innerHTML = rich(familyLine(b)) + (det.assumedSteps ? ' <span class="assume">Rows taken as equal time steps.</span>' : '');
-    // shares of the drive at the last step in the fit
-    var sh = '';
-    if (hasFit(b) && !negativeM(b)) {
-      var inc = b.result.terms.filter(function (t) { return t.included && isFinite(t.sumDI) && t.sumDI > 0; });
-      var last = inc[inc.length - 1];
-      if (last) {
-        var items = [
-          { k: 'DDI', name: 'Depletion', cls: 'oil' }, { k: 'SDI', name: 'Gas cap', cls: 'gas' },
-          { k: 'WDI', name: 'Water influx', cls: 'water' }, { k: 'CDI', name: 'Rock and water expansion', cls: 'rock' }
-        ].map(function (it) { return Object.assign(it, { v: Math.max(0, last[it.k] / last.sumDI) }); })
-          .filter(function (it) { return it.v >= 0.005; });
-        sh = '<div class="shares-bar" role="img" aria-label="Drive indices at ' + esc(fmtFixed(last.p, 0)) + ' psia: ' +
-          esc(items.map(function (it) { return it.name + ' ' + pctText(it.v); }).join(', ')) + '">' +
-          items.map(function (it) { return '<span class="sh-' + it.cls + '" style="flex-grow:' + it.v.toFixed(4) + '"></span>'; }).join('') + '</div>' +
-          '<ul class="shares-key" aria-hidden="true">' + items.map(function (it) {
-            return '<li><i class="sw sh-' + it.cls + '"></i>' + esc(it.name) + ' <strong>' + pctText(it.v) + '</strong></li>';
-          }).join('') + '</ul>' +
-          '<p class="shares-at">Drive indices at the last step, ' + esc(fmtFixed(last.p, 0)) + ' psia</p>';
-      }
-    }
-    $('shares').innerHTML = sh;
-    $('evidence').innerHTML = det.evidence.map(function (e) {
-      return '<li data-level="' + e.level + '">' + EV_ICON[e.level] + '<span><span class="sr-only">' + EV_SR[e.level] + '</span>' + rich(e.text) + '</span></li>';
-    }).join('');
   }
 
   /* ---------- columns and units ---------- */
@@ -5934,6 +5831,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (b.detection && b.model && b.model.sc.rms > D.POOR) {
       out.push({ level: 'warning', text: 'Even the best model misses F by ' + pctText(b.model.sc.rms) + ' on average, so treat these results with care. Check the units and the PVT data, or leave out points that do not follow the trend.' });
     }
+    if (b.detection && !b.model) out.push({ level: 'warning', text: 'No mechanism both makes physical sense and fits the data. The results are for depletion alone.' });
+    if (b.detection && b.detection.assumedSteps) out.push({ level: 'info', text: 'There is no time column, so the rows are taken as equal time steps (for example, one per year) for the aquifer. If they are not, add a time column.' });
     add('info', a.infos);
     if (b.inputs) add('info', b.inputs.messages.infos.filter(function (m) { return !(m.code === 'efw-default' && !state.includeEfw); }));
     if (b.result) add('info', b.result.messages.infos);

@@ -4,7 +4,7 @@ An interactive dashboard for PNGE 4412 Reservoir Engineering at Sultan Qaboos Un
 Load an Excel file of production and PVT data and it finds the drive mechanism, then gives,
 with the Havlena–Odeh straight-line method:
 
-- the drive mechanism, with the evidence for and against each one
+- the drive mechanism
 - *N*, the stock-tank oil initially in place
 - *m*, the ratio of the initial gas-cap volume to the oil-zone volume, and *G*, the gas-cap gas initially in place
 - the water influx *W*<sub>e</sub> and the aquifer constant, when there is an aquifer

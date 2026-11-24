@@ -194,7 +194,6 @@
     renderParams(b);
     renderDrive(b);
     renderColumns(b);
-    renderVerdict(b);
     renderLedger(b);
     renderNotes(b);
     renderCharts(b, opts);
@@ -377,7 +376,7 @@
     $('efw').checked = state.includeEfw;
   }
 
-  /* ---------- drive mechanism: wording shared by the sidebar, the verdict and the tables ---------- */
+  /* ---------- drive mechanism: wording shared by the sidebar, the notes and the export ---------- */
   function reText(r) { return r === Infinity || r === 'inf' ? '∞' : String(r); }
   function pctText(v) { var a = Math.abs(v * 100); return (a >= 10 ? a.toFixed(0) : a >= 1 ? a.toFixed(1) : a.toFixed(2)) + ' %'; }
 
@@ -445,7 +444,7 @@
       if (r.value === 'gascap' || r.value === 'combination') r.disabled = !b.inputs || !!b.inputs.noGas;
     });
     var c = b.model, det = b.detection;
-    $('mech-found').innerHTML = state.mech === 'auto' && det ? 'Found: ' + esc(familyName(b)) : '';
+    $('mech-found').innerHTML = state.mech === 'auto' && det ? 'Found: <strong>' + esc(familyName(b)) + '</strong>' : '';
     if (!redBuilt) {
       $('aq-red').innerHTML = '<option value="">Best fit</option>' + D.REDS.map(function (r) {
         return '<option value="' + (r === Infinity ? 'inf' : r) + '">' + reText(r) + (r === Infinity ? ' (infinite aquifer)' : '') + '</option>';
@@ -487,59 +486,6 @@
     $('aq-time').hidden = !b.inputs || b.inputs.hasTime || hasWe && useWeColumn(b.inputs);
     $('aq-steps').value = state.timeMode;
     $('aq-read').innerHTML = c && c.water ? rich(aquiferText(b, c)) + '.' : '';
-  }
-
-  /* ---------- verdict ---------- */
-  var EV_ICON = {
-    yes: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10.4l3.2 3.2L15 6.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    no: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-    maybe: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
-    info: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="6" r="1.2" fill="currentColor"/></svg>'
-  };
-  var EV_SR = { yes: 'Supports: ', no: 'Ruled out: ', maybe: 'Possible but weaker: ', info: 'Note: ' };
-
-  function renderVerdict(b) {
-    var det = b.detection;
-    var el = $('verdict');
-    if (!det) {
-      el.hidden = !b.blocking && !b.inputs ? true : false;
-      $('verdict-k').textContent = 'Drive mechanism';
-      $('verdict-title').textContent = b.blocking ? 'No data yet' : '–';
-      $('verdict-sub').textContent = b.inputs && b.inputs.messages.errors.length ? 'Fix the reservoir parameters on the left to run the analysis.' : '';
-      $('shares').innerHTML = '';
-      $('evidence').innerHTML = '';
-      el.removeAttribute('data-fam');
-      return;
-    }
-    el.hidden = false;
-    $('verdict-k').textContent = det.forced ? 'Drive mechanism, chosen by you' : 'Drive mechanism, found from the data';
-    $('verdict-title').textContent = familyName(b);
-    el.setAttribute('data-fam', b.model ? b.model.family : 'none');
-    $('verdict-sub').innerHTML = rich(familyLine(b)) + (det.assumedSteps ? ' <span class="assume">Rows taken as equal time steps.</span>' : '');
-    // shares of the drive at the last step in the fit
-    var sh = '';
-    if (hasFit(b) && !negativeM(b)) {
-      var inc = b.result.terms.filter(function (t) { return t.included && isFinite(t.sumDI) && t.sumDI > 0; });
-      var last = inc[inc.length - 1];
-      if (last) {
-        var items = [
-          { k: 'DDI', name: 'Depletion', cls: 'oil' }, { k: 'SDI', name: 'Gas cap', cls: 'gas' },
-          { k: 'WDI', name: 'Water influx', cls: 'water' }, { k: 'CDI', name: 'Rock and water expansion', cls: 'rock' }
-        ].map(function (it) { return Object.assign(it, { v: Math.max(0, last[it.k] / last.sumDI) }); })
-          .filter(function (it) { return it.v >= 0.005; });
-        sh = '<div class="shares-bar" role="img" aria-label="Drive indices at ' + esc(fmtFixed(last.p, 0)) + ' psia: ' +
-          esc(items.map(function (it) { return it.name + ' ' + pctText(it.v); }).join(', ')) + '">' +
-          items.map(function (it) { return '<span class="sh-' + it.cls + '" style="flex-grow:' + it.v.toFixed(4) + '"></span>'; }).join('') + '</div>' +
-          '<ul class="shares-key" aria-hidden="true">' + items.map(function (it) {
-            return '<li><i class="sw sh-' + it.cls + '"></i>' + esc(it.name) + ' <strong>' + pctText(it.v) + '</strong></li>';
-          }).join('') + '</ul>' +
-          '<p class="shares-at">Drive indices at the last step, ' + esc(fmtFixed(last.p, 0)) + ' psia</p>';
-      }
-    }
-    $('shares').innerHTML = sh;
-    $('evidence').innerHTML = det.evidence.map(function (e) {
-      return '<li data-level="' + e.level + '">' + EV_ICON[e.level] + '<span><span class="sr-only">' + EV_SR[e.level] + '</span>' + rich(e.text) + '</span></li>';
-    }).join('');
   }
 
   /* ---------- columns and units ---------- */
@@ -720,6 +666,8 @@
     if (b.detection && b.model && b.model.sc.rms > D.POOR) {
       out.push({ level: 'warning', text: 'Even the best model misses F by ' + pctText(b.model.sc.rms) + ' on average, so treat these results with care. Check the units and the PVT data, or leave out points that do not follow the trend.' });
     }
+    if (b.detection && !b.model) out.push({ level: 'warning', text: 'No mechanism both makes physical sense and fits the data. The results are for depletion alone.' });
+    if (b.detection && b.detection.assumedSteps) out.push({ level: 'info', text: 'There is no time column, so the rows are taken as equal time steps (for example, one per year) for the aquifer. If they are not, add a time column.' });
     add('info', a.infos);
     if (b.inputs) add('info', b.inputs.messages.infos.filter(function (m) { return !(m.code === 'efw-default' && !state.includeEfw); }));
     if (b.result) add('info', b.result.messages.infos);

@@ -105,7 +105,7 @@
       <div class="side-body">
         <p class="side-note">The dashboard tries every mechanism and keeps the one the data support. Pick one to see its results instead.</p>
         <div class="aq-opts" role="radiogroup" aria-label="Drive mechanism">
-          <label class="radio"><input type="radio" name="mech" value="auto" checked> <span>Find it from the data<small id="mech-found"></small></span></label>
+          <label class="radio"><input type="radio" name="mech" value="auto" checked> <span>Find it from the data<small id="mech-found" aria-live="polite"></small></span></label>
           <label class="radio"><input type="radio" name="mech" value="depletion"> <span>Depletion (solution gas, rock and fluid expansion)</span></label>
           <label class="radio"><input type="radio" name="mech" value="gascap"> <span>Gas cap</span></label>
           <label class="radio"><input type="radio" name="mech" value="water"> <span>Water drive</span></label>
@@ -174,16 +174,6 @@
 
   <main id="main" tabindex="-1">
     <div class="alert" id="alert" role="alert" hidden></div>
-
-    <section class="verdict" id="verdict" aria-labelledby="verdict-title" aria-live="polite">
-      <div class="verdict-main">
-        <p class="verdict-k" id="verdict-k">Drive mechanism, found from the data</p>
-        <h2 class="verdict-title" id="verdict-title">–</h2>
-        <p class="verdict-sub" id="verdict-sub"></p>
-        <div class="shares" id="shares"></div>
-      </div>
-      <ul class="evidence" id="evidence" aria-label="Evidence for each mechanism"></ul>
-    </section>
 
     <section class="ledger" id="ledger" aria-labelledby="ledger-title">
       <h2 class="sr-only" id="ledger-title">Results</h2>
