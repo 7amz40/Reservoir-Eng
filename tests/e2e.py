@@ -121,6 +121,10 @@ def t_example(b):
     assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542" and pg.val("res-G") == "84.62"
     assert pg.page.locator("#res-We").is_hidden()
     assert "rounding the table" in pg.text("#res-N .res-ci")
+    # oil recovered so far: 17.73 of 108.6 MMSTB at 2,400 psia
+    assert pg.val("res-RF") == "16.3" and pg.text("#res-RF .u") == "%"
+    assert "at 2,400 psia" in pg.text("#res-RF-how")
+    assert pg.text("#res-RF .res-ci") == "17.73 of 108.6 MMSTB produced; 90.92 MMSTB remain", pg.text("#res-RF .res-ci")
     assert pg.page.locator("#chart-ho circle.hit").count() == 6 and pg.fit_points() == 6
     assert pg.page.locator("#calc tbody tr").count() == 7
     assert "Example" in pg.text("#source")
@@ -384,6 +388,8 @@ def t_downloads(b):
     approx(by[("N, oil initially in place", "MMSTB")][1], 108.647, 1e-4)
     approx(by[("m, gas-cap to oil-zone volume ratio", "-")][1], 0.5416, 1e-3)
     approx(by[("G, gas-cap gas initially in place", "Bscf")][1], 84.619, 1e-4)
+    assert by[("Np, oil produced at the last step", "STB")][1] == 17.73e6
+    approx(by[("RF, oil recovered so far (Np / N)", "%")][1], 100 * 17.73 / 108.647, 1e-4)
     assert by[("We, water influx at the last step", "rb")][1] is None
     assert not any("How the mechanism" in str(r[0]) for r in res), "no list of models or evidence in the export"
     # F at 3,150 psia: Np Bo + (Gp - Np Rs) Bg = 3.295e6 x 1.2353 + (3.460e9 - 3.295e6 x 477) x 0.00092 rb
@@ -393,6 +399,64 @@ def t_downloads(b):
     assert text.startswith("t (years),p (psia),Np (STB)") and text.count("\n") == 7
     p = grab("#png-ho")
     assert open(p, "rb").read(8) == b"\x89PNG\r\n\x1a\n"
+    pg.close()
+
+
+def pdf_pages(data):
+    return len(re.findall(rb"/Type\s*/Page(?![s\w])", data))
+
+
+@check("one-page report: results, plot and inputs, printed or as a file")
+def t_report(b):
+    pg = Page(b)
+    # laid out for print: one A4 page with the mechanism, the results, the plot and the inputs
+    assert pg.page.evaluate("HOApp.report.prepare()")
+    text = pg.page.locator("#report").text_content()
+    for t in ("Drive mechanism: Gas-cap drive", "108.6", "0.542", "84.62", "16.3", "Initial parameters", "Production data", "3,150", "2,400"):
+        assert t in text, t
+    assert pg.page.locator("#report .rp-chart svg").count() == 1 and pg.page.locator("#report .rp-res").count() == 4
+    assert pdf_pages(pg.page.pdf(prefer_css_page_size=True, print_background=True)) == 1
+    pg.page.evaluate("HOApp.report.clear()")
+    assert pg.page.locator("#report").count() == 0
+    # the button prints it and tidies up after the print dialog
+    pg.page.evaluate("() => { window.__ev = []; addEventListener('beforeprint', () => __ev.push('before')); addEventListener('afterprint', () => __ev.push('after')); }")
+    title = pg.page.title()
+    pg.page.click("#report-btn")
+    pg.page.wait_for_timeout(600)
+    assert pg.page.evaluate("__ev") == ["before", "after"]
+    assert pg.page.locator("#report").count() == 0 and pg.page.title() == title
+    # where printing is blocked (the hosted preview), the same page comes as a file to open and print
+    pg.page.evaluate("window.print = () => {}")
+    with pg.page.expect_download() as d:
+        pg.page.click("#report-btn")
+    path = os.path.join(tempfile.mkdtemp(), d.value.suggested_filename)
+    d.value.save_as(path)
+    assert d.value.suggested_filename == "havlena-odeh-example_report.html"
+    html = open(path, encoding="utf-8").read()
+    assert "Print or save as PDF" in html and "<svg" in html and "108.6" in html and "16.3" in html
+    page2 = pg.page.context.new_page()
+    page2.route("**/fonts.googleapis.com/**", lambda r: r.abort())
+    page2.route("**/fonts.gstatic.com/**", lambda r: r.abort())
+    page2.goto("file://" + path)
+    assert pdf_pages(page2.pdf(prefer_css_page_size=True, print_background=True)) == 1
+    page2.close()
+    # in the dark theme the report keeps the light colours of paper, and the dashboard stays dark
+    paper_light = pg.page.get_attribute("#chart-ho .paper rect", "fill")
+    pg.page.click("#theme-btn")
+    paper_dark = pg.page.get_attribute("#chart-ho .paper rect", "fill")
+    assert paper_dark != paper_light
+    assert pg.page.evaluate("HOApp.report.prepare()")
+    assert pg.page.get_attribute("#report .rp-chart .paper rect", "fill") == paper_light
+    assert pg.page.get_attribute("#chart-ho .paper rect", "fill") == paper_dark
+    pg.page.evaluate("HOApp.report.clear()")
+    pg.page.click("#theme-btn")
+    # a longer file and one with water influx still fit one page
+    for f, expect in (("synthetic_large.xlsx", "more rows"), ("q2_example.xlsx", "Water drive")):
+        pg.upload(os.path.join(FIX, f))
+        assert pg.page.evaluate("HOApp.report.prepare()")
+        assert expect in pg.page.locator("#report").text_content(), f
+        assert pdf_pages(pg.page.pdf(prefer_css_page_size=True, print_background=True)) == 1, f
+        pg.page.evaluate("HOApp.report.clear()")
     pg.close()
 
 

@@ -261,3 +261,25 @@ test('a point with E_o ≤ 0 is left out with a reason', () => {
   assert.equal(t.reason, 'E_o is not positive');
   assert.ok(r.messages.warnings.some(m => m.code === 'eo' && /1 point has E_o ≤ 0/.test(m.text)));
 });
+
+test('recovery so far: N_p at the latest step over N', async () => {
+  const { runFile, SAMPLES } = require('./helpers');
+  const path = require('path');
+  const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  const N = r.result.results.N;
+  const rec = E.recovery(r.result.terms, N);
+  assert.equal(rec.Np, 17.73e6);
+  assert.equal(rec.p, 2400);
+  close(rec.RF, 17.73e6 / N, 1e-12, 'RF');
+  close(rec.RF, 0.1632, 1e-3, 'about 16 % of N');
+  close(rec.remaining, N - 17.73e6, 1e-12, 'remaining');
+  // the latest step counts even when it is left out of the fit
+  const last = r.result.terms.find(t => t.Np === 17.73e6);
+  const again = E.recovery(r.result.terms.map(t => t === last ? Object.assign({}, t, { included: false }) : t), N);
+  assert.equal(again.Np, 17.73e6);
+  // no answer without a positive N or any production
+  assert.equal(E.recovery(r.result.terms, 0), null);
+  assert.equal(E.recovery(r.result.terms, -5), null);
+  assert.equal(E.recovery([{ Np: 0, p: 3300 }], N), null);
+  assert.equal(E.recovery([], N), null);
+});

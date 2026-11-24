@@ -177,6 +177,8 @@ a { color: var(--focus); }
   white-space: nowrap;
 }
 .btn:hover { filter: brightness(1.15); }
+.btn.btn-outline { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+.btn.btn-outline:hover { filter: none; background: var(--surface-2); border-color: var(--muted); }
 .btn svg { width: 16px; height: 16px; flex: none; }
 
 .btn-quiet {
@@ -401,8 +403,16 @@ main {
   border-top: 2px solid var(--ink);
   border-bottom: 1px solid var(--line-strong);
 }
-.ledger-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.ledger.has-we .ledger-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ledger-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* with the water influx: N, m, G on the first row, We and RF on the second (one row on very wide screens) */
+.ledger.has-we .ledger-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ledger.has-we .res:nth-child(4) { border-left: 0; padding-left: 2px; }
+.ledger.has-we .res:nth-child(n+4) { border-top: 1px solid var(--line); }
+@media (min-width: 1700px) {
+  .ledger.has-we .ledger-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ledger.has-we .res:nth-child(4) { border-left: 1px solid var(--line); padding-left: 22px; }
+  .ledger.has-we .res:nth-child(n+4) { border-top: 0; }
+}
 .res-sym sub { font-family: var(--font-math); font-style: normal; font-size: 0.55em; }
 .res { padding: 16px 18px 18px 2px; min-width: 0; }
 .res + .res { border-left: 1px solid var(--line); padding-left: 22px; }
@@ -419,6 +429,10 @@ main {
 .res-flag { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 2px 8px 2px 6px; border-radius: 4px; font-size: 12.5px; font-weight: 500; background: var(--warn-soft); color: var(--warn); border: 1px solid var(--warn-line); }
 .res-flag svg { width: 14px; height: 14px; }
 .res.is-empty .res-val { color: var(--muted); }
+.res-sym.res-abbr { font-style: normal; font-size: 24px; }
+.res-bar { margin-top: 10px; height: 6px; max-width: 240px; border-radius: 3px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.res-bar span { display: block; width: 0; height: 100%; background: var(--oil); }
+.res.is-empty .res-bar { visibility: hidden; }
 
 /* ---------- panels ---------- */
 
@@ -594,14 +608,14 @@ footer.foot {
 
 @media (max-width: 1280px) {
   :root { --side-w: 310px; }
-  .ledger.has-we .ledger-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ledger.has-we .res:nth-child(3) { border-left: 0; padding-left: 2px; }
-  .ledger.has-we .res:nth-child(n+3) { border-top: 1px solid var(--line); }
   .ho-grid { grid-template-columns: minmax(0, 1fr); }
   .notes-col { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 8px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 0 24px; }
 }
 
 @media (max-width: 1080px) {
+  .ledger:not(.has-we) .ledger-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ledger:not(.has-we) .res:nth-child(3) { border-left: 0; padding-left: 2px; }
+  .ledger:not(.has-we) .res:nth-child(n+3) { border-top: 1px solid var(--line); }
   .pair { grid-template-columns: minmax(0, 1fr); }
   .explorer-grid { grid-template-columns: minmax(0, 1fr); }
   .eqs { grid-template-columns: minmax(0, 1fr); }
@@ -623,7 +637,7 @@ footer.foot {
   .brand-org { padding-right: 12px; }
   .appbar .btn span { display: none; }
   .appbar .btn { padding: 0 10px; }
-  .ledger-grid, .ledger.has-we .ledger-grid { grid-template-columns: minmax(0, 1fr); }
+  .ledger .ledger-grid, .ledger.has-we .ledger-grid, .ledger:not(.has-we) .ledger-grid { grid-template-columns: minmax(0, 1fr); }
   .res + .res { border-left: 0; padding-left: 2px; border-top: 1px solid var(--line); }
   .res-val { font-size: 40px; }
   .ho-eq-fit { margin-left: 0; width: 100%; }

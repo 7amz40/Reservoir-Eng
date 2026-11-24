@@ -405,6 +405,18 @@
     return { res: res, terms: terms, inc: inc, P: P, msgs: msgs };
   }
 
+  /**
+   * Oil recovered so far: N_p at the latest step (the largest N_p in the table, in the fit or not) over N.
+   * Returns { Np, p, RF, remaining } in STB and psia, or null when N is not positive or nothing is produced yet.
+   */
+  function recovery(terms, N) {
+    if (!(N > 0)) return null;
+    var last = null;
+    (terms || []).forEach(function (t) { if (isFinite(t.Np) && (!last || t.Np > last.Np)) last = t; });
+    if (!last || !(last.Np > 0)) return null;
+    return { Np: last.Np, p: last.p, RF: last.Np / N, remaining: N - last.Np };
+  }
+
   /** Et, implied N and the drive indices at each point, for the fitted N and m. */
   function driveIndices(terms, N, m) {
     terms.forEach(function (tt) {
@@ -709,6 +721,7 @@
     roundingCheck: roundingCheck,
     bestPotK: bestPotK,
     driveIndices: driveIndices,
+    recovery: recovery,
     analyzeOrigin: analyzeOrigin,
     analyzeWater: analyzeWater,
     analyze: analyze

@@ -337,17 +337,19 @@
       }
     }
 
-    // points: left-out first, included on top
+    // points: left-out first, included on top; many points are drawn smaller and without the ring,
+    // so the rings do not hide the points they overlap
     var sorted = pts.slice().sort(function (a, b) { return (a.included ? 1 : 0) - (b.included ? 1 : 0); });
+    var dense = pts.length > 60;
     var gp = plot.append('g');
     var dots = gp.selectAll('circle.pt').data(sorted, function (p) { return p.key; }).join('circle')
       .attr('class', 'pt')
       .attr('cx', function (p) { return x(p.x); })
       .attr('cy', function (p) { return y(p.y / yd); })
-      .attr('r', 5)
+      .attr('r', dense ? 2.6 : 5)
       .attr('fill', function (p) { return p.included ? T.oil : T.paper; })
-      .attr('stroke', function (p) { return p.included ? T.paper : T.muted; })
-      .attr('stroke-width', function (p) { return p.included ? 2 : 1.6; });
+      .attr('stroke', function (p) { return p.included ? (dense ? 'none' : T.paper) : T.muted; })
+      .attr('stroke-width', function (p) { return p.included ? (dense ? 0 : 2) : (dense ? 1 : 1.6); });
 
     // intercept diamond and labels (drawn above the points)
     var ann = f.g.append('g');
@@ -373,6 +375,11 @@
     }
     var lineY = function (xx) { return d.fit ? y((d.fit.a + d.fit.b * xx) / yd) : NaN; };
     var screenPts = pts.map(function (p) { return [x(p.x), y(p.y / yd)]; });
+    // the points that get a pressure label: the first and last in the fit, or all
+    var inc = pts.filter(function (p) { return p.included; });
+    var labelled = d.labelsAll ? pts : (inc.length ? [inc[0], inc[inc.length - 1]] : []);
+    var labelText = function (p) { return d3.format(',')(Math.round(p.p)) + (d.labelsAll ? '' : ' psia'); };
+    var slopeBox = null;   // where the slope label sits, so the pressure labels keep clear of it
     if (d.fit && (d.mNtext || d.slopeLabel)) {
       // slope label on the line, where it is farthest from the points and from the N label
       var dom = x.domain(), best = null;
@@ -384,6 +391,11 @@
         for (var k = 0; k <= 4; k++) obstacles.push([nx + 12 + k * 28, ny + (d.fit.b / yd > 0 ? 18 : -16)]);
         obstacles.push([nx, ny]);
       }
+      // keep away from where the pressure labels will go
+      labelled.forEach(function (p) {
+        var lx = x(p.x), ly = y(p.y / yd), hw = labelText(p).length * 3.1 + 8;
+        obstacles.push([lx + hw, ly - 12], [lx - hw, ly - 12], [lx + hw, ly + 10], [lx - hw, ly + 10]);
+      });
       [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8].forEach(function (tt) {
         var xa = dom[0] + (dom[1] - dom[0]) * tt, px = x(xa), py = lineY(xa);
         if (!(py > 16 && py < f.ih - 16)) return;
@@ -399,19 +411,20 @@
           .attr('text-anchor', 'middle').attr('fill', T.ink2).attr('font-size', 12);
         richSvg(sl, slopeText, T);
         halo(sl, T);
+        var rad = ang * Math.PI / 180, cx = best.px + 9 * Math.sin(rad), cy = best.py - 9 * Math.cos(rad);
+        var bw = Math.abs(labelLen * Math.cos(rad)) + Math.abs(13 * Math.sin(rad)), bh = Math.abs(labelLen * Math.sin(rad)) + Math.abs(13 * Math.cos(rad));
+        slopeBox = [cx - bw / 2, cy - bh / 2, bw, bh];
       }
     }
 
     // pressure labels: first and last included point, or all; placed on the side away from the line
-    var inc = pts.filter(function (p) { return p.included; });
-    var labelled = d.labelsAll ? pts : (inc.length ? [inc[0], inc[inc.length - 1]] : []);
     var seen = {};
     labelled = labelled.filter(function (p) { if (seen[p.key]) return false; seen[p.key] = 1; return true; });
     var lg = ann.append('g');
-    var taken = [];
+    var taken = slopeBox ? [slopeBox] : [];
     labelled.forEach(function (p) {
       var px = x(p.x), py = y(p.y / yd);
-      var text = d3.format(',')(Math.round(p.p)) + (d.labelsAll ? '' : ' psia');
+      var text = labelText(p);
       var w = text.length * 6.2, h = 11;
       // four candidate spots around the point; keep the one farthest from other points, the line and other labels
       var cands = [[8, -7, 'start'], [8, 15, 'start'], [-8, -7, 'end'], [-8, 15, 'end']].map(function (c) {

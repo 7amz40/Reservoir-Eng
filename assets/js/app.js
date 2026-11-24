@@ -541,6 +541,7 @@
       setRes('res-N', '–', nu); setRes('res-m', '–', ''); setRes('res-G', '–', G_LABEL[gu]);
       weCard.hidden = true;
       $('ledger').classList.remove('has-we');
+      renderRecovery(null, nu);
       return;
     }
     var R = b.result.results, fit = b.result.fit, c = b.model;
@@ -581,6 +582,29 @@
       setRes('res-We', fmtRes(last.We / 1e6), 'MM rb', 'at ' + fmtFixed(last.p, 0) + ' psia: ' + pctText(last.We / last.F) + ' of F');
       $('res-We-how').innerHTML = rich(aquiferText(b, c));
     }
+    renderRecovery(E.recovery(b.result.terms, R.N), nu, R.N);
+  }
+
+  /** RF as a percentage: 16.3, 4.25, 104. */
+  function rfText(rf) {
+    var a = rf * 100;
+    return a >= 100 ? a.toFixed(0) : a >= 10 ? a.toFixed(1) : a.toFixed(2);
+  }
+
+  /** The recovery card: N_p at the latest step over N, what is left, and a bar. */
+  function renderRecovery(rec, nu, N) {
+    var bar = $('res-RF').querySelector('.res-bar span');
+    if (!rec) {
+      setRes('res-RF', '–', '', '');
+      $('res-RF-how').innerHTML = '<var>N</var><sub>p</sub> ÷ <var>N</var>';
+      bar.style.width = '0';
+      return;
+    }
+    var d = N_DIV[nu];
+    var told = fmtRes(rec.Np / d) + ' of ' + fmtRes(N / d) + ' ' + nu + ' produced' + (rec.remaining > 0 ? '; ' + fmtRes(rec.remaining / d) + ' ' + nu + ' remain' : '');
+    setRes('res-RF', rfText(rec.RF), '%', told, rec.RF > 1 ? 'More than N: check the fit' : '');
+    $('res-RF-how').innerHTML = '<var>N</var><sub>p</sub> ÷ <var>N</var> at ' + esc(fmtFixed(rec.p, 0)) + ' psia';
+    bar.style.width = Math.min(100, rec.RF * 100).toFixed(2) + '%';
   }
 
   /* ---------- fit notes and statistics ---------- */
@@ -682,35 +706,22 @@
     return !!(b.result && b.result.terms.some(function (t) { return t.usable && t.Efw > 0; }));
   }
 
-  function renderCharts(b, opts) {
-    opts = opts || {};
+  /** The Havlena–Odeh plot for the chosen model: its title, the line under it and the chart options. */
+  function hoSpec(b, extra) {
     var nu = state.out.N, div = N_DIV[nu];
-    var ho = $('chart-ho'), chk = $('chart-check'), drv = $('chart-drive');
-    if (!b.result || !b.result.terms.length) {
-      var msg = b.blocking ? 'Load a file with production data to see the plot.' :
-        (b.inputs && b.inputs.messages.errors.length ? 'Fix the reservoir parameters on the left to see the plot.' : 'No points to plot.');
-      C.empty(ho, msg); C.empty(chk, msg); C.empty(drv, msg);
-      C.legend($('legend-ho'), [], {}); C.legend($('legend-check'), [], {}); C.legend($('legend-drive'), [], {});
-      renderExplorer(b, { reset: true });
-      $('reset-points').hidden = true;
-      return;
-    }
     var fitOk = hasFit(b);
     var R = fitOk ? b.result.results : null;
     var efw = anyEfw(b);
     var etTitle = R && R.mFixed && R.m > 0 ? '*E*_t' : (efw ? '(*E*_o + *E*_fw)' : '*E*_o');
-    var hoOpts = {
+    var hoOpts = Object.assign({
       points: hoPoints(b),
       fit: fitOk ? { a: R.N, b: R.mN } : null,
       yDiv: div, yUnit: nu, efw: efw, influx: influxOn(b),
       labelsAll: state.labelsAll,
       Ntext: fitOk ? fmtRes(R.N / div) + ' ' + nu : '',
       mNtext: fitOk ? fmtRes(R.mN / div) + ' ' + nu : '',
-      legendEl: $('legend-ho'),
-      animate: !opts.noAnim,
-      emptyText: 'No points below the initial pressure.',
-      onToggle: toggleRow
-    };
+      emptyText: 'No points below the initial pressure.'
+    }, extra || {});
     var title = 'Havlena–Odeh plot', sub = '';
     if (b.view === 'origin') {
       title = 'Havlena–Odeh plot: ' + (influxOn(b) ? '<var>F</var> − <var>W</var><sub>e</sub>' : '<var>F</var>') + ' against <var>E</var><sub>t</sub>';
@@ -733,9 +744,29 @@
     } else {
       sub = (influxOn(b) ? 'With the water influx taken off <var>F</var>, the points' : 'The points') + ' lie on a straight line that meets the axis at <var>N</var>; its slope is <var>mN</var>. Click a point to leave it out of the fit.';
     }
-    $('ho-title').innerHTML = title;
-    $('ho-sub').innerHTML = sub;
-    C.hoPlot(ho, hoOpts);
+    return { title: title, sub: sub, opts: hoOpts };
+  }
+
+  function renderCharts(b, opts) {
+    opts = opts || {};
+    var nu = state.out.N, div = N_DIV[nu];
+    var ho = $('chart-ho'), chk = $('chart-check'), drv = $('chart-drive');
+    if (!b.result || !b.result.terms.length) {
+      var msg = b.blocking ? 'Load a file with production data to see the plot.' :
+        (b.inputs && b.inputs.messages.errors.length ? 'Fix the reservoir parameters on the left to see the plot.' : 'No points to plot.');
+      C.empty(ho, msg); C.empty(chk, msg); C.empty(drv, msg);
+      C.legend($('legend-ho'), [], {}); C.legend($('legend-check'), [], {}); C.legend($('legend-drive'), [], {});
+      renderExplorer(b, { reset: true });
+      $('reset-points').hidden = true;
+      return;
+    }
+    var fitOk = hasFit(b);
+    var R = fitOk ? b.result.results : null;
+    var efw = anyEfw(b);
+    var spec = hoSpec(b, { legendEl: $('legend-ho'), animate: !opts.noAnim, onToggle: toggleRow });
+    $('ho-title').innerHTML = spec.title;
+    $('ho-sub').innerHTML = spec.sub;
+    C.hoPlot(ho, spec.opts);
     $('reset-points').hidden = !b.result.terms.some(function (t) { return t.usable && t.userExcluded; });
 
     var inc = b.result.terms.filter(function (t) { return t.included; });
@@ -1083,6 +1114,7 @@
     }[b.view];
     var inc = b.result.terms.filter(function (t) { return t.included; });
     var last = inc[inc.length - 1];
+    var rec = E.recovery(b.result.terms, R.N);
     var results = [
       ['Havlena–Odeh material balance analysis', ''],
       ['Data', state.source.name],
@@ -1097,6 +1129,8 @@
       ['G, gas-cap gas initially in place', R.G, 'SCF', R.ciG ? R.ciG[0] : null, R.ciG ? R.ciG[1] : null],
       ['G, gas-cap gas initially in place', R.G / 1e9, 'Bscf', R.ciG ? R.ciG[0] / 1e9 : null, R.ciG ? R.ciG[1] / 1e9 : null],
       ['We, water influx at the last step', influxOn(b) && last ? last.We : null, 'rb', null, null],
+      ['Np, oil produced at the last step', rec ? rec.Np : null, 'STB', null, null],
+      ['RF, oil recovered so far (Np / N)', rec ? rec.RF * 100 : null, '%', null, null],
       ['Aquifer', influxOn(b) ? plain(aquiferText(b, c)) : 'none', '', null, null],
       ['Aquifer r_e/r_o', c && c.aquifer === 'veh' ? (c.reD === Infinity ? 'infinite' : c.reD) : null, '', null, null],
       ['R squared', fit.r2, '', null, null],
@@ -1136,6 +1170,280 @@
     C.toPNG(svg, getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff', function (blob) {
       if (blob) download(name, blob, 'image/png');
     });
+  }
+
+  /* ------------------------------------------------------------------
+   * One-page report: the results, the Havlena–Odeh plot and the inputs on one A4 page.
+   * It goes through the browser's print dialog, where it can be saved as a PDF. Where printing
+   * is blocked (the hosted preview), the same page comes as an HTML file to open and print.
+   * ------------------------------------------------------------------ */
+  var REPORT_CSS = [
+    '#report { color: #15191c; background: #fff; font-family: var(--rp-body); font-size: 9.2pt; line-height: 1.38; -webkit-print-color-adjust: exact; print-color-adjust: exact; }',
+    '#report * { box-sizing: border-box; }',
+    '#report h1, #report h2, #report p, #report ul, #report table { margin: 0; }',
+    '#report var { font-family: var(--rp-math); font-style: italic; }',
+    '#report sub { font-size: 0.72em; line-height: 0; }',
+    '#report .rp-head { display: flex; align-items: center; gap: 4mm; padding-bottom: 2.6mm; border-bottom: 1.4pt solid #15191c; }',
+    '#report .rp-crest { height: 13mm; width: auto; flex: none; }',
+    '#report .rp-title { min-width: 0; }',
+    '#report .rp-course { font-size: 8.6pt; color: #4a5258; }',
+    '#report .rp-course strong { color: #15191c; }',
+    '#report h1 { font-family: var(--rp-display); font-size: 15.5pt; font-weight: 700; line-height: 1.12; }',
+    '#report .rp-org { font-size: 7.8pt; color: #6b7379; margin-top: 0.4mm; }',
+    '#report .rp-meta { margin-left: auto; flex: none; text-align: right; font-size: 8.2pt; color: #4a5258; line-height: 1.45; white-space: nowrap; }',
+    '#report .rp-meta strong { color: #15191c; font-weight: 600; }',
+    '#report .rp-mech { margin-top: 2.6mm; font-size: 10.2pt; }',
+    '#report .rp-mech b { font-weight: 700; }',
+    '#report .rp-mech span { color: #4a5258; }',
+    '#report .rp-results { display: grid; grid-template-columns: repeat(var(--rp-n, 4), minmax(0, 1fr)); margin-top: 2.6mm; border-top: 0.6pt solid #c9cfd3; border-bottom: 0.6pt solid #c9cfd3; }',
+    '#report .rp-res { padding: 2mm 2.6mm 2.2mm; min-width: 0; }',
+    '#report .rp-res:first-child { padding-left: 0; }',
+    '#report .rp-res + .rp-res { border-left: 0.6pt solid #dfe3e6; }',
+    '#report .rp-k { font-size: 7.6pt; color: #4a5258; }',
+    '#report .rp-sym { font-family: var(--rp-math); font-style: italic; font-size: 1.3em; color: #15191c; margin-right: 1mm; }',
+    '#report .rp-sym.rp-abbr { font-style: normal; font-size: 1.1em; }',
+    '#report .rp-v { font-family: var(--rp-display); font-size: 16pt; font-weight: 600; line-height: 1.15; margin-top: 0.5mm; }',
+    '#report .rp-v small { font-family: var(--rp-body); font-size: 8pt; font-weight: 500; color: #4a5258; margin-left: 1.2mm; }',
+    '#report .rp-h, #report .rp-r { font-size: 7.2pt; color: #4a5258; margin-top: 0.4mm; }',
+    '#report .rp-r { color: #6b7379; }',
+    '#report .rp-f { font-size: 7.2pt; color: #9a5b00; font-weight: 600; margin-top: 0.4mm; }',
+    '#report h2 { font-family: var(--rp-display); font-size: 11pt; font-weight: 600; margin: 3.2mm 0 1.2mm; }',
+    '#report .rp-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1mm 6mm; font-size: 9.4pt; }',
+    '#report .rp-line strong { font-weight: 600; }',
+    '#report .rp-line .ho-eq-label { color: #6b7379; font-size: 0.9em; }',
+    '#report .rp-line .rp-r2 { margin-left: auto; color: #4a5258; }',
+    '#report .legend { display: flex; flex-wrap: wrap; gap: 1mm 5mm; margin: 1.6mm 0 0; padding: 0; list-style: none; font-size: 8pt; color: #4a5258; }',
+    '#report .legend li { display: inline-flex; align-items: center; gap: 1.6mm; }',
+    '#report .legend svg { width: 16px; height: 10px; flex: none; overflow: visible; }',
+    '#report .rp-chart svg { display: block; width: 100%; height: auto; }',
+    '#report .rp-di { font-size: 8.6pt; color: #4a5258; margin-top: 0.8mm; }',
+    '#report .rp-two { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.28fr); gap: 7mm; }',
+    '#report table { border-collapse: collapse; width: 100%; font-size: 8pt; font-variant-numeric: tabular-nums; }',
+    '#report th, #report td { padding: 0.45mm 1.3mm; text-align: right; border-bottom: 0.4pt solid #e1e5e8; vertical-align: baseline; white-space: nowrap; }',
+    '#report th:first-child, #report td:first-child { padding-left: 0; text-align: left; }',
+    '#report thead th { font-weight: 600; color: #15191c; border-bottom: 0.8pt solid #15191c; vertical-align: bottom; }',
+    '#report thead th small { display: block; font-weight: 400; color: #6b7379; }',
+    '#report td.rp-src { text-align: left; color: #6b7379; white-space: normal; }',
+    '#report tr.rp-out td { color: #8a9297; }',
+    '#report tr.rp-gap td { text-align: center; color: #6b7379; font-style: italic; }',
+    '#report .rp-notes { padding-left: 4mm; font-size: 7.8pt; color: #333a3f; }',
+    '#report .rp-notes li + li { margin-top: 0.5mm; }',
+    '#report .rp-foot { margin-top: 3mm; padding-top: 1.6mm; border-top: 0.6pt solid #c9cfd3; font-size: 7.2pt; color: #6b7379; }'
+  ].join('\n');
+
+  /** In the dashboard: the report is laid out off screen (so its chart can be drawn at size) and is all that prints. */
+  var REPORT_PRINT_CSS = [
+    '#report { position: absolute; left: -10000px; top: 0; width: 180mm; visibility: hidden; }',
+    '@page { size: A4 portrait; margin: 13mm 15mm; }',
+    '@media print {',
+    '  html.print-report body { background: #fff !important; }',
+    '  html.print-report body > :not(#report) { display: none !important; }',
+    '  html.print-report #report { position: static; left: auto; width: auto; visibility: visible; }',
+    '}'
+  ].join('\n');
+
+  /** As a file of its own: a sheet of paper on screen, the same page in print. */
+  var REPORT_PAGE_CSS = [
+    '@page { size: A4 portrait; margin: 13mm 15mm; }',
+    'body { margin: 0; background: #e8ebed; }',
+    '#report { width: 210mm; min-height: 297mm; margin: 0 auto 10mm; padding: 13mm 15mm; box-shadow: 0 1px 3px rgba(21, 25, 28, 0.18); }',
+    '.rp-tools { width: 210mm; margin: 0 auto; padding: 6mm 0 4mm; font: 14px/1.4 system-ui, sans-serif; }',
+    '.rp-tools button { font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #15191c; background: #15191c; color: #fff; cursor: pointer; }',
+    '@media print { body { background: #fff; } #report { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; } .rp-tools { display: none; } }'
+  ].join('\n');
+
+  var REPORT_ROWS = 12;   // production rows shown in full; a longer table shows its first six and last three
+  var REPORT_PAGE_PX = 271 * 96 / 25.4;   // the height of an A4 page less its margins, in CSS pixels
+
+  /** A number from the data table: up to six significant digits, thousands separated. */
+  function fmtData(v) {
+    if (!isFinite(v)) return '–';
+    if (v === 0) return '0';
+    var a = Math.abs(v);
+    if (a >= 1e7 || a < 1e-5) return C.minus(v.toExponential(3));
+    var parts = String(Number(v.toPrecision(6))).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return C.minus(parts.join('.'));
+  }
+
+  function reportName(ext) {
+    var base = String(state.source.fileName || 'data').replace(/\.[^.]+$/, '');
+    return base + (/havlena-odeh/i.test(base) ? '_report' : '_Havlena-Odeh_report') + ext;
+  }
+
+  /** The report's text: everything but the chart, which is drawn into .rp-chart afterwards. */
+  function reportBody(b) {
+    var det = b.detection, R = b.result.results;
+    var h = [];
+    // heading: the course and the university when the page shows them
+    var crest = document.querySelector('.brand-crest');
+    var course = document.querySelector('.brand .course');
+    var org = document.querySelector('.foot-course p + p');
+    var day = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    h.push('<header class="rp-head">' +
+      (crest ? '<img class="rp-crest" src="' + esc(crest.src) + '" alt="">' : '') +
+      '<div class="rp-title">' + (course ? '<p class="rp-course">' + course.innerHTML + '</p>' : '') +
+      '<h1>Havlena–Odeh material balance analysis</h1>' +
+      (org ? '<p class="rp-org">' + esc(org.textContent) + '</p>' : '') + '</div>' +
+      '<p class="rp-meta">Data: <strong>' + esc(state.source.name) + '</strong>' +
+      (state.source.fileName && state.source.fileName !== state.source.name ? '<br>' + esc(state.source.fileName) : '') +
+      '<br>' + esc(day) + '</p></header>');
+    // the mechanism found
+    h.push('<p class="rp-mech">' + (b.model ? '<b>Drive mechanism: ' + esc(familyName(b)) + '</b>, ' + (det.forced ? 'chosen by the user' : 'found from the data') + '. '
+      : '<b>Drive mechanism: no clear match.</b> ') +
+      '<span>' + rich(familyLine(b)) + (det.assumedSteps ? ' Rows taken as equal time steps.' : '') + '</span></p>');
+    // the result cards, as the dashboard shows them
+    var cards = Array.prototype.filter.call(document.querySelectorAll('#ledger .res'), function (c) { return !c.hidden; });
+    h.push('<div class="rp-results" style="--rp-n: ' + cards.length + '">' + cards.map(function (c) {
+      var sym = c.querySelector('.res-sym'), flag = c.querySelector('.res-flag');
+      var how = c.querySelector('.res-how').innerHTML, ci = c.querySelector('.res-ci').textContent;
+      return '<div class="rp-res"><p class="rp-k"><span class="rp-sym' + (sym.classList.contains('res-abbr') ? ' rp-abbr' : '') + '">' + sym.innerHTML + '</span>' +
+        esc(c.querySelector('.res-name').textContent) + '</p>' +
+        '<p class="rp-v">' + esc(c.querySelector('.val').textContent) + '<small>' + esc(c.querySelector('.u').textContent) + '</small></p>' +
+        (how ? '<p class="rp-h">' + how + '</p>' : '') + (ci ? '<p class="rp-r">' + esc(ci) + '</p>' : '') +
+        (flag ? '<p class="rp-f">' + esc(flag.textContent) + '</p>' : '') + '</div>';
+    }).join('') + '</div>');
+    // the plot and its line
+    var spec = hoSpec(b);
+    h.push('<h2>' + spec.title + '</h2>');
+    h.push('<p class="rp-line"><span>Fitted line: ' + $('eq').innerHTML + '</span><span class="rp-r2">' + $('fitline').innerHTML + '</span></p>');
+    h.push('<ul class="legend"></ul><div class="rp-chart"></div>');
+    var inc = b.result.terms.filter(function (t) { return t.included && isFinite(t.sumDI) && t.sumDI > 0; });
+    var last = inc[inc.length - 1];
+    if (last && !negativeM(b)) {
+      var di = [['DDI', 'depletion'], ['SDI', 'gas cap'], ['WDI', 'water influx'], ['CDI', 'rock and water expansion']]
+        .map(function (k) { return { name: k[1], v: Math.max(0, last[k[0]] / last.sumDI) }; })
+        .filter(function (it) { return it.v >= 0.005; });
+      h.push('<p class="rp-di">Drive indices at ' + esc(fmtFixed(last.p, 0)) + ' psia: ' + esc(di.map(function (it) { return it.name + ' ' + pctText(it.v); }).join(', ')) + '.</p>');
+    }
+    // the inputs: initial parameters and the production table
+    var info = b.inputs.paramInfo, prm = b.inputs.params;
+    var prmRows = PARAM_UI.map(function (d) {
+      var unitId = paramUnit(d, b), v = prm[d.k];
+      var shown = d.kind === 'frac' ? v : U.fromBase(d.kind, unitId, v);
+      var inf = info[d.k] || {};
+      var src = { file: 'File, ' + (inf.where || ''), derived: 'Table, ' + (inf.from || ''), 'default': 'Not in the file, 0', user: 'Typed in', 'not-needed': 'Not needed: no free gas' }[inf.source] || '';
+      if (inf.source === 'not-needed') shown = NaN;
+      return '<tr><td>' + SYM[d.k] + '</td><td>' + esc(isFinite(shown) ? fmtInput(shown) : '–') + '</td><td class="rp-src">' + esc(U.label(d.kind, unitId)) + '</td><td class="rp-src">' + esc(src) + '</td></tr>';
+    });
+    var rows = b.inputs.rows, gas = !b.inputs.noGas;
+    var has = function (k) { return rows.some(function (r) { return isFinite(r[k]) && r[k] !== 0; }); };
+    var cols = [];
+    if (b.inputs.hasTime) cols.push({ h: '<var>t</var>', u: 'years', f: function (r) { return r.t / 365.25; } });
+    cols.push({ h: SYM.p, u: 'psia', f: function (r) { return r.p; } });
+    cols.push({ h: SYM.Np, u: 'MMSTB', f: function (r) { return r.Np / 1e6; } });
+    if (gas) cols.push({ h: SYM.Gp, u: 'MMSCF', f: function (r) { return r.Gp / 1e6; } });
+    cols.push({ h: SYM.Bo, u: 'rb/STB', f: function (r) { return r.Bo; } });
+    if (gas) cols.push({ h: SYM.Rs, u: 'SCF/STB', f: function (r) { return r.Rs; } });
+    if (gas) cols.push({ h: SYM.Bg, u: 'rb/SCF', f: function (r) { return r.Bg; } });
+    if (has('Wp')) cols.push({ h: SYM.Wp, u: 'MMSTB', f: function (r) { return r.Wp / 1e6; } });
+    if (b.inputs.hasWe && has('We')) cols.push({ h: '<var>W</var><sub>e</sub>', u: 'MM rb', f: function (r) { return r.We / 1e6; } });
+    var termBy = {};
+    b.result.terms.forEach(function (t) { termBy[t.id] = t; });
+    var line = function (r) {
+      var t = termBy[r.id], inFit = !!(t && t.included);
+      return '<tr' + (inFit || !(t && t.usable) ? '' : ' class="rp-out"') + '>' + cols.map(function (c) { return '<td>' + esc(fmtData(c.f(r))) + '</td>'; }).join('') +
+        '<td>' + (inFit ? '✓' : (t && t.usable ? 'left out' : '')) + '</td></tr>';
+    };
+    var body;
+    if (rows.length <= REPORT_ROWS) body = rows.map(line).join('');
+    else body = rows.slice(0, 6).map(line).join('') + '<tr class="rp-gap"><td colspan="' + (cols.length + 1) + '">' + plural(rows.length - 9, 'more row') + '</td></tr>' + rows.slice(-3).map(line).join('');
+    h.push('<div class="rp-two"><section><h2>Initial parameters</h2><table><tbody>' + prmRows.join('') + '</tbody></table></section>' +
+      '<section><h2>Production data</h2><table><thead><tr>' + cols.map(function (c) { return '<th>' + c.h + '<small>' + esc(c.u) + '</small></th>'; }).join('') +
+      '<th>Fit</th></tr></thead><tbody>' + body + '</tbody></table></section></div>');
+    // notes
+    var notes = collectMessages(b).slice(0, 4);
+    if (notes.length) h.push('<h2>Notes</h2><ul class="rp-notes">' + notes.map(function (m) { return '<li>' + rich(m.text) + '</li>'; }).join('') + '</ul>');
+    h.push('<p class="rp-foot"><var>F</var> = <var>N</var> [<var>E</var><sub>o</sub> + <var>m E</var><sub>g</sub> + (1 + <var>m</var>) <var>E</var><sub>fw</sub>] + <var>W</var><sub>e</sub> ' +
+      'as a straight line (Havlena and Odeh, 1963), fitted by least squares. Havlena–Odeh analyzer.</p>');
+    return h.join('');
+  }
+
+  /** Builds the report into the page, with its chart drawn in the light colours, ready to print. */
+  function prepareReport(b) {
+    clearReport();
+    var style = document.createElement('style');
+    style.id = 'report-style';
+    style.textContent = REPORT_PRINT_CSS + '\n' + REPORT_CSS;
+    document.head.appendChild(style);
+    var el = document.createElement('div');
+    el.id = 'report';
+    el.setAttribute('aria-hidden', 'true');
+    el.setAttribute('style', reportFonts());
+    el.innerHTML = reportBody(b);
+    document.body.appendChild(el);
+    var root = document.documentElement, theme = root.getAttribute('data-theme');
+    root.setAttribute('data-theme', 'light');
+    try {
+      C.hoPlot(el.querySelector('.rp-chart'), hoSpec(b, { legendEl: el.querySelector('.legend'), animate: false, height: 285 }).opts);
+    } finally {
+      if (theme === null) root.removeAttribute('data-theme'); else root.setAttribute('data-theme', theme);
+    }
+    // one page: a report that still runs long is shrunk to fit (wider first, so it keeps the page width)
+    var high = el.scrollHeight, room = REPORT_PAGE_PX - 24;   // a little to spare for the printer's fonts
+    if (high > room) {
+      var z = Math.max(0.6, room / high);
+      el.dataset.zoom = z.toFixed(4);
+      el.style.zoom = el.dataset.zoom;
+      el.style.width = (180 / z).toFixed(2) + 'mm';
+    }
+    root.classList.add('print-report');
+    return el;
+  }
+
+  function reportFonts() {
+    var cs = getComputedStyle(document.documentElement);
+    return '--rp-body: ' + cs.getPropertyValue('--font-body').trim() + '; --rp-display: ' + cs.getPropertyValue('--font-display').trim() + '; --rp-math: ' + cs.getPropertyValue('--font-math').trim();
+  }
+
+  function clearReport() {
+    var el = $('report'), style = $('report-style');
+    if (el) el.remove();
+    if (style) style.remove();
+    document.documentElement.classList.remove('print-report');
+  }
+
+  /** The report as an HTML file of its own, to open and print. */
+  function standaloneReport(el) {
+    var fonts = document.querySelector('link[href*="fonts.googleapis.com/css"]');
+    var z = el.dataset.zoom;
+    return '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>' + esc(reportName('')) + '</title>' + (fonts ? fonts.outerHTML : '') +
+      '<style>\n' + REPORT_CSS + '\n' + REPORT_PAGE_CSS + '\n' +
+      (z ? '@media print { #report { zoom: ' + z + '; width: ' + (180 / +z).toFixed(2) + 'mm; } }\n' : '') + '</style></head><body>' +
+      '<p class="rp-tools"><button type="button" onclick="window.print()">Print or save as PDF</button></p>' +
+      '<div id="report" style="' + esc(reportFonts()) + '">' + el.innerHTML + '</div></body></html>';
+  }
+
+  function printReport() {
+    var b = state.bundle;
+    if (!hasFit(b) || !b.detection) {
+      state.fileError = { title: 'Nothing to report yet', message: 'There is no fitted line yet. Load data that gives N and m first.' };
+      renderAlert(b);
+      return;
+    }
+    var el = prepareReport(b);
+    var title = document.title, started = false, done = false;
+    var onBefore = function () { started = true; };
+    var finish = function () {
+      if (done) return;
+      done = true;
+      window.removeEventListener('afterprint', finish);
+      clearReport();
+      document.title = title;
+    };
+    window.addEventListener('beforeprint', onBefore);
+    window.addEventListener('afterprint', finish);
+    document.title = reportName('');   // the name the print dialog suggests for the PDF
+    try { window.print(); } catch (e) { /* printing blocked */ }
+    setTimeout(function () {
+      window.removeEventListener('beforeprint', onBefore);
+      if (started) return;
+      // printing is blocked here (the hosted preview): hand over the same page as a file to open and print
+      var html = standaloneReport(el);
+      finish();
+      download(reportName('.html'), html, 'text/html');
+    }, 400);
   }
 
   /* ------------------------------------------------------------------
@@ -1214,6 +1522,7 @@
     $('dl-template').addEventListener('click', downloadTemplate);
     $('dl-example').addEventListener('click', downloadExample);
     $('export-btn').addEventListener('click', exportResults);
+    $('report-btn').addEventListener('click', printReport);
     $('csv-btn').addEventListener('click', exportCSV);
     $('png-ho').addEventListener('click', function () { exportPNG('chart-ho', 'havlena-odeh-plot.png'); });
     $('png-check').addEventListener('click', function () { exportPNG('chart-check', 'F-vs-Et-check.png'); });
@@ -1295,7 +1604,13 @@
     state: state,
     loadWorkbook: function (wb, name) { setSource({ kind: 'file', name: name || 'Workbook', fileName: name || 'workbook.xlsx', wb: wb }); return state.bundle; },
     loadExample: function () { setSource(exampleSource()); return state.bundle; },
-    bundle: function () { return state.bundle; }
+    bundle: function () { return state.bundle; },
+    // for the tests: the report laid out for print, its file version, and clearing it
+    report: {
+      prepare: function () { return !!prepareReport(state.bundle); },
+      html: function () { var el = prepareReport(state.bundle), html = standaloneReport(el); clearReport(); return html; },
+      clear: clearReport
+    }
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
