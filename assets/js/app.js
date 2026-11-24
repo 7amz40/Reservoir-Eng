@@ -12,32 +12,28 @@
   if (PREVIEW) document.documentElement.classList.add('is-preview');
 
   /* ------------------------------------------------------------------
-   * Example data set (the course example), with the initial parameters on a second sheet
+   * Example data set: a gas-cap oil reservoir from the course, in the units of its handout,
+   * with the initial values on a second sheet. S_wc, C_w and C_f are not given for it, so E_fw = 0.
    * ------------------------------------------------------------------ */
   var EX_PROD = [
-    ['P (psia)', 'Rs (SCF/STB)', 'Bo (rb/STB)', 'Bg (rb/SCF)', 'Np (MMSTB)', 'Gp (MMSCF)'],
-    [2740, 650, 1.404, 0.0009, 0, 0],
-    [2500, 592, 1.374, 0.0010, 7.88, 5988.8],
-    [2290, 545, 1.349, 0.0011, 18.42, 15565],
-    [2109, 507, 1.329, 0.0012, 29.15, 26818],
-    [1949, 471, 1.316, 0.0013, 40.69, 39673],
-    [1818, 442, 1.303, 0.0014, 50.14, 51394],
-    [1702, 418, 1.294, 0.0015, 58.42, 62217],
-    [1608, 398, 1.287, 0.0016, 65.39, 71603],
-    [1535, 383, 1.280, 0.0017, 70.74, 79229],
-    [1480, 370, 1.276, 0.0018, 74.54, 85348],
-    [1440, 362, 1.273, 0.0018, 77.43, 89819]
+    ['Pressure (psia)', 'Np (MMSTB)', 'Gp (MMMSCF)', 'Bo (bbl/STB)', 'Rs (SCF/STB)', 'Bg (cuft/SCF)'],
+    [3300, 0, 0, 1.2511, 510, 0.00488505],
+    [3150, 3.295, 3.460, 1.2353, 477, 0.00516580],
+    [3000, 5.903, 6.257, 1.2222, 450, 0.00539040],
+    [2850, 8.852, 10.268, 1.2122, 425, 0.00567115],
+    [2700, 11.503, 14.206, 1.2022, 401, 0.00600805],
+    [2550, 14.513, 18.359, 1.1922, 375, 0.00634495],
+    [2400, 17.730, 23.049, 1.1822, 352, 0.00673800]
   ];
   var EX_INIT = [
-    ['Property', 'Value', 'Unit'],
-    ['Initial pressure, pi', 2740, 'psia'],
-    ['Initial oil FVF, Boi', 1.404, 'rb/STB'],
-    ['Initial gas FVF, Bgi', 0.0009, 'rb/SCF'],
-    ['Initial solution GOR, Rsi', 650, 'SCF/STB'],
-    ['Connate water saturation, Swc', 0.05, 'fraction'],
-    ['Water compressibility, Cw', 3e-6, '1/psi'],
-    ['Formation compressibility, Cf', 4e-6, '1/psi'],
-    ['Porosity', 0.25, 'fraction']
+    ['Property', 'Value', 'Unit', 'Notes'],
+    ['Initial pressure, pi', 3300, 'psia', ''],
+    ['Initial oil FVF, Boi', 1.2511, 'bbl/STB', ''],
+    ['Initial gas FVF, Bgi', 0.00488505, 'cuft/SCF', ''],
+    ['Initial solution GOR, Rsi', 510, 'SCF/STB', ''],
+    ['Connate water saturation, Swc', null, 'fraction', 'Not given for this reservoir, so Efw = 0'],
+    ['Water compressibility, Cw', null, '1/psi', ''],
+    ['Formation compressibility, Cf', null, '1/psi', '']
   ];
   function clone(rows) { return rows.map(function (r) { return r.slice(); }); }
   function exampleSource() {
@@ -295,6 +291,9 @@
     return String(Number(v.toPrecision(7)));
   }
 
+  /** A long value, such as 0.00488505, gets a wider box so no digit is hidden. */
+  function fitParamBox(input) { input.closest('.prm').classList.toggle('is-wide', input.value.trim().length > 8); }
+
   function buildParams() {
     var box = $('params');
     box.innerHTML = PARAM_UI.map(function (d) {
@@ -330,7 +329,7 @@
         state.paramEdits[d.k] = base;
         recompute({ keepFocus: true, quiet: !final });
       }
-      input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { commit(false); }, 450); });
+      input.addEventListener('input', function () { fitParamBox(input); clearTimeout(timer); timer = setTimeout(function () { commit(false); }, 450); });
       input.addEventListener('change', function () { clearTimeout(timer); commit(true); });
       input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { clearTimeout(timer); commit(true); } });
       row.querySelector('.reset').addEventListener('click', function () {
@@ -353,6 +352,7 @@
       if (document.activeElement !== input) {
         input.value = isFinite(shown) ? fmtInput(shown) : '';
         input.closest('.prm').classList.remove('is-invalid');
+        fitParamBox(input);
       }
       var src = $('src-' + d.k);
       var inf = info[d.k] || { source: b.inputs ? 'missing' : 'none' };
@@ -1214,8 +1214,8 @@
 
   function downloadExample() {
     X.writeXlsx([
-      { name: 'Production', headerRows: 1, colWidths: [12, 14, 13, 13, 13, 13], rows: clone(EX_PROD) },
-      { name: 'Initial', headerRows: 1, colWidths: [32, 14, 12], rows: clone(EX_INIT) }
+      { name: 'Production', headerRows: 1, colWidths: [15, 13, 14, 14, 14, 14], rows: clone(EX_PROD) },
+      { name: 'Initial', headerRows: 1, colWidths: [32, 14, 12, 42], rows: clone(EX_INIT) }
     ]).then(function (bytes) { download('havlena-odeh-example.xlsx', bytes, XLSX_MIME); });
   }
 

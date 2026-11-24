@@ -10,7 +10,8 @@ with the Havlena–Odeh straight-line method:
 - the water influx *W*<sub>e</sub> and the aquifer constant, when there is an aquifer
 - the drive indices at every step, and how much the answer moves when the table values are rounded
 
-It opens with an example data set already loaded.
+It opens with an example already loaded: a gas-cap oil reservoir, for which it finds a gas-cap drive
+with *N* = 108.6 MMSTB, *m* = 0.542 and *G* = 84.6 Bscf.
 
 ## How it finds the drive mechanism
 
@@ -48,8 +49,7 @@ the file you load is read in the browser and never leaves your computer.
 
 | File | Built with | The dashboard finds |
 | --- | --- | --- |
-| `havlena-odeh-example.xlsx` | Dake, exercise 9.2, with *B*<sub>g</sub> rounded and no time column | water drive, *N* ≈ 287 MMSTB with the rows taken as equal time steps (Dake, with the dates, gets 312) |
-| `havlena-odeh-example-2.xlsx` | a second example | gas cap, *N* = 108.6 MMSTB, *m* = 0.542 |
+| `havlena-odeh-example.xlsx` | the example the dashboard opens with: a gas-cap oil reservoir, with *B*<sub>g</sub> in ft³/SCF and *G*<sub>p</sub> in MMMSCF; *S*<sub>wc</sub>, *c*<sub>w</sub> and *c*<sub>f</sub> are not given, so *E*<sub>f,w</sub> = 0 | gas cap, *N* = 108.6 MMSTB, *m* = 0.542, *G* = 84.6 Bscf |
 | `known_answer_N150_m040.xlsx` | gas cap, *N* = 150 MMSTB, *m* = 0.40 | the same |
 | `drive_depletion_N150.xlsx` | depletion, *N* = 150 MMSTB | the same |
 | `drive_undersaturated_N150.xlsx` | above the bubble point, only *p*, *N*<sub>p</sub> and *B*<sub>o</sub> | depletion, *N* = 150 MMSTB |
@@ -78,16 +78,17 @@ the file you load is read in the browser and never leaves your computer.
 ## Tests
 
 ```
-node --test tests/*.test.js         # 115 tests: units, file reading, table detection, calculation, drive mechanisms
-python3 tests/e2e.py                # 14 checks in a real browser (needs playwright and openpyxl)
-python3 tests/make_fixtures.py      # rebuilds the example samples and tests/fixtures/
+node --test tests/*.test.js         # 116 tests: units, file reading, table detection, calculation, drive mechanisms
+python3 tests/e2e.py                # 15 checks in a real browser (needs playwright and openpyxl)
+python3 tests/make_fixtures.py      # rebuilds the example, the template, the known-answer sample and tests/fixtures/
 node tests/make_drive_samples.js    # rebuilds the drive_*.xlsx samples
 python3 tools/build.py              # rebuilds dist/havlena-odeh-analyzer.html
 ```
 
-The fixtures cover many file layouts (two sheets, parameters below or beside the table,
+The fixtures write one data set in many file layouts (two sheets, parameters below or beside the table,
 units rows, shuffled and long headers, `Rp` instead of `Gp`, numbers stored as text,
-percent and SI units, dates, CSV) and they all give the same answer for the example data.
+percent and SI units, dates, CSV) and they all give the same answer. That data set, with *B*<sub>g</sub>
+to only 1 or 2 significant figures, also checks the rounding check and the water-drive detection.
 Exact data built from the material balance check that each mechanism is found and that the
 method gives back the *N*, *m* and aquifer constants used to build them, and the same data
 rounded like a textbook table check that the choice holds.

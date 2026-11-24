@@ -216,7 +216,7 @@ test('decimalsOf reads how finely a number is written', () => {
 });
 
 test('rounding steps of the inputs are found and described', async () => {
-  const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  const r = await runFile(path.join(FIX, 'q2_example.xlsx'));
   const s = r.inputs.precision.steps;
   close(s.Bg, 1e-4, 1e-9, 'Bg step');
   close(s.Bo, 1e-3, 1e-9, 'Bo step');
@@ -224,9 +224,26 @@ test('rounding steps of the inputs are found and described', async () => {
   close(s.Bgi, 1e-4, 1e-9, 'Bgi step');
   assert.match(r.inputs.precision.note, /only 1 or 2 significant figures \(0\.0009 to 0\.0018 rb\/SCF\)/);
   // a ft3/SCF column: the step is converted to rb/SCF
-  const q1 = await runFile(path.join(SAMPLES, 'havlena-odeh-example-2.xlsx'));
+  const q1 = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
   close(q1.inputs.precision.steps.Bg, 1e-8 / 5.615, 1e-6, 'Bg step in rb/SCF');
   assert.equal(q1.inputs.precision.note, '');
+});
+
+test('the example file: Q1 table in its handout units, initial values on the second sheet, no S_wc, C_w or C_f', async () => {
+  const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  assert.equal(r.analysis.errors.length, 0);
+  assert.equal(r.analysis.warnings.length, 0);
+  assert.equal(r.inputs.rows.length, 7);
+  assert.equal(r.analysis.units.Gp, 'MMMSCF');
+  const p = r.inputs.params;
+  assert.equal(p.pi, 3300);
+  assert.equal(p.Boi, 1.2511);
+  close(p.Bgi, 0.00488505 / 5.615, 1e-12, 'Bgi in rb/SCF');
+  assert.equal(p.Rsi, 510);
+  assert.deepEqual([p.Swc, p.Cw, p.Cf], [0, 0, 0]);
+  close(r.result.results.N, REF.q1.N, 1e-9, 'N');
+  close(r.result.results.m, REF.q1.m, 1e-9, 'm');
+  close(r.result.results.G, REF.q1.G, 1e-9, 'G');
 });
 
 test('a W_e column is found, with its unit', async () => {

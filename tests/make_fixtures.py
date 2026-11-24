@@ -27,8 +27,10 @@ BOLD = Font(bold=True)
 
 # ---------------------------------------------------------------- data
 
-# Example data set: a gas-cap oil reservoir. Q2_HEADER keeps a "Bg (rb/STB)" label slip on purpose,
-# because the reader must treat it as rb/SCF; the sample file uses the correct label.
+# Q2 data (Dake, exercise 9.2, with B_g rounded to 1 or 2 significant figures). It was the example
+# before the course switched to the Q1 data; it stays as test data: many layouts for the reader, and a
+# hard case for the rounding check and the drive detection. Q2_HEADER keeps a "Bg (rb/STB)" label slip
+# on purpose, because the reader must treat it as rb/SCF; q2_example.xlsx uses the correct label.
 Q2_HEADER = ["P (psia)", "Rs (SCF/STB)", "Bo (rb/STB)", "Bg (rb/STB)", "Np (MMSTB)", "Gp (MMSCF)"]
 Q2_ROWS = [
     [2740, 650, 1.404, 0.0009, 0.00, 0],
@@ -54,7 +56,8 @@ Q2_PARAMS = [
     ("Porosity", 0.25, "fraction"),
 ]
 
-# Second example: gas-cap reservoir with Bg in ft3/SCF and Gp in MMMSCF.
+# The example data set (the one the dashboard opens with): a gas-cap oil reservoir, in the units of
+# its handout (Bg in ft3/SCF, Gp in MMMSCF). S_wc, C_w and C_f are not given for it, so E_fw = 0.
 Q1_HEADER = ["Pressure (psia)", "Np (MMSTB)", "Gp (MMMSCF)", "Bo (bbl/STB)", "Rs (SCF/STB)", "Bg (cuft/SCF)"]
 Q1_ROWS = [
     [3300, 0, 0, 1.2511, 510, 0.00488505],
@@ -64,6 +67,15 @@ Q1_ROWS = [
     [2700, 11.503, 14.206, 1.2022, 401, 0.00600805],
     [2550, 14.513, 18.359, 1.1922, 375, 0.00634495],
     [2400, 17.730, 23.049, 1.1822, 352, 0.00673800],
+]
+Q1_PARAMS = [
+    ("Initial pressure, pi", 3300, "psia", None),
+    ("Initial oil FVF, Boi", 1.2511, "bbl/STB", None),
+    ("Initial gas FVF, Bgi", 0.00488505, "cuft/SCF", None),
+    ("Initial solution GOR, Rsi", 510, "SCF/STB", None),
+    ("Connate water saturation, Swc", None, "fraction", "Not given for this reservoir, so Efw = 0"),
+    ("Water compressibility, Cw", None, "1/psi", None),
+    ("Formation compressibility, Cf", None, "1/psi", None),
 ]
 
 
@@ -166,13 +178,38 @@ def two_sheet_book(header, rows, params, prod_name="Production", init_name="Init
 
 # ---------------------------------------------------------------- samples
 
+def example_book():
+    """The example data set, as the dashboard holds it and as its 'Example file' button writes it."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Production"
+    write_table(ws, Q1_HEADER, Q1_ROWS)
+    autosize(ws, [15, 13, 14, 14, 14, 14])
+    ws.freeze_panes = "A2"
+    ws2 = wb.create_sheet("Initial")
+    for j, h in enumerate(("Property", "Value", "Unit", "Notes"), start=1):
+        c = ws2.cell(row=1, column=j, value=h)
+        c.font = BOLD
+        c.fill = HEAD_FILL
+    for i, r in enumerate(Q1_PARAMS, start=2):
+        for j, v in enumerate(r, start=1):
+            if v is not None:
+                ws2.cell(row=i, column=j, value=v)
+    autosize(ws2, [32, 14, 12, 42])
+    return wb
+
+
+def q2_example_book():
+    """The Q2 data as it was shipped as the example before (two sheets, correct B_g label)."""
+    header = [h.replace("Bg (rb/STB)", "Bg (rb/SCF)") for h in Q2_HEADER]
+    return two_sheet_book(header, Q2_ROWS, Q2_PARAMS)
+
+
 def make_samples():
     os.makedirs(SAMPLES, exist_ok=True)
 
     # 1. Example data set (the one the dashboard opens with)
-    header = [h.replace("Bg (rb/STB)", "Bg (rb/SCF)") for h in Q2_HEADER]
-    wb = two_sheet_book(header, Q2_ROWS, Q2_PARAMS)
-    save(wb, SAMPLES, "havlena-odeh-example.xlsx")
+    save(example_book(), SAMPLES, "havlena-odeh-example.xlsx")
 
     # 2. Blank template
     wb = Workbook()
@@ -186,15 +223,7 @@ def make_samples():
     autosize(ws2, [32, 14, 12])
     save(wb, SAMPLES, "havlena-odeh-template.xlsx")
 
-    # 3. Second example (gas-cap reservoir, Bg in ft3/SCF, Gp in MMMSCF, no Swc/Cw/Cf)
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Production"
-    write_table(ws, Q1_HEADER, Q1_ROWS)
-    autosize(ws, [16] * 6)
-    save(wb, SAMPLES, "havlena-odeh-example-2.xlsx")
-
-    # 4. Known-answer check: exact synthetic data, N = 150 MMSTB, m = 0.40
+    # 3. Known-answer check: exact synthetic data, N = 150 MMSTB, m = 0.40
     rows, p = synthetic()
     rows = [[round(r[0], 1), round(r[1], 6), round(r[2], 6), round(r[3], 7), round(r[4], 4), float("%.7g" % r[5])] for r in rows]
     params = [
@@ -219,7 +248,10 @@ def make_fixtures():
         shutil.rmtree(FIX)
     os.makedirs(FIX)
 
-    # two sheets, exactly like the sample
+    # the Q2 data as it was shipped as the example before
+    save(q2_example_book(), FIX, "q2_example.xlsx")
+
+    # two sheets, with the "Bg (rb/STB)" label slip
     save(two_sheet_book(Q2_HEADER, Q2_ROWS, Q2_PARAMS), FIX, "q2_two_sheets.xlsx")
 
     # params block below the table on the same sheet (handout layout: only pi, phi, Swc, Cf, Cw)

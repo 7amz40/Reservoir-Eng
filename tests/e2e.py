@@ -102,6 +102,46 @@ def shot(pg, name, full=False):
 def t_example(b):
     pg = Page(b)
     assert pg.page.locator("#alert").is_hidden()
+    # the Q1 data: a gas-cap reservoir, found from the data
+    assert pg.title() == "Gas-cap drive"
+    assert "found from the data" in pg.text("#verdict-k")
+    assert "Gas cap, m = 0.542; no water influx" in pg.text("#verdict-sub"), pg.text("#verdict-sub")
+    ev = pg.text("#evidence")
+    assert "Depletion alone" in ev and "gas-cap line gives m = 0.542" in ev, ev
+    assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542" and pg.val("res-G") == "84.62"
+    assert pg.page.locator("#res-We").is_hidden()
+    assert "rounding the table" in pg.text("#res-N .res-ci")
+    assert pg.page.locator("#shares .shares-bar span").count() == 2, "depletion and gas cap"
+    assert pg.page.locator("#models tbody tr").count() == 4
+    assert pg.page.locator("#models tr.is-chosen").count() == 1
+    assert pg.page.locator("#chart-app svg").count() == 1
+    assert pg.page.locator("#chart-ho circle.hit").count() == 6 and pg.fit_points() == 6
+    assert pg.page.locator("#calc tbody tr").count() == 7
+    assert "Example" in pg.text("#source")
+    # initial values from the second sheet; S_wc, C_w and C_f are not given, so E_fw = 0 and the line is F/Eo against Eg/Eo
+    assert pg.text("#src-pi").endswith("Initial!B2") and pg.text("#src-Bgi").endswith("Initial!B4")
+    assert pg.text("#src-Swc").startswith("Not in the file")
+    axes = lambda: pg.page.locator("#chart-ho svg").text_content()
+    assert "Eg / Eo" in axes() and "F / Eo, MMSTB" in axes(), axes()
+    assert "Efw = 0" in pg.text("#notes")
+    shot(pg, "desktop-light", full=True)
+    # typing S_wc, C_w and C_f brings E_fw in
+    for k, v in (("Swc", "0.2"), ("Cw", "3e-6"), ("Cf", "5e-6")):
+        pg.page.fill("#prm-" + k, v)
+        pg.page.press("#prm-" + k, "Enter")
+    assert "Eg / [Eo + (1 + m) Efw]" in axes(), axes()
+    assert pg.val("res-N") != "108.6" and pg.title() == "Gas-cap drive"
+    for k in ("Swc", "Cw", "Cf"):
+        pg.page.click("#src-%s .reset" % k)
+    assert pg.val("res-N") == "108.6"
+    pg.close()
+
+
+@check("Q2 data: water drive found; the gas-cap line by hand gives a negative m")
+def t_q2(b):
+    pg = Page(b)
+    pg.upload(os.path.join(FIX, "q2_example.xlsx"))
+    assert pg.page.locator("#alert").is_hidden()
     # found from the data: water drive (Dake's exercise 9.2), with the rows taken as equal time steps
     assert pg.title() == "Water drive"
     assert "found from the data" in pg.text("#verdict-k")
@@ -119,8 +159,7 @@ def t_example(b):
     assert pg.page.locator("#chart-app svg").count() == 1
     assert pg.page.locator("#chart-ho circle.hit").count() == 10
     assert pg.page.locator("#calc tbody tr").count() == 11
-    assert "Example" in pg.text("#source")
-    shot(pg, "desktop-light", full=True)
+    shot(pg, "desktop-q2", full=True)
     # the gas-cap line of the course table, chosen by hand
     pg.mech("gascap")
     assert pg.title() == "Gas-cap drive" and "chosen by you" in pg.text("#verdict-k")
@@ -147,7 +186,7 @@ def t_example(b):
     pg.close()
 
 
-@check("every layout of the example gives the same answer")
+@check("every layout of the Q2 data gives the same answer")
 def t_layouts(b):
     pg = Page(b)
     for f in sorted(os.listdir(FIX)):
@@ -157,7 +196,7 @@ def t_layouts(b):
         assert pg.page.locator("#alert").is_hidden(), f + ": " + pg.text("#alert")
         assert pg.title() == "Water drive", f + ": " + pg.title()
         # one layout has monthly dates: real steps of 28 to 31 days instead of equal steps, so its aquifer fit differs
-        # (N stays inside the rounding range of the example, 246 to 330 MMSTB)
+        # (N stays inside the rounding range of the Q2 data, 246 to 330 MMSTB)
         if "shuffled_long_headers" in f:
             assert 246 <= num(pg.val("res-N")) <= 330, f + " N=" + pg.val("res-N")
         else:
@@ -169,7 +208,7 @@ def t_layouts(b):
     pg.close()
 
 
-@check("second example, known-answer sample and a 400-row file")
+@check("Q1 in the handout layout, known-answer sample and a 400-row file")
 def t_other_data(b):
     pg = Page(b)
     pg.upload(os.path.join(FIX, "q1_two_row_header.xlsx"))
@@ -195,7 +234,7 @@ def t_errors(b):
     pg = Page(b)
     pg.upload(os.path.join(FIX, "q2_legacy.xls"))
     assert "97–2003" in pg.text("#alert")
-    assert pg.val("res-N") == "286.6", "previous result kept"
+    assert pg.val("res-N") == "108.6", "previous result kept"
     pg.page.click("#alert button[data-act=dismiss]")
     assert pg.page.locator("#alert").is_hidden()
     pg.upload(os.path.join(FIX, "q2_open_document.ods"))
@@ -211,7 +250,7 @@ def t_errors(b):
     pg.upload(os.path.join(SAMPLES, "havlena-odeh-template.xlsx"))
     assert "no rows with numbers" in pg.text("#alert")
     pg.page.click("#alert button[data-act=example]")
-    assert pg.val("res-N") == "286.6"
+    assert pg.val("res-N") == "108.6"
     pg.close()
 
 
@@ -219,25 +258,26 @@ def t_errors(b):
 def t_exclude(b):
     pg = Page(b)
     pg.page.uncheck("#calc tbody tr:nth-child(2) input[type=checkbox]")
-    assert pg.fit_points() == 9
+    assert pg.fit_points() == 5
     assert pg.page.locator("#reset-points").is_visible()
-    assert pg.val("res-N") != "286.6"
+    assert pg.val("res-N") != "108.6"
     pg.page.click("#reset-points")
-    assert pg.fit_points() == 10
+    assert pg.fit_points() == 6 and pg.val("res-N") == "108.6"
     pg.page.locator("#chart-ho circle.hit").first.focus()
     pg.page.keyboard.press("Enter")
-    assert pg.fit_points() == 9
+    assert pg.fit_points() == 5
     assert pg.page.evaluate("document.activeElement.classList.contains('hit')"), "focus stays on the point"
     pg.page.keyboard.press("Enter")
-    assert pg.fit_points() == 10
+    assert pg.fit_points() == 6
     pg.page.locator("#chart-ho circle.hit").nth(0).click()
-    assert pg.fit_points() == 9
+    assert pg.fit_points() == 5
     pg.close()
 
 
 @check("parameters, E_fw switch, columns and units drive the answer")
 def t_inputs(b):
     pg = Page(b)
+    pg.upload(os.path.join(FIX, "q2_example.xlsx"))
     pg.mech("gascap")
     axes = lambda: pg.page.locator("#chart-ho svg").text_content()
     assert "Eg / [Eo + (1 + m) Efw]" in axes() and "F / [Eo + (1 + m) Efw], MMSTB" in axes(), axes()
@@ -290,12 +330,12 @@ def t_explorer(b):
     assert "0.300" in pg.text("#m-read")
     assert pg.page.locator("#chart-exp svg").count() == 1 and pg.page.locator("#chart-scan svg").count() == 1
     pg.page.click("#m-fit")
-    assert "−0.070" in pg.text("#m-read")
+    assert "0.542" in pg.text("#m-read")
     overlay = pg.page.locator("#chart-scan svg rect[fill=transparent]")
     overlay.scroll_into_view_if_needed()
     box = overlay.bounding_box()
     pg.page.mouse.click(box["x"] + box["width"] * 0.8, box["y"] + box["height"] / 2)
-    assert "−0.070" not in pg.text("#m-read").split(",")[0]
+    assert "0.542" not in pg.text("#m-read").split(",")[0]
     pg.close()
 
 
@@ -329,25 +369,29 @@ def t_downloads(b):
     assert wb["Production"]["A1"].value == "t (years)" and wb["Production"]["C1"].value == "Np (MMSTB)"
     p = grab("#dl-example")
     wb = load_workbook(p)
-    assert wb["Production"]["A3"].value == 2500
+    assert wb.sheetnames == ["Production", "Initial"]
+    assert wb["Production"]["A1"].value == "Pressure (psia)" and wb["Production"]["A3"].value == 3150
+    assert wb["Initial"]["B2"].value == 3300 and wb["Initial"]["B6"].value is None, "S_wc is not given"
     # the example file reads back into the same answer
     pg.upload(p)
-    assert pg.val("res-N") == "286.6"
+    assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542"
     p = grab("#export-btn")
     wb = load_workbook(p)
     assert wb.sheetnames == ["Results", "Models", "Calculations", "Inputs", "Notes"]
     res = [r for r in wb["Results"].iter_rows(values_only=True) if r and r[0]]
     by = {(r[0], r[2]): r for r in res}
-    assert any(r[0] == "Drive mechanism" and r[1].startswith("Water drive (found from the data)") for r in res)
-    approx(by[("N, oil initially in place", "MMSTB")][1], 286.56, 1e-3)
-    assert by[("m, gas-cap to oil-zone volume ratio", "-")][1] == 0
-    assert by[("We, water influx at the last step", "rb")][1] > 9e7
+    assert any(r[0] == "Drive mechanism" and r[1].startswith("Gas-cap drive (found from the data)") for r in res)
+    approx(by[("N, oil initially in place", "MMSTB")][1], 108.647, 1e-4)
+    approx(by[("m, gas-cap to oil-zone volume ratio", "-")][1], 0.5416, 1e-3)
+    approx(by[("G, gas-cap gas initially in place", "Bscf")][1], 84.619, 1e-4)
+    assert by[("We, water influx at the last step", "rb")][1] is None
     models = list(wb["Models"].iter_rows(values_only=True))
-    assert len(models) == 9 and sum(1 for r in models[1:] if r[-1] == "yes") == 1
-    approx(wb["Calculations"]["J3"].value, 12.151e6, 1e-3)
+    assert len(models) == 5 and sum(1 for r in models[1:] if r[-1] == "yes") == 1
+    # F at 3,150 psia: Np Bo + (Gp - Np Rs) Bg = 3.295e6 x 1.2353 + (3.460e9 - 3.295e6 x 477) x 0.00092 rb
+    approx(wb["Calculations"]["J3"].value, 5807535.7, 1e-6)
     p = grab("#csv-btn")
     text = open(p, encoding="utf-8-sig").read()
-    assert text.startswith("t (years),p (psia),Np (STB)") and text.count("\n") == 11
+    assert text.startswith("t (years),p (psia),Np (STB)") and text.count("\n") == 7
     p = grab("#png-ho")
     assert open(p, "rb").read(8) == b"\x89PNG\r\n\x1a\n"
     pg.close()
@@ -381,8 +425,8 @@ def t_drive_controls(b):
     pg.mech("gascap")
     assert pg.title() == "Gas-cap drive" and pg.page.locator("#res-We").is_hidden()
     pg.mech("auto")
-    # the example has no time column: with time unknown, no aquifer that needs time is tried
-    pg.page.click("#use-example")
+    # the Q2 data have no time column: with time unknown, no aquifer that needs time is tried
+    pg.upload(os.path.join(FIX, "q2_example.xlsx"))
     assert pg.page.locator("#aq-time").is_visible()
     pg.page.select_option("#aq-steps", "none")
     assert pg.title() == "Depletion drive", pg.title()
@@ -404,7 +448,7 @@ def t_samples(b):
         ("drive_water_unsteady_N150.xlsx", "Water drive", "150.0", "Unsteady-state aquifer"),
         ("drive_gascap_water_N150_m030.xlsx", "Combination drive: gas cap and water", "150.0", "Pot aquifer"),
         ("drive_undersaturated_N150.xlsx", "Depletion drive", "150.0", "above the bubble point"),
-        ("havlena-odeh-example-2.xlsx", "Gas-cap drive", "108.6", "Gas cap, m = 0.542"),
+        ("havlena-odeh-example.xlsx", "Gas-cap drive", "108.6", "Gas cap, m = 0.542"),
     ]
     for f, title, N, sub in cases:
         pg.upload(os.path.join(SAMPLES, f))
@@ -425,7 +469,7 @@ def t_samples(b):
 @check("drag and drop a file onto the page")
 def t_drop(b):
     pg = Page(b)
-    data = base64.b64encode(open(os.path.join(FIX, "q1_simple.xlsx"), "rb").read()).decode()
+    data = base64.b64encode(open(os.path.join(SAMPLES, "known_answer_N150_m040.xlsx"), "rb").read()).decode()
     pg.page.evaluate("""(b64) => {
       const bin = atob(b64), arr = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
@@ -435,7 +479,7 @@ def t_drop(b):
       window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
     }""", data)
     pg.page.wait_for_function("document.querySelector('#source').textContent.includes('dropped.xlsx')")
-    assert pg.val("res-N") == "108.6"
+    assert pg.val("res-N") == "150.0" and pg.val("res-m") == "0.400"
     assert pg.page.locator("#drop-overlay").is_hidden()
     pg.close()
 
@@ -444,8 +488,8 @@ def t_drop(b):
 def t_mobile(b):
     pg = Page(b, width=390, height=844)
     assert pg.page.evaluate("document.documentElement.scrollWidth") <= 390
-    assert pg.val("res-N") == "286.6"
-    assert pg.title() == "Water drive"
+    assert pg.val("res-N") == "108.6"
+    assert pg.title() == "Gas-cap drive"
     assert pg.page.locator("#sec-params").get_attribute("open") is None, "secondary sections start folded"
     shot(pg, "mobile", full=True)
     pg.close()

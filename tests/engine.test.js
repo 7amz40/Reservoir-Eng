@@ -145,10 +145,10 @@ test('the two example data sets match the reference answers', () => {
   close(q.results.G, REF.q1.G, 1e-12);
 });
 
-test('rounding check: the example data cannot pin down m', async () => {
-  const { runFile, SAMPLES } = require('./helpers');
+test('rounding check: the Q2 data (B_g to 1 or 2 significant figures) cannot pin down m', async () => {
+  const { runFile, FIX } = require('./helpers');
   const path = require('path');
-  const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  const r = await runFile(path.join(FIX, 'q2_example.xlsx'));
   const rc = r.result.rounding;
   assert.ok(rc && rc.trials >= 300);
   assert.ok(rc.m[0] < 0 && rc.m[2] > 0, 'the range of m crosses zero');
@@ -159,7 +159,7 @@ test('rounding check: the example data cannot pin down m', async () => {
   const neg = r.result.messages.warnings.find(m => m.code === 'm-neg');
   assert.match(neg.text, /N = 530\.2 MMSTB/);
   // the same numbers every time (seeded)
-  const again = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  const again = await runFile(path.join(FIX, 'q2_example.xlsx'));
   assert.deepEqual(again.result.rounding.m, rc.m);
 });
 
@@ -168,9 +168,9 @@ test('rounding check stays quiet on precise data', async () => {
   const path = require('path');
   const r = await runFile(path.join(SAMPLES, 'known_answer_N150_m040.xlsx'));
   assert.ok(![...r.result.messages.warnings, ...r.result.messages.infos].some(m => m.code === 'rounding'));
-  const q1 = await runFile(path.join(SAMPLES, 'havlena-odeh-example-2.xlsx'));
+  const q1 = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
   const info = q1.result.messages.infos.find(m => m.code === 'rounding');
-  assert.ok(info, 'a mild note for the second example');
+  assert.ok(info, 'a mild note for the example');
   assert.ok(!q1.result.messages.warnings.some(m => m.code === 'rounding'));
 });
 
@@ -214,9 +214,9 @@ test('combination drive: too large an aquifer is reported per point', () => {
 });
 
 test('the line is (F − W_e)/(E_o + (1 + m) E_fw) against E_g/(E_o + (1 + m) E_fw) at the fitted m', async () => {
-  const { runFile, SAMPLES } = require('./helpers');
+  const { runFile, FIX } = require('./helpers');
   const path = require('path');
-  const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+  const r = await runFile(path.join(FIX, 'q2_example.xlsx'));
   const m = r.result.results.m;
   for (const t of r.result.terms.filter(t => t.usable)) {
     const Et = t.Eo + (1 + m) * t.Efw;

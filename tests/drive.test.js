@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { E, SAMPLES, runFile, synthetic, close } = require('./helpers');
+const { E, FIX, SAMPLES, runFile, synthetic, close } = require('./helpers');
 const D = require('../assets/js/drive.js');
 
 function edwardson(tD) {
@@ -202,16 +202,16 @@ for (const [name, gen, family, aquifer] of CASES) {
 
 /* ---------- real data with known answers ---------- */
 
-test('HW Q1 data: gas-cap drive, N = 108.6 MMSTB and m = 0.542', async () => {
-  const r0 = await runFile(path.join(SAMPLES, 'havlena-odeh-example-2.xlsx'));
+test('the example (HW Q1 data): gas-cap drive, N = 108.6 MMSTB and m = 0.542', async () => {
+  const r0 = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
   const r = D.detect(r0.inputs.rows, r0.inputs.params, { includeEfw: true, precision: r0.inputs.precision });
   assert.equal(r.best.key, 'gascap');
   close(r.best.fit.N, 108.6467e6, 1e-5, 'N');
   close(r.best.fit.m, 0.5416, 1e-3, 'm');
 });
 
-test('the HW example (Dake exercise 9.2, B_g rounded, no time): water drive, N near the book’s 312 MMSTB', async () => {
-  const r0 = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
+test('the HW Q2 data (Dake exercise 9.2, B_g rounded, no time): water drive, N near the book’s 312 MMSTB', async () => {
+  const r0 = await runFile(path.join(FIX, 'q2_example.xlsx'));
   const r = D.detect(r0.inputs.rows, r0.inputs.params, { includeEfw: true, precision: r0.inputs.precision });
   assert.equal(r.best.family, 'water');
   assert.equal(r.best.aquifer, 'veh');
