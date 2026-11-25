@@ -149,14 +149,14 @@
       neg: ['compress']
     },
     Cw: {
-      label: 'Water compressibility', symbol: 'C_w', kind: 'comp',
+      label: 'Water compressibility', symbol: 'c_w', kind: 'comp',
       exact: ['cw', 'watercompressibility', 'compressibilityofwater', 'cwater'],
       tokens: ['cw'],
       contains: [['water', 'compress']],
       neg: []
     },
     Cf: {
-      label: 'Formation compressibility', symbol: 'C_f', kind: 'comp',
+      label: 'Formation compressibility', symbol: 'c_f', kind: 'comp',
       exact: ['cf', 'cr', 'formationcompressibility', 'rockcompressibility', 'porecompressibility', 'porevolumecompressibility',
         'compressibilityofformation', 'compressibilityofrock'],
       tokens: ['cf'],
@@ -846,7 +846,7 @@
     });
     var defaults = ['Swc', 'Cw', 'Cf'].filter(function (k) { return info[k].source === 'default'; });
     if (defaults.length === 3) {
-      msgs.infos.push({ code: 'efw-default', text: 'S_wc, C_w and C_f are not in the file, so E_fw = 0 (connate water and rock expansion are neglected). Type them under Reservoir parameters to include E_fw.' });
+      msgs.infos.push({ code: 'efw-default', text: 'S_wc, c_w and c_f are not in the file, so E_fw = 0 (connate water and rock expansion are neglected). Type them under Reservoir parameters to include E_fw.' });
     } else if (defaults.length) {
       msgs.infos.push({ code: 'efw-partial', text: defaults.map(function (k) { return PARAMS[k].symbol; }).join(' and ') + (defaults.length > 1 ? ' are' : ' is') + ' not in the file and is taken as 0.' });
     }

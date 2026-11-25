@@ -566,50 +566,78 @@ main {
 .sk-sw-hatch { border-color: var(--muted); background: repeating-linear-gradient(45deg, var(--muted) 0 1.3px, transparent 1.3px 4.2px); }
 .sk-note { margin-top: 9px; line-height: 1.45; }
 
-/* calculations dialog */
+/* calculations dialog: the worked calculations set as a short paper, as in the PDF, in the colours of the page */
 .cx {
-  width: min(960px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 48px);
+  width: min(980px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 48px);
   margin: auto; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-m);
   background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
 }
 .cx[open] { display: flex; flex-direction: column; }
 .cx::backdrop { background: var(--overlay); }
-.cx-head { display: flex; align-items: flex-start; gap: 16px; padding: 18px 22px 14px; border-bottom: 1px solid var(--line); }
+.cx-head { display: flex; align-items: center; gap: 12px; padding: 16px 22px 14px; border-bottom: 1px solid var(--line); }
+.cx-titles { flex: 1; min-width: 0; }
 .cx-head h2 { font-family: var(--font-display); font-size: 21px; font-weight: 600; line-height: 1.2; }
 .cx-sub { margin-top: 2px; font-size: 13.5px; color: var(--ink-2); }
-.cx-head .icon-btn { margin-left: auto; flex: none; }
-.cx-body { overflow-y: auto; padding: 0 22px 22px; overscroll-behavior: contain; }
-.cx-sec { padding: 18px 0 6px; border-top: 1px solid var(--line); }
-.cx-sec:first-child { border-top: 0; }
-.cx-sec h3 { display: flex; align-items: center; gap: 10px; font-size: 15.5px; font-weight: 600; color: var(--ink); }
-.cx-no { display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.cx-p { margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--ink-2); max-width: 82ch; }
-.cx-given { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-top: 10px; font-size: 15.5px; color: var(--ink); font-variant-numeric: tabular-nums; }
-.cx-u { margin-left: 0.3em; font-size: 0.88em; color: var(--ink-2); font-weight: 400; }
-.cx-line { margin-top: 4px; font-size: 15.5px; line-height: 2.5; font-variant-numeric: tabular-nums; }
-.cx-line .part { margin-right: 0.2em; max-width: 100%; }
-.cx-res b { font-weight: 600; }
-.cx-from { font-size: 13px; color: var(--muted); }
-.cx-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 6px; }
+.cx-head .btn, .cx-head .icon-btn { flex: none; }
+.cx-body {
+  overflow-y: auto; padding: 0 34px 30px; overscroll-behavior: contain;
+  font-family: var(--font-math); font-size: 16.5px; line-height: 1.55; color: var(--ink); font-variant-numeric: lining-nums;
+}
+.cx-body var { font-size: 1em; }
+.cx-body sub, .cx-body sup { font-family: inherit; }
+.cx-body sup { line-height: 0; }   /* a power of ten does not open up the line */
+.cx-body b { font-weight: 600; }
+.cx-body .op { margin: 0 0.28em; }
+.cx-doc { max-width: 47em; margin: 0 auto; }   /* one column for the text, the equations and the tables */
+.cx-p { margin-top: 8px; }
+.cx-summary { margin-top: 18px; }
+.cx-sec h3 { display: flex; align-items: baseline; margin: 28px 0 4px; font-family: inherit; font-size: 19px; font-weight: 600; line-height: 1.3; }
+.cx-no { flex: none; min-width: 1.6em; }
+.cx-u { margin-left: 0.3em; color: var(--ink-2); font-weight: 400; }
+/* displayed equations: centred, lined up at the equals sign, numbered at the right */
+.cx-al {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr); align-items: center;
+  column-gap: 0.3em; row-gap: 8px; margin: 14px 0; font-variant-numeric: lining-nums tabular-nums;
+}
+.cx-al > .al-l { grid-column: 2; justify-self: end; white-space: nowrap; }
+.cx-al > .al-r { grid-column: 3; min-width: 0; }
+.cx-al > .al-n { grid-column: 4; justify-self: end; padding-left: 16px; }
+.cx-al > .al-new { margin-top: 6px; }
+.cx-body .frac > span { white-space: nowrap; }
+.cx-body .bp { font-size: 1.5em; line-height: 0; vertical-align: -0.1em; }   /* a bracket as tall as the fraction inside it */
+/* the pressure to work out */
+.cx-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 6px; font-family: var(--font-body); }
 .cx-chip {
   min-height: 30px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px;
   background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer;
 }
 .cx-chip:hover { background: var(--surface-2); }
 .cx-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.cx-pick { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 6px; font-size: 13.5px; color: var(--ink-2); }
+.cx-chip-u { margin-left: 2px; font-size: 13px; color: var(--muted); }
+.cx-pick { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 6px; font-family: var(--font-body); font-size: 13.5px; color: var(--ink-2); }
 .cx-pick select { font: inherit; padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); }
-.cx-table-wrap { margin-top: 10px; max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
-.cx-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-.cx-table th, .cx-table td { padding: 6px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
-.cx-table th:first-child, .cx-table td:first-child { text-align: left; }
-.cx-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); color: var(--ink); font-weight: 600; vertical-align: bottom; }
-.cx-th-u { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); }
+/* tables: caption above, three rules, as wide as they need and centred; long ones scroll under their heading */
+.cx-fig { width: fit-content; max-width: 100%; margin: 18px auto 10px; }
+.cx-fig .cx-cap { width: 0; min-width: 100%; }   /* the caption wraps to the table and does not widen it */
+.cx-cap { margin-bottom: 6px; font-size: 14.5px; line-height: 1.45; }
+.cx-table-wrap { max-height: 360px; overflow: auto; border-top: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink); }
+.cx-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14.5px; line-height: 1.35; font-variant-numeric: lining-nums tabular-nums; }
+.cx-table th, .cx-table td { padding: 5px 12px; text-align: right; white-space: nowrap; }
+.cx-table th:first-child, .cx-table td:first-child { padding-left: 4px; text-align: left; }
+.cx-table th:last-child, .cx-table td:last-child { padding-right: 4px; }
+.cx-table .cx-l { text-align: left; }
+.cx-table .cx-c { text-align: center; }
+.cx-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--ink); font-weight: 600; vertical-align: bottom; }
+.cx-table thead th var, .cx-table thead th sub { font-weight: 400; }
+.cx-th-u { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); }
 .cx-table tbody tr[data-cx-id] { cursor: pointer; }
 .cx-table tbody tr[data-cx-id]:hover td { background: var(--surface-2); }
-.cx-table tbody tr.is-on td { background: color-mix(in srgb, var(--oil) 12%, var(--surface)); }
+.cx-table tbody tr.is-on td { background: color-mix(in srgb, var(--oil) 14%, var(--surface)); font-weight: 600; }
 .cx-table tbody tr.is-out td { color: var(--muted); }
-.cx-table tfoot td { font-weight: 600; color: var(--ink); border-top: 1px solid var(--line-strong); border-bottom: 0; background: var(--surface-2); }
+.cx-table tr.cx-gap td { font-style: italic; text-align: center; color: var(--ink-2); }
+.cx-table tfoot td { position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--ink); font-weight: 600; }
+.cx-table td .frac > span { line-height: 1.2; }
+.cx-ref { margin-top: 6px; padding-left: 1.6em; text-indent: -1.6em; font-size: 14.5px; overflow-wrap: anywhere; }
 
 /* table */
 .table-wrap { position: relative; overflow-x: auto; border-top: 1px solid var(--line); }
@@ -721,7 +749,10 @@ footer.foot {
   .appbar .btn span { display: none; }
   .cx { width: 100vw; height: 100%; max-height: 100%; border: 0; border-radius: 0; }
   .cx-head, .cx-body { padding-left: 14px; padding-right: 14px; }
-  .cx-line .part { white-space: normal; }   /* long sums of numbers wrap on a phone */
+  .cx-sub { display: none; }
+  .cx-body { font-size: 15.5px; }
+  .cx-al { grid-template-columns: 0 auto minmax(0, 1fr) auto; }   /* on a phone: from the left, and long sums of numbers wrap */
+  .cx-al > .al-n { padding-left: 8px; }
   .appbar .btn { padding: 0 10px; }
   .ledger .ledger-grid, .ledger.has-we .ledger-grid, .ledger:not(.has-we) .ledger-grid { grid-template-columns: minmax(0, 1fr); }
   .res + .res { border-left: 0; padding-left: 2px; border-top: 1px solid var(--line); }
@@ -821,7 +852,7 @@ footer.foot {
           <summary>What the file needs</summary>
           <ul>
             <li>A table with a header row: pressure <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub> (or <var>R</var><sub>p</sub>), <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub> and <var>B</var><sub>g</sub>, in any order. Units in the header, like “Np (MMSTB)”, are read.</li>
-            <li>The initial parameters <var>p</var><sub>i</sub>, <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub>, <var>R</var><sub>si</sub>, <var>S</var><sub>wc</sub>, <var>C</var><sub>w</sub>, <var>C</var><sub>f</sub> as label and value pairs, on a second sheet or beside or below the table.</li>
+            <li>The initial parameters <var>p</var><sub>i</sub>, <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub>, <var>R</var><sub>si</sub>, <var>S</var><sub>wc</sub>, <var>c</var><sub>w</sub>, <var>c</var><sub>f</sub> as label and value pairs, on a second sheet or beside or below the table.</li>
             <li>If <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub> or <var>R</var><sub>si</sub> are missing, they are read from the table row at <var>p</var><sub>i</sub>.</li>
             <li>Optional columns: time (<var>t</var> in years, months or days, or dates), water produced <var>W</var><sub>p</sub>, and water influx <var>W</var><sub>e</sub> if you know it. Time lets the dashboard test steady- and unsteady-state aquifers.</li>
             <li>For oil above its bubble point, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub> and <var>G</var><sub>p</sub> can be left out.</li>
@@ -838,7 +869,7 @@ footer.foot {
         <div id="params"></div>
         <label class="switch">
           <input type="checkbox" id="efw" checked>
-          <span>Include water and rock expansion, <var>E</var><sub>fw</sub><small>Uses <var>S</var><sub>wc</sub>, <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub>. Turn off to neglect it.</small></span>
+          <span>Include water and rock expansion, <var>E</var><sub>fw</sub><small>Uses <var>S</var><sub>wc</sub>, <var>c</var><sub>w</sub> and <var>c</var><sub>f</sub>. Turn off to neglect it.</small></span>
         </label>
       </div>
     </details>
@@ -1080,7 +1111,7 @@ footer.foot {
         </div>
         <div class="eq">
           <span class="eq-name">Connate water and rock</span>
-          <div class="eqn"><var>E</var><sub>fw</sub><span class="op">=</span><var>B</var><sub>oi</sub> <span class="frac"><span class="num"><var>C</var><sub>w</sub> <var>S</var><sub>wc</sub><span class="op">+</span><var>C</var><sub>f</sub></span><span class="den">1<span class="op">−</span><var>S</var><sub>wc</sub></span></span> Δ<var>p</var></div>
+          <div class="eqn"><var>E</var><sub>fw</sub><span class="op">=</span><var>B</var><sub>oi</sub> <span class="frac"><span class="num"><var>c</var><sub>w</sub> <var>S</var><sub>wc</sub><span class="op">+</span><var>c</var><sub>f</sub></span><span class="den">1<span class="op">−</span><var>S</var><sub>wc</sub></span></span> Δ<var>p</var></div>
         </div>
         <div class="eq">
           <span class="eq-name">Material balance</span>
@@ -1107,18 +1138,22 @@ footer.foot {
           <div class="eqn"><span class="frac"><span class="num"><var>F</var></span><span class="den"><var>E</var><sub>t</sub></span></span><span class="op">=</span><var>N</var><span class="op">+</span><span class="frac"><span class="num"><var>W</var><sub>e</sub></span><span class="den"><var>E</var><sub>t</sub></span></span></div>
         </div>
       </div>
-      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub> in psi⁻¹. <var>t</var> in days. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method.</p>
+      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>c</var><sub>w</sub> and <var>c</var><sub>f</sub> in psi⁻¹. <var>t</var> in days. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method.</p>
     </section>
   </main>
 </div>
 
 <dialog class="cx" id="cx" aria-labelledby="cx-title">
   <div class="cx-head">
-    <div>
+    <div class="cx-titles">
       <h2 id="cx-title">Calculations</h2>
       <p class="cx-sub">Every step from the data to the results, with the numbers put in.</p>
     </div>
-    <button class="icon-btn" type="button" id="cx-close" aria-label="Close the calculations">
+    <button class="btn btn-outline" type="button" id="cx-pdf" aria-label="Download the calculations as a PDF" title="Opens the print window: choose Save as PDF" data-download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+      <span>Download PDF</span>
+    </button>
+    <button class="icon-btn" type="button" id="cx-close" aria-label="Close the calculations" autofocus>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
   </div>
@@ -2180,14 +2215,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       neg: ['compress']
     },
     Cw: {
-      label: 'Water compressibility', symbol: 'C_w', kind: 'comp',
+      label: 'Water compressibility', symbol: 'c_w', kind: 'comp',
       exact: ['cw', 'watercompressibility', 'compressibilityofwater', 'cwater'],
       tokens: ['cw'],
       contains: [['water', 'compress']],
       neg: []
     },
     Cf: {
-      label: 'Formation compressibility', symbol: 'C_f', kind: 'comp',
+      label: 'Formation compressibility', symbol: 'c_f', kind: 'comp',
       exact: ['cf', 'cr', 'formationcompressibility', 'rockcompressibility', 'porecompressibility', 'porevolumecompressibility',
         'compressibilityofformation', 'compressibilityofrock'],
       tokens: ['cf'],
@@ -2877,7 +2912,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     });
     var defaults = ['Swc', 'Cw', 'Cf'].filter(function (k) { return info[k].source === 'default'; });
     if (defaults.length === 3) {
-      msgs.infos.push({ code: 'efw-default', text: 'S_wc, C_w and C_f are not in the file, so E_fw = 0 (connate water and rock expansion are neglected). Type them under Reservoir parameters to include E_fw.' });
+      msgs.infos.push({ code: 'efw-default', text: 'S_wc, c_w and c_f are not in the file, so E_fw = 0 (connate water and rock expansion are neglected). Type them under Reservoir parameters to include E_fw.' });
     } else if (defaults.length) {
       msgs.infos.push({ code: 'efw-partial', text: defaults.map(function (k) { return PARAMS[k].symbol; }).join(' and ') + (defaults.length > 1 ? ' are' : ' is') + ' not in the file and is taken as 0.' });
     }
@@ -5579,7 +5614,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   /* ------------------------------------------------------------------
    * Example data set: a gas-cap oil reservoir from the course, in the units of its handout,
-   * with the initial values on a second sheet. S_wc, C_w and C_f are not given for it, so E_fw = 0.
+   * with the initial values on a second sheet. S_wc, c_w and c_f are not given for it, so E_fw = 0.
    * ------------------------------------------------------------------ */
   var EX_PROD = [
     ['Pressure (psia)', 'Np (MMSTB)', 'Gp (MMMSCF)', 'Bo (bbl/STB)', 'Rs (SCF/STB)', 'Bg (cuft/SCF)'],
@@ -5617,7 +5652,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     Bo: '<var>B</var><sub>o</sub>', Rs: '<var>R</var><sub>s</sub>', Bg: '<var>B</var><sub>g</sub>',
     Wp: '<var>W</var><sub>p</sub>', Bw: '<var>B</var><sub>w</sub>',
     pi: '<var>p</var><sub>i</sub>', Boi: '<var>B</var><sub>oi</sub>', Bgi: '<var>B</var><sub>gi</sub>', Rsi: '<var>R</var><sub>si</sub>',
-    Swc: '<var>S</var><sub>wc</sub>', Cw: '<var>C</var><sub>w</sub>', Cf: '<var>C</var><sub>f</sub>', phi: '<var>φ</var>'
+    Swc: '<var>S</var><sub>wc</sub>', Cw: '<var>c</var><sub>w</sub>', Cf: '<var>c</var><sub>f</sub>', phi: '<var>φ</var>'
   };
 
   function esc(s) {
@@ -6476,19 +6511,39 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   /* ---------- calculations: every step from the data to the results, with the numbers put in ---------- */
   var cx = { id: null };
+  var CALC_DATA_ROWS = 40;   // production rows shown in full in the data table; a longer one shows its first twelve and last four
 
-  /** v with n significant digits and thousands separators; × 10^k when it is very large or very small. */
-  function sigText(v, n) {
+  /** v with n significant digits and thousands separators; × 10^k from a million up, and below 10^lo (10⁻⁴ unless given). */
+  function sigText(v, n, lo) {
     if (!isFinite(v)) return '–';
     if (v === 0) return '0';
     n = n || 5;
     var e = Math.floor(Math.log10(Math.abs(v)));
-    if (e >= 6 || e <= -4) {
-      var mant = Number((v / Math.pow(10, e)).toPrecision(n));
-      if (Math.abs(mant) >= 10) { mant /= 10; e += 1; }
-      return fmtFixed(mant, n - 1) + ' × 10<sup>' + minus(String(e)) + '</sup>';
-    }
+    if (e >= 6 || e <= (lo == null ? -4 : lo)) return sciSig(v, n);
     return fmtFixed(v, Math.max(0, n - 1 - e));
+  }
+
+  /** v as a × 10^k with n significant digits. */
+  function sciSig(v, n) {
+    if (!isFinite(v)) return '–';
+    if (v === 0) return '0';
+    var e = Math.floor(Math.log10(Math.abs(v))), mant = Number((v / Math.pow(10, e)).toPrecision(n));
+    if (Math.abs(mant) >= 10) { mant /= 10; e += 1; }
+    return fmtFixed(mant, n - 1) + '\u00a0×\u00a010<sup>' + minus(String(e)) + '</sup>';
+  }
+
+  /** A table column of numbers in one style: all as a × 10^k when the largest needs it, else plain; five significant digits. */
+  function colSig(vals) {
+    var big = 0;
+    vals.forEach(function (v) { if (isFinite(v)) big = Math.max(big, Math.abs(v)); });
+    return big >= 1e6 ? function (v) { return sciSig(v, 5); } : function (v) { return sigText(v, 5, -7); };
+  }
+
+  /** Spaces that must not break a line: before = in running text (a line may break after it), between a number and its unit, and after Table, Eq. and Section. */
+  function tie(html) {
+    return html.replace(/ = /g, '\u00a0= ').replace(/MM rb/g, 'MM\u00a0rb')
+      .replace(/(\d|<\/sup>) (?=(psia|psi|STB|SCF|rb|MMSTB|Bscf|MM|per|%)(?!\w))/g, '$1\u00a0')
+      .replace(/\b(Table|Eqs?\.|Section) (?=[(\d])/g, '$1\u00a0');
   }
 
   /** A value from the data as it is written there; large ones as × 10⁶ or × 10⁹, tiny ones as × 10⁻ᵏ. */
@@ -6497,240 +6552,424 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var a = Math.abs(v);
     if (a >= 1e6) {
       var e = a >= 1e9 ? 9 : 6, mant = v / Math.pow(10, e);
-      return fmtFixed(mant, decimalsOf(mant)) + ' × 10<sup>' + e + '</sup>';
+      return fmtFixed(mant, decimalsOf(mant)) + '\u00a0×\u00a010<sup>' + e + '</sup>';
     }
-    if (a > 0 && a < 1e-4) return sciText(v);
+    if (a > 0 && a < 1e-4) return cxSci(v);
     return fmtFixed(v, decimalsOf(v));
   }
 
   var cxOp = function (s) { return '<span class="op">' + s + '</span>'; };
   var cxFr = function (a, b) { return '<span class="frac"><span class="num">' + a + '</span><span class="den">' + b + '</span></span>'; };
-  var cxPar = function (s) { return /× 10/.test(s) ? '(' + s + ')' : s; };   // a number written with × 10ᵏ, as a factor
+  var cxPar = function (s) { return /×\u00a010|^−/.test(s) ? '(' + s + ')' : s; };   // a number written with × 10ᵏ, or a negative one, as a factor
+  var cxU = function (u) { return u ? '<span class="cx-u">' + u + '</span>' : ''; };
+  var cxRes = function (v, u) { return '<b>' + v + '</b>' + cxU(u); };   // a result, in bold, with its unit
+  var cxSci = function (v) { return sciText(v).replace(/ × /g, '\u00a0×\u00a0'); };
+  var cxCap = function (s) { return s.charAt(0).toUpperCase() + s.slice(1); };
+  var cxBig = function (s) { return '<span class="bp">' + s + '</span>'; };   // a bracket as tall as the fraction inside it
 
-  /** One worked line: the formula, the numbers put in, the result. */
-  function cxLine(lhs, formula, numbers, result, unit) {
-    var parts = ['<span class="part">' + lhs + cxOp('=') + formula + '</span>'];
-    if (numbers) parts.push('<span class="part">' + cxOp('=') + numbers + '</span>');
-    if (result != null) parts.push('<span class="part cx-res">' + cxOp('=') + '<b>' + result + '</b>' + (unit ? '<span class="cx-u">' + unit + '</span>' : '') + '</span>');
-    return '<div class="eqn wrap cx-line">' + parts.join('') + '</div>';
-  }
-  function cxSec(no, title, html) {
-    return '<section class="cx-sec"><h3><span class="cx-no">' + no + '</span>' + title + '</h3>' + html + '</section>';
-  }
-  function cxP(html) { return '<p class="cx-p">' + html + '</p>'; }
-
-  function renderCalcs(b) {
-    var body = $('cx-body');
-    if (!b || !hasFit(b)) { body.innerHTML = cxP('The calculations appear once a straight line is fitted to the data.'); return; }
+  /**
+   * The calculations as numbered sections of blocks, written once for the window on screen and for the PDF:
+   *   {t: 'p', html, only}                               a paragraph; only: 'screen' or 'print' when it belongs to one of them
+   *   {t: 'eq', rows: [[lhs, rhs, no]]}                  displayed equations, lined up at the equals sign, numbered at the right
+   *   {t: 'table', no, caption, cols: [{h, u, left, center}], rows: [{cells, id, on, out, gap}], foot}
+   *   {t: 'pick'}                                        the pressure picker of the window
+   * Equations and tables are numbered in order, so the window and the PDF refer to the same Eq. (k) and Table k.
+   */
+  function calcModel(b) {
     var R = b.result.results, fit = b.result.fit, P0 = b.inputs.params, c = b.model;
-    var terms = b.result.terms, inc = terms.filter(function (t) { return t.included; });
+    var terms = b.result.terms, inc = terms.filter(function (q) { return q.included; }), rows = b.inputs.rows;
     var view = b.view, noGas = !!b.inputs.noGas, water = influxOn(b), aq = water ? c.aquifer : null;
-    var efw = anyEfw(b), gas = R.m > 0;
+    var efw = anyEfw(b), gas = R.m > 0, withEg = !noGas && (view === 'line' || gas);
     var mAx = view === 'line' ? (isFinite(fit.mAxes) ? fit.mAxes : R.m) : (gas ? R.m : 0);   // the m on the axes
+    var S = c && c.S ? c.S : {}, tUnit = b.detection && b.detection.timeMode === 'steps' ? 'row' : 'day';
+    var hasWp = rows.some(function (r) { return isFinite(r.Wp) && r.Wp !== 0; });
     var V = rv, s5 = function (v) { return sigText(v, 5); }, g = function (v) { return cxPar(givenText(v)); };
-    var F = V('F'), N = V('N'), m = V('m'), Np = V('N', 'p'), Gp = V('G', 'p'), Bo = V('B', 'o'), Boi = V('B', 'oi'), Bg = V('B', 'g'), Bgi = V('B', 'gi');
-    var Rs = V('R', 's'), Rsi = V('R', 'si'), Rp = V('R', 'p'), Eo = V('E', 'o'), Eg = V('E', 'g'), Efw = V('E', 'fw'), Et = V('E', 't'), We = V('W', 'e');
-    var Swc = V('S', 'wc'), Cw = V('C', 'w'), Cf = V('C', 'f'), pi = V('p', 'i'), p = V('p'), x = V('x'), y = V('y');
-    var withEg = !noGas && (view === 'line' || gas);
-    var withEt = view !== 'line';
+    var F = V('F'), N = V('N'), m = V('m'), G = V('G'), Np = V('N', 'p'), Gp = V('G', 'p'), Wp = V('W', 'p'), Bw = V('B', 'w');
+    var Bo = V('B', 'o'), Boi = V('B', 'oi'), Bg = V('B', 'g'), Bgi = V('B', 'gi'), Rs = V('R', 's'), Rsi = V('R', 'si'), Rp = V('R', 'p');
+    var Eo = V('E', 'o'), Eg = V('E', 'g'), Efw = V('E', 'fw'), Et = V('E', 't'), Esym = V('E'), We = V('W', 'e');
+    var Swc = V('S', 'wc'), cw = V('c', 'w'), cf = V('c', 'f'), pi = V('p', 'i'), p = V('p'), x = V('x'), y = V('y'), Sa = V('S');
+    var b0 = V('b', '0'), b1 = V('b', '1'), n = V('n'), xm = V('x̄'), ym = V('ȳ'), yh = V('ŷ'), R2 = V('R') + '<sup>2</sup>';
     var aqSym = aq === 'pot' ? V('K') : aq === 'steady' ? V('C') : V('U');
-    var S = c && c.S ? c.S : {};
-    var tUnit = b.detection && b.detection.timeMode === 'steps' ? 'row' : 'day';
-    var h = [];
+    var uUnit = aq === 'steady' ? 'rb/(psi·' + tUnit + ')' : 'rb/psi', sUnit = aq === 'steady' ? 'psi·' + tUnit : 'psi';
+    var Fnet = water ? F + cxOp('−') + We : F, FnetText = water ? F + ' − ' + We : F;
+    var mw = mechWords(b);
+    var eqNo = 0, tabNo = 0, nextEq = function () { return ++eqNo; }, nextTab = function () { return ++tabNo; };
+    var P = function (html, only) { return { t: 'p', html: tie(html), only: only || null }; };
+    var eq = function (lines) { return { t: 'eq', rows: lines.map(function (l) { return [l[0], cxOp('=') + l[1], l[2] || 0]; }) }; };
+    var eq1 = function (lhs, rhs, no) { return eq([[lhs, rhs, no]]); };
+    // the formula, the numbers put in, and the result, one under the other
+    var worked = function (lhs, formula, numbers, result) { return eq([[lhs, formula]].concat(numbers ? [['', numbers]] : []).concat([['', result]])); };
+    // a short one on a single line
+    var inline = function (lhs, formula, numbers, result) { return eq1(lhs, formula + (numbers ? cxOp('=') + numbers : '') + cxOp('=') + result); };
+    var table = function (no, caption, cols, trs, foot) { return { t: 'table', no: no, caption: tie(caption), cols: cols, rows: trs, foot: foot || null }; };
+    var sum = function (arr) { return arr.reduce(function (s, v) { return s + v; }, 0); };
+    var sections = [];
 
-    // 1 the initial values
-    var gv = [[pi, givenText(P0.pi), 'psia'], [Boi, givenText(P0.Boi), 'rb/STB']];
-    if (!noGas) gv.push([Bgi, givenText(P0.Bgi), 'rb/SCF'], [Rsi, givenText(P0.Rsi), 'SCF/STB']);
-    if (efw) gv.push([Swc, givenText(P0.Swc), ''], [Cw, sciText(P0.Cw), 'psi<sup>−1</sup>'], [Cf, sciText(P0.Cf), 'psi<sup>−1</sup>']);
-    if (gas && R.mFixed) gv.push([m, givenText(R.m), '(given)']);
-    var n1 = ['Field units throughout: ' + Np + ' in STB, ' + Gp + ' in SCF, ' + Bo + ' in rb/STB, ' + Rs + ' in SCF/STB and ' + Bg + ' in rb/SCF (ft³/SCF ÷ 5.615). Values in other units were converted first.'];
-    if (noGas) n1.push('There are no ' + Rs + ', ' + Bg + ' or ' + Gp + ' columns, so the oil is taken as undersaturated: ' + Rs + ' = ' + Rsi + ' and no gas comes out of it.');
-    else if (!efw) n1.push(state.includeEfw ? Swc + ', ' + Cw + ' and ' + Cf + ' are not given, so ' + Efw + ' = 0.' : 'Water and rock expansion is switched off, so ' + Efw + ' = 0.');
-    h.push(cxSec(1, 'Initial values', '<div class="cx-given">' + gv.map(function (q) { return '<span>' + q[0] + ' = ' + q[1] + (q[2] ? ' <span class="cx-u">' + q[2] + '</span>' : '') + '</span>'; }).join('') + '</div>' + n1.map(cxP).join('')));
-
-    // 2 the terms at one pressure
-    var pts = terms.filter(function (t) { return t.Np > 0 && isFinite(t.p); });
-    if (!pts.some(function (t) { return t.id === cx.id; })) cx.id = (inc[0] || pts[0] || {}).id;
+    // the points: the production steps, in the order of the table; the one worked out in Section 3
+    var pts = terms.filter(function (q) { return q.Np > 0 && isFinite(q.p); });
+    if (!pts.some(function (q) { return q.id === cx.id; })) cx.id = (inc[0] || pts[0] || {}).id;
     var t = pts.filter(function (q) { return q.id === cx.id; })[0];
-    var pick = pts.length <= 14
-      ? '<div class="cx-chips" role="group" aria-label="Pressure">' + pts.map(function (q) {
-          return '<button type="button" class="cx-chip" data-cx-id="' + esc(q.id) + '" aria-pressed="' + (q.id === cx.id) + '">' + fmtFixed(q.p, 0) + '</button>';
-        }).join('') + '<span class="cx-u">psia</span></div>'
-      : '<label class="cx-pick">Pressure <select id="cx-select">' + pts.map(function (q) {
-          return '<option value="' + esc(q.id) + '"' + (q.id === cx.id ? ' selected' : '') + '>' + fmtFixed(q.p, 0) + ' psia</option>';
-        }).join('') + '</select></label>';
-    var L = [];
+
+    /* 1 Data */
+    var tPrm = nextTab(), tDat = nextTab(), tAll = nextTab(), s1 = [];   // Sections 2 and 3 have no tables, so the table of all pressures is the third
+    s1.push(P('The calculation starts from the initial reservoir parameters in Table ' + tPrm + ' and the production and PVT data in Table ' + tDat + '.'));
+    var prm = [['Initial pressure', pi, givenText(P0.pi), 'psia'], ['Initial oil formation volume factor', Boi, givenText(P0.Boi), 'rb/STB']];
+    if (!noGas) prm.push(['Initial gas formation volume factor', Bgi, givenText(P0.Bgi), 'rb/SCF'], ['Initial solution gas–oil ratio', Rsi, givenText(P0.Rsi), 'SCF/STB']);
+    if (efw) prm.push(['Connate water saturation', Swc, givenText(P0.Swc), '–'], ['Water compressibility', cw, cxSci(P0.Cw), 'psi<sup>−1</sup>'], ['Formation compressibility', cf, cxSci(P0.Cf), 'psi<sup>−1</sup>']);
+    if (gas && R.mFixed) prm.push(['Gas-cap to oil-zone volume ratio', m, givenText(R.m), '–']);
+    s1.push(table(tPrm, 'Initial reservoir parameters.', [{ h: 'Parameter', left: true }, { h: 'Symbol', center: true }, { h: 'Value' }, { h: 'Unit', left: true }],
+      prm.map(function (q) { return { cells: q }; })));
+    var dcols = [];
+    if (b.inputs.hasTime) dcols.push({ h: V('t'), u: 'years', f: function (r) { return r.t / 365.25; } });
+    dcols.push({ h: p, u: 'psia', f: function (r) { return r.p; } }, { h: Np, u: 'MMSTB', f: function (r) { return r.Np / 1e6; } });
+    if (!noGas) dcols.push({ h: Gp, u: 'Bscf', f: function (r) { return r.Gp / 1e9; } });
+    dcols.push({ h: Bo, u: 'rb/STB', f: function (r) { return r.Bo; } });
+    if (!noGas) dcols.push({ h: Rs, u: 'SCF/STB', f: function (r) { return r.Rs; } }, { h: Bg, u: 'rb/SCF', f: function (r) { return r.Bg; } });
+    if (hasWp) dcols.push({ h: Wp, u: 'MMSTB', f: function (r) { return r.Wp / 1e6; } });
+    if (b.inputs.hasWe && rows.some(function (r) { return isFinite(r.We) && r.We !== 0; })) dcols.push({ h: We, u: 'MM rb', f: function (r) { return r.We / 1e6; } });
+    dcols.forEach(function (col) { var d = colDecimals(rows.map(col.f)); col.fmt = function (r) { var v = col.f(r); return isFinite(v) ? fmtFixed(v, d) : '–'; }; });
+    var drow = function (r) { return { cells: dcols.map(function (col) { return col.fmt(r); }) }; };
+    var dshown = rows.length <= CALC_DATA_ROWS ? rows.map(drow)
+      : rows.slice(0, 12).map(drow).concat([{ gap: plural(rows.length - 16, 'more row') + '; Table ' + tAll + ' gives every pressure' }], rows.slice(-4).map(drow));
+    s1.push(table(tDat, 'Production and PVT data.', dcols.map(function (col) { return { h: col.h, u: col.u }; }), dshown));
+    var un = [p + ' in psia', Np + ' in STB'];
+    if (!noGas) un.push(Gp + ' in SCF');
+    un.push(Bo + ' in rb/STB');
+    if (!noGas) un.push(Rs + ' and ' + Rp + ' in SCF/STB', Bg + ' in rb/SCF (ft³/SCF ÷ 5.615)');
+    if (water) un.push(We + ' in rb');
+    var n1 = 'Field units are used throughout: ' + andList(un) + '. Values given in other units were converted first' + (aq === 'steady' && tUnit === 'day' ? ', and time is used in days' : '') + '.';
+    if (noGas) n1 += ' There are no ' + Rs + ', ' + Bg + ' or ' + Gp + ' data, so the oil is taken as undersaturated: ' + Rs + ' = ' + Rsi + ' and no gas comes out of solution.';
+    if (!efw) n1 += state.includeEfw ? ' ' + Swc + ', ' + cw + ' and ' + cf + ' are not given, so the expansion of the connate water and the rock is neglected (' + Efw + ' = 0).'
+      : ' The expansion of the connate water and the rock is neglected (' + Efw + ' = 0).';
+    s1.push(P(n1 + ' Values are rounded for display; the calculation keeps full precision, so repeating it by hand can differ in the last digit.'));
+    sections.push({ title: 'Data', blocks: s1 });
+
+    /* 2 Equations */
+    var s2 = [], eMbe = nextEq();
+    s2.push(P('The material balance of an oil reservoir with a gas cap and water influx (Havlena and Odeh, 1963) is'));
+    s2.push(eq1(F, N + ' [' + Eo + cxOp('+') + m + ' ' + Eg + cxOp('+') + '(1' + cxOp('+') + m + ') ' + Efw + ']' + cxOp('+') + We, eMbe));
+    var eSyms = [Eo], eWhat = ['of the oil with its dissolved gas'];
+    if (withEg) { eSyms.push(Eg); eWhat.push('of the gas cap'); }
+    if (efw) { eSyms.push(Efw); eWhat.push('of the connate water and the rock'); }
+    s2.push(P('where ' + F + ' is the underground withdrawal and ' + andList(eSyms) + (eSyms.length > 1 ? ' are the expansions ' : ' is the expansion ') + andList(eWhat) +
+      ', per stock-tank barrel of oil initially in place:'));
+    var eF = nextEq(), eEo = nextEq(), eEg = withEg ? nextEq() : 0, eEfw = efw ? nextEq() : 0;
+    var wpF = hasWp ? cxOp('+') + Wp + ' ' + Bw : '';
+    var defs = [[F, (noGas ? Np + ' ' + Bo : Np + ' [' + Bo + cxOp('+') + '(' + Rp + cxOp('−') + Rs + ') ' + Bg + ']') + wpF + (noGas ? '' : ',&emsp;' + Rp + cxOp('=') + cxFr(Gp, Np)), eF],
+      [Eo, noGas ? Bo + cxOp('−') + Boi : '(' + Bo + cxOp('−') + Boi + ')' + cxOp('+') + '(' + Rsi + cxOp('−') + Rs + ') ' + Bg, eEo]];
+    if (withEg) defs.push([Eg, Boi + ' ' + cxBig('(') + cxFr(Bg, Bgi) + cxOp('−') + '1' + cxBig(')'), eEg]);
+    if (efw) defs.push([Efw, Boi + ' ' + cxFr(cw + ' ' + Swc + cxOp('+') + cf, '1' + cxOp('−') + Swc) + ' (' + pi + cxOp('−') + p + ')', eEfw]);
+    s2.push(eq(defs));
+    var why = [];
+    if (view !== 'line' && !gas) why.push(m + ' = 0');
+    if (!water) why.push(We + ' = 0');
+    if (!efw) why.push(Efw + ' = 0');
+    var lead = function (rest) { return why.length ? 'With ' + andList(why) + ', ' + rest : cxCap(rest); };
+    var etF = Eo + (gas ? cxOp('+') + m + ' ' + Eg : '') + (efw ? cxOp('+') + (gas ? '(1' + cxOp('+') + m + ') ' : '') + Efw : '');
+    var eLine, eEt = 0, eG = 0, eAq = 0, den = efw ? Esym : Eo;
+    var gEq = function () { eG = nextEq(); s2.push(eq1(G, cxFr(m + N + ' ' + Boi, Bgi), eG)); };
+    if (view === 'line') {
+      s2.push(P(lead('dividing Eq. (' + eMbe + ') by ' + (efw ? Esym + ' = ' + Eo + ' + (1 + ' + m + ') ' + Efw : Eo) + ' gives the straight line')));
+      eLine = nextEq();
+      s2.push(eq1(cxFr(Fnet, den), N + cxOp('+') + m + N + ' ' + cxFr(Eg, den), eLine));
+      s2.push(P('of ' + y + ' = ' + (water ? '(' + FnetText + ')' : F) + '/' + den + ' against ' + x + ' = ' + Eg + '/' + den + ', with intercept ' + N + ' and slope ' + m + N +
+        '. Hence ' + m + ' = slope/intercept, and the gas-cap gas initially in place is'));
+      gEq();
+      if (efw) s2.push(P('Because ' + m + ' appears on both axes through ' + Esym + ', the line is fitted again with each new ' + m + ' until ' + m + ' no longer changes.'));
+    } else {
+      eLine = nextEq(); eEt = nextEq();
+      if (view === 'origin') {
+        s2.push(P(lead('Eq. (' + eMbe + ') becomes the straight line through the origin')));
+        s2.push(eq([[Fnet, N + ' ' + Et, eLine], [Et, etF, eEt]]));
+        s2.push(P('of ' + y + ' = ' + FnetText + ' against ' + Et + ', whose slope is ' + N + '.' + (gas ? ' The gas-cap ratio ' + m + ' is given, and the gas-cap gas initially in place is' : '')));
+        if (gas) gEq();
+      } else {
+        s2.push(P(lead('dividing Eq. (' + eMbe + ') by the total expansion ' + Et + ' gives')));
+        s2.push(eq([[cxFr(F, Et), N + cxOp('+') + cxFr(We, Et), eLine], [Et, etF, eEt]]));
+      }
+    }
+    if (water && aq === 'column') s2.push(P('The water influx ' + We + ' is taken from the data file.'));
+    if (water && aq !== 'column') {
+      eAq = nextEq();
+      var aqF = aq === 'pot' ? aqSym + ' (' + pi + cxOp('−') + p + ')'
+        : aq === 'steady' ? aqSym + ' ∫<sub>0</sub><sup><var>t</var></sup> (' + pi + cxOp('−') + p + ') d' + V('t')
+        : aqSym + ' Σ<sub><var>j</var></sub> Δ' + V('p', 'j') + ' ' + V('W', 'D') + '(' + V('t', 'D') + cxOp('−') + V('t', 'D<var>j</var>') + ')';
+      s2.push(P('The water influx is modelled with ' + mw.aqWords + ':'));
+      s2.push(eq1(We, aqF + cxOp('=') + aqSym + ' ' + Sa, eAq));
+      var sDef = 'where ' + Sa + ' is the aquifer function' + (aq === 'veh' ? ', ' + V('W', 'D') + ' the dimensionless influx of a radial aquifer at constant terminal pressure with ' +
+        V('r', 'e') + '/' + V('r', 'o') + ' = ' + reText(c.reD) + ', Δ' + V('p', 'j') + ' the averaged pressure steps, and ' + V('t', 'D') + ' = ' + V('a') + ' ' + V('t') + ' with ' +
+        V('a') + ' = ' + tdText(b, c.a) + ' (Dake, 1978)' : '');
+      if (view === 'water') {
+        var eW = nextEq();
+        s2.push(P(sDef + '. Putting Eq. (' + eAq + ') into Eq. (' + eLine + ') gives the straight line'));
+        s2.push(eq1(y, N + cxOp('+') + aqSym + ' ' + x + ',&emsp;' + y + cxOp('=') + cxFr(F, Et) + ',&emsp;' + x + cxOp('=') + cxFr(Sa, Et), eW));
+        s2.push(P('with intercept ' + N + ' and slope ' + aqSym + '. With ' + aqSym + ' known, ' + We + ' = ' + aqSym + ' ' + Sa + ' at every step, and the points ' + F + '/' + Et + ' against ' +
+          We + '/' + Et + ' lie on a line of unit slope through ' + N + ' (the Havlena–Odeh plot).'));
+        eLine = eW;
+      } else {
+        s2.push(P(sDef + '. The constant ' + aqSym + ' was found together with ' + (view === 'line' ? N + ' and ' + m : N) + ' by least squares on Eq. (' + eMbe + '); with it, ' + We +
+          ' is known at every step, and the line (' + eLine + ') gives ' + (view === 'line' ? N + ' and ' + m : N) + '.'));
+      }
+    }
+    sections.push({ title: 'Equations', blocks: s2 });
+
+    /* 3 Sample calculation at one pressure */
+    var s3 = [{ t: 'pick' }];
     if (t) {
-      var row = b.inputs.rows.filter(function (r) { return r.id === t.id; })[0] || {};
       var data = [Np + ' = ' + givenText(t.Np) + ' STB'];
       if (!noGas) data.push(Gp + ' = ' + givenText(t.Gp) + ' SCF');
       data.push(Bo + ' = ' + givenText(t.Bo) + ' rb/STB');
       if (!noGas) data.push(Rs + ' = ' + givenText(t.Rs) + ' SCF/STB', Bg + ' = ' + givenText(t.Bg) + ' rb/SCF');
-      if (t.Wp > 0) data.push(V('W', 'p') + ' = ' + givenText(t.Wp) + ' STB', V('B', 'w') + ' = ' + givenText(t.Bw) + ' rb/STB');
+      if (t.Wp > 0) data.push(Wp + ' = ' + givenText(t.Wp) + ' STB', Bw + ' = ' + givenText(t.Bw) + ' rb/STB');
       if (aq === 'column') data.push(We + ' = ' + givenText(t.We) + ' rb');
-      L.push(cxP('At ' + p + ' = ' + fmtFixed(t.p, 0) + ' psia the table gives ' + andList(data) + '.'));
-      var wpF = t.Wp > 0 ? cxOp('+') + V('W', 'p') + ' ' + V('B', 'w') : '', wpN = t.Wp > 0 ? cxOp('+') + g(t.Wp) + ' × ' + givenText(t.Bw) : '';
-      if (noGas) {
-        L.push(cxLine(F, Np + ' ' + Bo + wpF, g(t.Np) + ' × ' + givenText(t.Bo) + wpN, s5(t.F), 'rb'));
-        L.push(cxLine(Eo, Bo + cxOp('−') + Boi, givenText(t.Bo) + cxOp('−') + givenText(P0.Boi), s5(t.Eo), 'rb/STB'));
-      } else {
-        L.push(cxLine(Rp, cxFr(Gp, Np), cxFr(givenText(t.Gp), givenText(t.Np)), s5(t.Rp), 'SCF/STB'));
-        L.push(cxLine(F, Np + ' [' + Bo + cxOp('+') + '(' + Rp + cxOp('−') + Rs + ') ' + Bg + ']' + wpF,
-          g(t.Np) + ' × [' + givenText(t.Bo) + cxOp('+') + '(' + s5(t.Rp) + cxOp('−') + givenText(t.Rs) + ') × ' + givenText(t.Bg) + ']' + wpN, s5(t.F), 'rb'));
-        L.push(cxLine(Eo, '(' + Bo + cxOp('−') + Boi + ')' + cxOp('+') + '(' + Rsi + cxOp('−') + Rs + ') ' + Bg,
-          '(' + givenText(t.Bo) + cxOp('−') + givenText(P0.Boi) + ')' + cxOp('+') + '(' + givenText(P0.Rsi) + cxOp('−') + givenText(t.Rs) + ') × ' + givenText(t.Bg), s5(t.Eo), 'rb/STB'));
-      }
-      if (withEg) L.push(cxLine(Eg, Boi + ' (' + cxFr(Bg, Bgi) + cxOp('−') + '1)', givenText(P0.Boi) + ' × (' + cxFr(givenText(t.Bg), givenText(P0.Bgi)) + cxOp('−') + '1)', s5(t.Eg), 'rb/STB'));
-      if (efw) L.push(cxLine(Efw, Boi + ' ' + cxFr(Cw + ' ' + Swc + cxOp('+') + Cf, '1' + cxOp('−') + Swc) + ' (' + pi + cxOp('−') + p + ')',
-        givenText(P0.Boi) + ' × ' + cxFr(cxPar(sciText(P0.Cw)) + ' × ' + givenText(P0.Swc) + cxOp('+') + cxPar(sciText(P0.Cf)), '1' + cxOp('−') + givenText(P0.Swc)) + ' × (' + givenText(P0.pi) + cxOp('−') + givenText(t.p) + ')', s5(t.Efw), 'rb/STB'));
-      // water influx at this step (in the water view it follows x and y, as it needs U from step 4)
-      var weLines = [];
+      s3.push(P('At ' + p + ' = ' + fmtFixed(t.p, 0) + ' psia, Table ' + tDat + ' gives ' + andList(data) + '.' + (noGas ? '' : ' The cumulative produced gas–oil ratio is')));
+      var wpN = hasWp ? cxOp('+') + (t.Wp > 0 ? g(t.Wp) + ' × ' + givenText(t.Bw) : '0') : '';
+      if (!noGas) s3.push(inline(Rp, cxFr(Gp, Np), cxFr(givenText(t.Gp), givenText(t.Np)), cxRes(s5(t.Rp), 'SCF/STB')));
+      s3.push(P((noGas ? 'Eq. (' : 'and Eq. (') + eF + ') gives the underground withdrawal'));
+      if (noGas) s3.push(worked(F, Np + ' ' + Bo + wpF, g(t.Np) + ' × ' + givenText(t.Bo) + wpN, cxRes(s5(t.F), 'rb')));
+      else s3.push(worked(F, Np + ' [' + Bo + cxOp('+') + '(' + Rp + cxOp('−') + Rs + ') ' + Bg + ']' + wpF,
+        g(t.Np) + ' × [' + givenText(t.Bo) + cxOp('+') + '(' + s5(t.Rp) + cxOp('−') + givenText(t.Rs) + ') × ' + givenText(t.Bg) + ']' + wpN, cxRes(s5(t.F), 'rb')));
+      var refs3 = ['(' + eEo + ')'];
+      if (withEg) refs3.push('(' + eEg + ')');
+      if (efw) refs3.push('(' + eEfw + ')');
+      s3.push(P('The expansion terms follow from Eq' + (refs3.length > 1 ? 's' : '') + '. ' + andList(refs3) + ':'));
+      if (noGas) s3.push(inline(Eo, Bo + cxOp('−') + Boi, givenText(t.Bo) + cxOp('−') + givenText(P0.Boi), cxRes(s5(t.Eo), 'rb/STB')));
+      else s3.push(worked(Eo, '(' + Bo + cxOp('−') + Boi + ')' + cxOp('+') + '(' + Rsi + cxOp('−') + Rs + ') ' + Bg,
+        '(' + givenText(t.Bo) + cxOp('−') + givenText(P0.Boi) + ')' + cxOp('+') + '(' + givenText(P0.Rsi) + cxOp('−') + givenText(t.Rs) + ') × ' + givenText(t.Bg), cxRes(s5(t.Eo), 'rb/STB')));
+      if (withEg) s3.push(worked(Eg, Boi + ' ' + cxBig('(') + cxFr(Bg, Bgi) + cxOp('−') + '1' + cxBig(')'), givenText(P0.Boi) + ' × ' + cxBig('(') + cxFr(givenText(t.Bg), givenText(P0.Bgi)) + cxOp('−') + '1' + cxBig(')'), cxRes(s5(t.Eg), 'rb/STB')));
+      if (efw) s3.push(worked(Efw, Boi + ' ' + cxFr(cw + ' ' + Swc + cxOp('+') + cf, '1' + cxOp('−') + Swc) + ' (' + pi + cxOp('−') + p + ')',
+        givenText(P0.Boi) + ' × ' + cxFr(cxPar(cxSci(P0.Cw)) + ' × ' + givenText(P0.Swc) + cxOp('+') + cxSci(P0.Cf), '1' + cxOp('−') + givenText(P0.Swc)) +
+        ' × (' + givenText(P0.pi) + cxOp('−') + givenText(t.p) + ')', cxRes(s5(t.Efw), 'rb/STB')));
+      // the water influx at this step, from the aquifer model
+      var weBlk = null, sTxt = '';
       if (water && aq !== 'column' && isFinite(S[t.id])) {
-        var Uc = cxPar(s5(c.fit.U)), Sx = cxPar(s5(S[t.id]));
-        var from = '<span class="part cx-from">' + (view === 'water' ? '(' + aqSym + ' from step 4)' : '(' + aqSym + ' found with ' + N + ' and ' + m + ', step 5)') + '</span>';
-        if (aq === 'steady' && view !== 'water') weLines.push(cxP('The steady-state aquifer needs ∫ (' + pi + ' − ' + p + ') d' + V('t') + ' up to this step. Adding trapezoids between the steps gives ' + s5(S[t.id]) + ' psi·' + tUnit + (tUnit === 'row' ? ' (the rows taken as equal time steps)' : '') + '.'));
-        if (aq === 'veh' && view !== 'water') weLines.push(cxP('The unsteady-state aquifer adds up the pressure steps Δ' + V('p', 'j') + ' since the start, each weighted by the dimensionless influx ' + V('W', 'D') + ' of a radial aquifer with ' + V('r', 'e') + '/' + V('r', 'o') + ' = ' + reText(c.reD) +
-          ', at ' + V('t', 'D') + ' = ' + V('a') + ' ' + V('t') + ' with ' + V('a') + ' = ' + tdText(b, c.a) + '. For this step Σ Δ' + V('p', 'j') + ' ' + V('W', 'D') + ' = ' + s5(S[t.id]) + ' psi.'));
-        var weF = aq === 'pot' ? aqSym + ' (' + pi + cxOp('−') + p + ')'
-          : aq === 'steady' ? aqSym + ' ∫<sub>0</sub><sup><var>t</var></sup> (' + pi + cxOp('−') + p + ') d' + V('t')
-          : aqSym + ' Σ<sub><var>j</var></sub> Δ' + V('p', 'j') + ' ' + V('W', 'D') + '(' + V('t', 'D') + cxOp('−') + V('t', 'D<var>j</var>') + ')';
-        var weN = aq === 'pot' ? Uc + ' × (' + givenText(P0.pi) + cxOp('−') + givenText(t.p) + ')' : Uc + ' × ' + Sx;
-        weLines.push(cxLine(We, weF, weN, s5(t.We), 'rb').replace(/<\/div>$/, from + '</div>'));
+        if (aq !== 'pot') {
+          sTxt = 'At this pressure the aquifer function, ' + (aq === 'steady' ? 'the integral of ' + pi + ' − ' + p + ' over time added up in trapezoids between the steps' + (tUnit === 'row' ? ' (the rows taken as equal time steps)' : '')
+            : 'the sum of the pressure steps since the start, each weighted by ' + V('W', 'D')) + ', is ' + Sa + ' = ' + s5(S[t.id]) + ' ' + sUnit + '.';
+        }
+        weBlk = inline(We, aqSym + ' ' + (aq === 'pot' ? '(' + pi + cxOp('−') + p + ')' : Sa),
+          cxPar(s5(c.fit.U)) + ' × ' + (aq === 'pot' ? '(' + givenText(P0.pi) + cxOp('−') + givenText(t.p) + ')' : cxPar(s5(S[t.id]))), cxRes(s5(t.We), 'rb'));
       }
-      if (view !== 'water') L = L.concat(weLines);
+      if (weBlk && view !== 'water') {
+        s3.push(P((sTxt ? sTxt + ' ' : '') + 'With ' + aqSym + ' = ' + s5(c.fit.U) + ' ' + uUnit + ', Eq. (' + eAq + ') gives the water influx'));
+        s3.push(weBlk);
+      }
       // the point on the line
       if (view === 'line') {
-        var den = efw ? Eo + cxOp('+') + '(1' + cxOp('+') + m + ') ' + Efw : Eo;
         var denV = t.Eo + (1 + mAx) * t.Efw;
-        if (efw) L.push(cxLine(V('E'), den, s5(t.Eo) + cxOp('+') + '(1' + cxOp('+') + fmtFixed(mAx, 4) + ') × ' + s5(t.Efw), s5(denV), 'rb/STB'));
-        var dSym = efw ? V('E') : Eo;
-        L.push(cxLine(x, cxFr(Eg, dSym), cxFr(s5(t.Eg), s5(denV)), s5(t.x), ''));
-        L.push(cxLine(y, cxFr(water ? F + cxOp('−') + We : F, dSym), cxFr(water ? cxPar(s5(t.F)) + cxOp('−') + cxPar(s5(t.We)) : s5(t.F), s5(denV)), s5(t.y / 1e6), 'MMSTB'));
+        s3.push(P('The point on the line (' + eLine + ') is then' + (efw ? ', with ' + m + ' = ' + fmtFixed(mAx, 4) + ' from the fit,' : '')));
+        if (efw) s3.push(inline(Esym, Eo + cxOp('+') + '(1' + cxOp('+') + m + ') ' + Efw, s5(t.Eo) + cxOp('+') + '(1' + cxOp('+') + fmtFixed(mAx, 4) + ') × ' + s5(t.Efw), cxRes(s5(denV), 'rb/STB')));
+        s3.push(inline(x, cxFr(Eg, den), cxFr(s5(t.Eg), s5(denV)), cxRes(s5(t.x), '')));
+        s3.push(inline(y, cxFr(Fnet, den), cxFr(water ? s5(t.F) + cxOp('−') + s5(t.We) : s5(t.F), s5(denV)), cxRes(s5(t.y / 1e6), 'MMSTB')));
       } else {
-        var etF = Eo + (gas ? cxOp('+') + m + ' ' + Eg : '') + (efw ? cxOp('+') + (gas ? '(1' + cxOp('+') + m + ') ' : '') + Efw : '');
-        var etN = s5(t.Eo) + (gas ? cxOp('+') + fmtFixed(R.m, 4) + ' × ' + s5(t.Eg) : '') + (efw ? cxOp('+') + (gas ? '(1' + cxOp('+') + fmtFixed(R.m, 4) + ') × ' : '') + s5(t.Efw) : '');
         var etV = t.Eo + R.m * t.Eg + (1 + R.m) * t.Efw;
-        if (gas || efw) L.push(cxLine(Et, etF, etN, s5(etV), 'rb/STB'));
-        else L.push(cxP('With no gas cap and ' + Efw + ' = 0, ' + Et + ' = ' + Eo + ' = ' + s5(etV) + ' rb/STB.'));
+        var etN = s5(t.Eo) + (gas ? cxOp('+') + fmtFixed(R.m, 4) + ' × ' + s5(t.Eg) : '') + (efw ? cxOp('+') + (gas ? '(1' + cxOp('+') + fmtFixed(R.m, 4) + ') × ' : '') + s5(t.Efw) : '');
+        s3.push(P('The total expansion, Eq. (' + eEt + '), is'));
+        s3.push(gas || efw ? inline(Et, etF, etN, cxRes(s5(etV), 'rb/STB')) : inline(Et, Eo, null, cxRes(s5(etV), 'rb/STB')));
         if (view === 'origin') {
-          if (water) L.push(cxLine(y, F + cxOp('−') + We, cxPar(s5(t.F)) + cxOp('−') + cxPar(s5(t.We)), s5(t.Fnet / 1e6), 'MM rb'));
+          if (water) {
+            s3.push(P('and the point on the line (' + eLine + ') has'));
+            s3.push(inline(y, Fnet, s5(t.F) + cxOp('−') + s5(t.We), cxRes(s5(t.Fnet / 1e6), 'MM rb')));
+          } else s3.push(P('so the point on the line (' + eLine + ') is (' + Et + ', ' + F + ') = (' + s5(etV) + ' rb/STB, ' + s5(t.F / 1e6) + ' MM rb).'));
         } else {
-          var sWhat = aq === 'pot' ? pi + ' − ' + p
-            : aq === 'steady' ? '∫ (' + pi + ' − ' + p + ') d' + V('t') + ', added up in trapezoids between the steps' + (tUnit === 'row' ? ' (the rows taken as equal time steps)' : '')
-            : 'Σ Δ' + V('p', 'j') + ' ' + V('W', 'D') + '(' + V('t', 'D') + ' − ' + V('t', 'D<var>j</var>') + '): the pressure steps since the start, each weighted by the dimensionless influx ' + V('W', 'D') + ' of a radial aquifer with ' + V('r', 'e') + '/' + V('r', 'o') + ' = ' + reText(c.reD) + ', at ' + V('t', 'D') + ' = ' + V('a') + ' ' + V('t') + ' with ' + V('a') + ' = ' + tdText(b, c.a);
-          L.push(cxP('The aquifer function ' + V('S') + ' gives ' + We + ' = ' + aqSym + ' ' + V('S') + '. Here ' + V('S') + ' = ' + sWhat + '. At this pressure ' + V('S') + ' = ' + s5(S[t.id]) + (aq === 'steady' ? ' psi·' + tUnit : ' psi') + '.'));
-          L.push(cxLine(x, cxFr(V('S'), Et), cxFr(s5(S[t.id]), s5(etV)), s5(S[t.id] / etV), ''));
-          L.push(cxLine(y, cxFr(F, Et), cxFr(s5(t.F), s5(etV)), s5(t.F / etV), 'STB'));
-          L = L.concat(weLines);
+          if (sTxt) s3.push(P(sTxt));
+          s3.push(P('The point on the line (' + eLine + ') is'));
+          s3.push(inline(x, cxFr(Sa, Et), cxFr(s5(S[t.id]), s5(etV)), cxRes(s5(S[t.id] / etV), sUnit + '·STB/rb')));
+          s3.push(inline(y, cxFr(F, Et), cxFr(s5(t.F), s5(etV)), cxRes(s5(t.F / etV), 'STB')));
+          if (weBlk) { s3.push(P('With ' + aqSym + ' from the fit in Section 5, Eq. (' + eAq + ') gives the water influx at this step')); s3.push(weBlk); }
         }
       }
-      if (!t.included) L.push(cxP('This point is ' + (t.usable ? 'left out of the fit' : 'not on the line: ' + esc(t.reason)) + '.'));
+      if (!t.included) s3.push(P('This point is ' + (t.usable ? 'left out of the fit' : 'not on the line (' + rich(t.reason) + ')') + '.'));
     }
-    var intro2 = 'Pick a pressure to see its terms worked out.';
-    h.push(cxSec(2, 'The terms at one pressure', cxP(intro2) + pick + L.join('')));
+    sections.push({ id: 'sample', title: tie('Sample calculation' + (t ? ' at ' + p + ' = ' + fmtFixed(t.p, 0) + ' psia' : '')), blocks: s3 });
 
-    // 3 all pressures, and 4 the least-squares line through the points in the fit
-    var cols = [{ h: p, u: 'psia', f: function (q) { return fmtFixed(q.p, 0); } }, { h: F, u: 'MM rb', f: function (q) { return s5(q.F / 1e6); } }, { h: Eo, u: 'rb/STB', f: function (q) { return s5(q.Eo); } }];
-    if (withEg) cols.push({ h: Eg, u: 'rb/STB', f: function (q) { return s5(q.Eg); } });
-    if (efw) cols.push({ h: Efw, u: 'rb/STB', f: function (q) { return s5(q.Efw); } });
-    if (water) cols.push({ h: We, u: 'MM rb', f: function (q) { return s5(q.We / 1e6); } });
-    var xOf, yOf, xH, yH, yU, xU;
+    /* 4 All pressures */
+    var cols = [{ h: F, u: 'MM rb', v: function (q) { return q.F / 1e6; } }, { h: Eo, u: 'rb/STB', v: function (q) { return q.Eo; } }];
+    if (withEg) cols.push({ h: Eg, u: 'rb/STB', v: function (q) { return q.Eg; } });
+    if (efw) cols.push({ h: Efw, u: 'rb/STB', v: function (q) { return q.Efw; } });
+    if (water) cols.push({ h: We, u: 'MM rb', v: function (q) { return q.We / 1e6; } });
+    var xOf, yOf, xU, yU, xH, yH;
     if (view === 'line') {
-      xOf = function (q) { return q.x; }; yOf = function (q) { return q.y / 1e6; };
-      xH = x; xU = ''; yH = y; yU = 'MMSTB';
+      xOf = function (q) { return q.x; }; yOf = function (q) { return q.y / 1e6; }; xH = x; yH = y; xU = ''; yU = 'MMSTB';
     } else if (view === 'origin') {
-      xOf = function (q) { return q.x; }; yOf = function (q) { return q.Fnet / 1e6; };
-      xH = Et; xU = 'rb/STB'; yH = water ? F + cxOp('−') + We : F; yU = 'MM rb';
+      xOf = function (q) { return q.x; }; yOf = function (q) { return q.Fnet / 1e6; }; xH = Et; yH = Fnet; xU = 'rb/STB'; yU = 'MM rb';
     } else {
       var etOf = function (q) { return q.Eo + R.m * q.Eg + (1 + R.m) * q.Efw; };
-      xOf = function (q) { return S[q.id] / etOf(q); }; yOf = function (q) { return q.F / etOf(q); };
-      cols.push({ h: Et, u: 'rb/STB', f: function (q) { return s5(etOf(q)); } });
-      xH = x + ' = ' + V('S') + '/' + Et; xU = 'psi·STB/rb'; yH = y + ' = ' + F + '/' + Et; yU = 'STB';
+      cols.push({ h: Et, u: 'rb/STB', v: etOf });
+      xOf = function (q) { return S[q.id] / etOf(q); }; yOf = function (q) { return q.F / etOf(q); }; xH = x; yH = y; xU = sUnit + '·STB/rb'; yU = 'STB';
     }
-    cols.push({ h: xH, u: xU, f: function (q) { return q.usable ? s5(xOf(q)) : '–'; } }, { h: yH, u: yU, f: function (q) { return q.usable ? s5(yOf(q)) : '–'; } });
-    var head = function (cs) { return '<thead><tr>' + cs.map(function (cc) { return '<th>' + cc.h + (cc.u ? '<span class="cx-th-u">' + cc.u + '</span>' : '') + '</th>'; }).join('') + '</tr></thead>'; };
-    var t3 = '<div class="cx-table-wrap"><table class="cx-table">' + head(cols.concat([{ h: 'In fit', u: '' }])) + '<tbody>' + pts.map(function (q) {
-      return '<tr class="' + (q.id === cx.id ? 'is-on ' : '') + (q.included ? '' : 'is-out') + '" data-cx-id="' + esc(q.id) + '">' + cols.map(function (cc) { return '<td>' + cc.f(q) + '</td>'; }).join('') +
-        '<td>' + (q.included ? 'yes' : q.usable ? 'no' : '–') + '</td></tr>';
-    }).join('') + '</tbody></table></div>';
-    h.push(cxSec(3, 'All pressures', cxP('The same terms at every pressure. Click a row to work it out in step 2.') + t3));
+    cols.push({ h: xH, u: xU, v: function (q) { return q.usable ? xOf(q) : NaN; } }, { h: yH, u: yU, v: function (q) { return q.usable ? yOf(q) : NaN; } });
+    cols.forEach(function (cc) { cc.f = colSig(pts.map(cc.v)); });
+    var anyOut = pts.some(function (q) { return !q.included; });
+    sections.push({ title: 'All pressures', blocks: [
+      P('Table ' + tAll + ' repeats the calculation of Section 3 at every pressure' + (anyOut ? '; “no” in the last column marks a point left out of the fit' : '') + '.'),
+      P('The highlighted row is the one worked out in Section 3; click another row to work it out instead.', 'screen'),
+      P('The row set in bold is the one worked out in Section 3.', 'print'),
+      table(tAll, 'The calculation of Section 3 at each pressure.',
+        [{ h: p, u: 'psia' }].concat(cols.map(function (cc) { return { h: cc.h, u: cc.u }; }), [{ h: 'In fit', center: true }]),
+        pts.map(function (q) {
+          return { id: q.id, on: q.id === cx.id, out: !q.included, cells: [fmtFixed(q.p, 0)].concat(cols.map(function (cc) { return cc.f(cc.v(q)); }), [q.included ? 'yes' : q.usable ? 'no' : '–']) };
+        }))
+    ] });
 
-    var X = inc.map(xOf), Y = inc.map(yOf), n = X.length;
-    var sum = function (a) { return a.reduce(function (s, v) { return s + v; }, 0); };
-    var xm = sum(X) / n, ym = sum(Y) / n;
-    var sec4 = [], sec5 = [];
-    var Nv, slopeV;   // N in STB; the slope in the units of the line
+    /* 5 Least-squares fit */
+    var X = inc.map(xOf), Y = inc.map(yOf), k = X.length;
+    var xmV = sum(X) / k, ymV = sum(Y) / k, s5b = [], Nv, slopeV, tLs = nextTab(), eLs = nextEq();
     if (view === 'origin') {
+      var yHp = water ? '(' + FnetText + ')' : F;
       var sxy = sum(X.map(function (v, i) { return v * Y[i]; })), sxx = sum(X.map(function (v) { return v * v; }));
       slopeV = sxy / sxx;
-      var etY = water ? Et + ' (' + yH + ')' : Et + ' ' + yH;
-      sec4.push(cxP('With no intercept, the line ' + yH + ' = ' + N + ' ' + Et + ' goes through the origin. Least squares makes Σ (' + yH + cxOp('−') + N + ' ' + Et + ')² as small as possible, which gives ' + N + ' = Σ ' + etY + ' / Σ ' + Et + '². Over the ' + n + ' points in the fit:'));
-      sec4.push('<div class="cx-table-wrap"><table class="cx-table">' + head([{ h: p, u: 'psia' }, { h: Et, u: 'rb/STB' }, { h: yH, u: 'MM rb' }, { h: Et + '²', u: '' }, { h: etY, u: '' }]) + '<tbody>' +
-        inc.map(function (q, i) { return '<tr><td>' + fmtFixed(q.p, 0) + '</td><td>' + s5(X[i]) + '</td><td>' + s5(Y[i]) + '</td><td>' + s5(X[i] * X[i]) + '</td><td>' + s5(X[i] * Y[i]) + '</td></tr>'; }).join('') +
-        '</tbody><tfoot><tr><td>Sum</td><td></td><td></td><td>' + s5(sxx) + '</td><td>' + s5(sxy) + '</td></tr></tfoot></table></div>');
-      sec4.push(cxLine(N, cxFr('Σ ' + etY, 'Σ ' + Et + '²'), cxFr(s5(sxy), s5(sxx)), s5(slopeV), 'MMSTB'));
+      s5b.push(P('For a line through the origin, least squares chooses the slope that makes Σ (' + y + ' − ' + N + ' ' + Et + ')<sup>2</sup> over the ' + k + ' points in the fit as small as possible, which gives'));
+      s5b.push(eq1(N, cxFr('Σ ' + Et + ' ' + yHp, 'Σ ' + Et + '<sup>2</sup>'), eLs));
+      s5b.push(P('with the sums in Table ' + tLs + '.'));
+      var oc = [X, Y, X.map(function (v) { return v * v; }), X.map(function (v, i) { return v * Y[i]; })];
+      var of = [colSig(X), colSig(Y), colSig(oc[2].concat([sxx])), colSig(oc[3].concat([sxy]))];
+      s5b.push(table(tLs, 'Least-squares sums for the ' + plural(k, 'point') + ' in the fit.', [{ h: p, u: 'psia' }, { h: Et, u: 'rb/STB' }, { h: Fnet, u: 'MM rb' }, { h: Et + '<sup>2</sup>' }, { h: Et + ' ' + yHp }],
+        inc.map(function (q, i) { return { cells: [fmtFixed(q.p, 0)].concat(oc.map(function (col, j) { return of[j](col[i]); })) }; }), ['Sum', '', '', of[2](sxx), of[3](sxy)]));
+      s5b.push(P('Hence'));
+      s5b.push(inline(N, cxFr('Σ ' + Et + ' ' + yHp, 'Σ ' + Et + '<sup>2</sup>'), cxFr(s5(sxy), s5(sxx)), cxRes(s5(slopeV), 'MMSTB')));
       Nv = slopeV * 1e6;
     } else {
-      var dx = X.map(function (v) { return v - xm; }), dy = Y.map(function (v) { return v - ym; });
+      var dx = X.map(function (v) { return v - xmV; }), dy = Y.map(function (v) { return v - ymV; });
       var Sxx = sum(dx.map(function (v) { return v * v; })), Sxy = sum(dx.map(function (v, i) { return v * dy[i]; }));
       var fixedU = view === 'water' && fit.Ufixed;
-      var bV = fixedU ? R.U : Sxy / Sxx, aV = ym - bV * xm;
+      var bV = fixedU ? R.U : Sxy / Sxx, aV = ymV - bV * xmV;
       slopeV = bV;
-      sec4.push(cxP('The straight line ' + y + ' = ' + V('a') + cxOp('+') + V('b') + ' ' + x + ' that fits the ' + n + ' points in the fit best makes Σ (' + y + cxOp('−') + V('a') + cxOp('−') + V('b') + ' ' + x + ')² as small as possible. ' +
-        'With the means ' + V('x̄') + ' and ' + V('ȳ') + ', least squares gives ' + V('b') + ' = Σ (' + x + cxOp('−') + V('x̄') + ')(' + y + cxOp('−') + V('ȳ') + ') / Σ (' + x + cxOp('−') + V('x̄') + ')² and ' + V('a') + ' = ' + V('ȳ') + cxOp('−') + V('b') + ' ' + V('x̄') + '.'));
-      sec4.push('<div class="cx-table-wrap"><table class="cx-table">' + head([{ h: p, u: 'psia' }, { h: x, u: xU }, { h: y, u: yU }, { h: x + cxOp('−') + V('x̄'), u: '' }, { h: y + cxOp('−') + V('ȳ'), u: '' }, { h: '(' + x + cxOp('−') + V('x̄') + ')²', u: '' }, { h: '(' + x + cxOp('−') + V('x̄') + ')(' + y + cxOp('−') + V('ȳ') + ')', u: '' }]) + '<tbody>' +
-        inc.map(function (q, i) { return '<tr><td>' + fmtFixed(q.p, 0) + '</td><td>' + s5(X[i]) + '</td><td>' + s5(Y[i]) + '</td><td>' + s5(dx[i]) + '</td><td>' + s5(dy[i]) + '</td><td>' + s5(dx[i] * dx[i]) + '</td><td>' + s5(dx[i] * dy[i]) + '</td></tr>'; }).join('') +
-        '</tbody><tfoot><tr><td>Sum</td><td>' + s5(sum(X)) + '</td><td>' + s5(sum(Y)) + '</td><td></td><td></td><td>' + s5(Sxx) + '</td><td>' + s5(Sxy) + '</td></tr></tfoot></table></div>');
-      sec4.push(cxLine(V('x̄'), cxFr('Σ ' + x, V('n')), cxFr(s5(sum(X)), n), s5(xm), xU));
-      sec4.push(cxLine(V('ȳ'), cxFr('Σ ' + y, V('n')), cxFr(s5(sum(Y)), n), s5(ym), yU));
-      if (fixedU) sec4.push(cxP('The aquifer constant is given, so only the intercept is fitted: ' + V('b') + ' = ' + aqSym + ' = ' + s5(bV) + ' rb/psi.'));
-      else sec4.push(cxLine(V('b'), cxFr('Σ (' + x + cxOp('−') + V('x̄') + ')(' + y + cxOp('−') + V('ȳ') + ')', 'Σ (' + x + cxOp('−') + V('x̄') + ')²'), cxFr(s5(Sxy), s5(Sxx)), s5(bV), view === 'line' ? 'MMSTB' : 'rb/psi'));
-      sec4.push(cxLine(V('a'), V('ȳ') + cxOp('−') + V('b') + ' ' + V('x̄'), s5(ym) + cxOp('−') + cxPar(s5(bV)) + ' × ' + cxPar(s5(xm)), s5(aV), view === 'line' ? 'MMSTB' : 'STB'));
+      var dxs = '(' + x + cxOp('−') + xm + ')', dys = '(' + y + cxOp('−') + ym + ')';
+      var lc = [X, Y, dx, dy, dx.map(function (v) { return v * v; }), dx.map(function (v, i) { return v * dy[i]; })];
+      var lf = [colSig(X.concat([sum(X)])), colSig(Y.concat([sum(Y)])), colSig(dx), colSig(dy), colSig(lc[4].concat([Sxx])), colSig(lc[5].concat([Sxy]))];
+      s5b.push(P('The straight line ' + y + ' = ' + b0 + ' + ' + b1 + ' ' + x + ' that fits the ' + k + ' points in the fit best makes Σ (' + y + ' − ' + b0 + ' − ' + b1 + ' ' + x +
+        ')<sup>2</sup> as small as possible. Least squares gives the slope and the intercept'));
+      s5b.push(eq([[b1, cxFr('Σ ' + dxs + dys, 'Σ ' + dxs + '<sup>2</sup>')], [b0, ym + cxOp('−') + b1 + ' ' + xm, eLs]]));
+      s5b.push(P('where ' + xm + ' = Σ ' + x + '/' + n + ' and ' + ym + ' = Σ ' + y + '/' + n + ' are the means over the ' + n + ' = ' + k + ' points; Table ' + tLs + ' gives the sums.'));
+      s5b.push(table(tLs, 'Least-squares sums for the ' + plural(k, 'point') + ' in the fit.',
+        [{ h: p, u: 'psia' }, { h: x, u: xU }, { h: y, u: yU }, { h: x + cxOp('−') + xm }, { h: y + cxOp('−') + ym }, { h: dxs + '<sup>2</sup>' }, { h: dxs + dys }],
+        inc.map(function (q, i) { return { cells: [fmtFixed(q.p, 0)].concat(lc.map(function (col, j) { return lf[j](col[i]); })) }; }),
+        ['Sum', lf[0](sum(X)), lf[1](sum(Y)), '', '', lf[4](Sxx), lf[5](Sxy)]));
+      s5b.push(P('Hence'));
+      s5b.push(inline(xm, cxFr('Σ ' + x, n), cxFr(s5(sum(X)), k), cxRes(s5(xmV), xU)));
+      s5b.push(inline(ym, cxFr('Σ ' + y, n), cxFr(s5(sum(Y)), k), cxRes(s5(ymV), yU)));
+      if (fixedU) s5b.push(P('The aquifer constant is given, so only the intercept is fitted, with ' + b1 + ' = ' + aqSym + ' = ' + s5(bV) + ' ' + uUnit + '.'));
+      else s5b.push(inline(b1, cxFr('Σ ' + dxs + dys, 'Σ ' + dxs + '<sup>2</sup>'), cxFr(s5(Sxy), s5(Sxx)), cxRes(s5(bV), view === 'line' ? 'MMSTB' : uUnit)));
+      s5b.push(inline(b0, ym + cxOp('−') + b1 + ' ' + xm, s5(ymV) + cxOp('−') + cxPar(s5(bV)) + ' × ' + cxPar(s5(xmV)), cxRes(s5(aV), view === 'line' ? 'MMSTB' : 'STB')));
       Nv = view === 'line' ? aV * 1e6 : aV;
     }
-    // how well the line fits
-    var yHat = function (i) { return view === 'origin' ? slopeV * X[i] : (Nv / (view === 'line' ? 1e6 : 1)) + slopeV * X[i]; };
-    var sse = sum(Y.map(function (v, i) { return Math.pow(v - yHat(i), 2); })), sst = sum(Y.map(function (v) { return Math.pow(v - ym, 2); }));
-    sec4.push(cxLine(V('R') + '<sup>2</sup>', '1' + cxOp('−') + cxFr('Σ (' + y + cxOp('−') + V('ŷ') + ')²', 'Σ (' + y + cxOp('−') + V('ȳ') + ')²'), '1' + cxOp('−') + cxFr(s5(sse), s5(sst)), sst > 0 ? (1 - sse / sst).toFixed(3) : '1', ''));
-    if (view === 'line' && efw && fit.rounds > 1) sec4.push(cxP('Both axes contain ' + m + ', so the line was fitted again with each new ' + m + ' until ' + m + ' stopped changing (' + fit.rounds + ' rounds). The numbers above are from the last round, with ' + m + ' = ' + fmtFixed(mAx, 4) + ' on the axes.'));
-    var lineName = view === 'line' ? (water ? '(' + F + cxOp('−') + We + ')/' : F + '/') + (efw ? V('E') : Eo) + ' against ' + Eg + '/' + (efw ? V('E') : Eo)
-      : view === 'origin' ? yH + ' against ' + Et : F + '/' + Et + ' against ' + V('S') + '/' + Et;
-    h.push(cxSec(4, 'The straight line by least squares', cxP('The line is ' + lineName + '.') + sec4.join('')));
+    var yHat = function (i) { return view === 'origin' ? slopeV * X[i] : (view === 'line' ? Nv / 1e6 : Nv) + slopeV * X[i]; };
+    var sse = sum(Y.map(function (v, i) { return Math.pow(v - yHat(i), 2); })), sst = sum(Y.map(function (v) { return Math.pow(v - ymV, 2); }));
+    s5b.push(P('The coefficient of determination, the share of the scatter of ' + y + ' about its mean that the line explains, is'));
+    s5b.push(inline(R2, '1' + cxOp('−') + cxFr('Σ (' + y + cxOp('−') + yh + ')<sup>2</sup>', 'Σ (' + y + cxOp('−') + ym + ')<sup>2</sup>'), '1' + cxOp('−') + cxFr(s5(sse), s5(sst)),
+      cxRes(sst > 0 ? (1 - sse / sst).toFixed(3) : '1', '')));
+    s5b.push(P('where ' + yh + ' = ' + (view === 'origin' ? N + ' ' + Et : b0 + ' + ' + b1 + ' ' + x) + ' is the value on the line.'));
+    if (view === 'line' && efw && fit.rounds > 1) s5b.push(P('Because ' + m + ' appears on both axes, the fit was repeated with each new ' + m + ' until ' + m + ' no longer changed (' + fit.rounds +
+      ' rounds); the numbers above are from the last round, with ' + m + ' = ' + fmtFixed(mAx, 4) + ' on the axes.'));
+    sections.push({ title: 'Least-squares fit', blocks: s5b });
 
-    // 5 the results
-    // the final values are written as on the result cards
-    var Nm = Nv / 1e6, Gv = (view === 'line' ? slopeV * 1e6 : R.m * Nv) * P0.Boi / P0.Bgi;
-    var gText = function () { return sigText(Gv, 5) + '<span class="cx-u">SCF</span>' + cxOp('=') + '<b>' + fmtRes(Gv / 1e9) + '</b><span class="cx-u">Bscf</span>'; };
+    /* 6 Results, written as on the result cards */
+    var s6 = [], Nm = Nv / 1e6, Gv = (view === 'line' ? slopeV * 1e6 : R.m * Nv) * P0.Boi / P0.Bgi;
+    var gRes = s5(Gv) + cxU('SCF') + cxOp('=') + cxRes(fmtRes(Gv / 1e9), 'Bscf');
     if (view === 'line') {
-      sec5.push(cxLine(N, 'intercept ' + V('a'), null, fmtRes(Nm), 'MMSTB'));
-      sec5.push(cxLine(m, cxFr('slope ' + V('b'), 'intercept ' + V('a')), cxFr(s5(slopeV), s5(Nm)), fmtM(slopeV / Nm), ''));
-      if (gas) sec5.push(cxLine(V('G'), cxFr(m + N + ' ' + Boi, Bgi), cxFr(cxPar(sigText(slopeV * 1e6, 5)) + ' × ' + givenText(P0.Boi), givenText(P0.Bgi)), gText(), ''));
-    } else if (view === 'origin') {
-      sec5.push(cxLine(N, 'slope', null, fmtRes(Nm), 'MMSTB'));
-      if (gas) sec5.push(cxLine(V('G'), cxFr(m + N + ' ' + Boi, Bgi), cxFr(fmtM(R.m) + ' × ' + cxPar(sigText(Nv, 5)) + ' × ' + givenText(P0.Boi), givenText(P0.Bgi)), gText(), ''));
+      s6.push(P('From the intercept and the slope of the line (' + eLine + '),'));
+      s6.push(inline(N, b0, null, cxRes(fmtRes(Nm), 'MMSTB')));
+      s6.push(inline(m, cxFr(b1, b0), cxFr(s5(slopeV), s5(Nm)), cxRes(fmtM(slopeV / Nm), '')));
+      if (gas) {
+        s6.push(P('and Eq. (' + eG + ') gives the gas-cap gas initially in place'));
+        s6.push(worked(G, cxFr(m + N + ' ' + Boi, Bgi), cxFr(cxPar(sigText(slopeV * 1e6, 5)) + ' × ' + givenText(P0.Boi), givenText(P0.Bgi)), gRes));
+      }
+      if (water && aq !== 'column') s6.push(P('The aquifer constant found together with ' + N + ' and ' + m + ' is ' + aqSym + ' = ' + s5(c.fit.U) + ' ' + uUnit + '.'));
     } else {
-      sec5.push(cxLine(N, 'intercept ' + V('a'), cxPar(sigText(Nv, 5)) + ' STB', fmtRes(Nm), 'MMSTB'));
-      var cName = { pot: 'pot aquifer constant', steady: 'steady-state aquifer constant', veh: 'aquifer constant' }[aq] || 'aquifer constant';
-      sec5.push(cxLine(aqSym, 'slope ' + V('b'), null, s5(slopeV), aq === 'steady' ? 'rb/(psi ' + tUnit + ')' : 'rb/psi'));
-      sec5.push(cxP('The ' + cName + ' ' + aqSym + ' gives ' + We + ' = ' + aqSym + ' × ' + V('S') + ' at every step, so the points ' + F + '/' + Et + ' against ' + We + '/' + Et + ' lie on a line of slope 1 that meets the axis at ' + N + ' (the Havlena–Odeh plot).'));
-    }
-    if (water && view === 'line' && aq !== 'column') {
-      sec5.push(cxP('The aquifer constant ' + aqSym + ' = ' + s5(c.fit.U) + (aq === 'steady' ? ' rb/(psi ' + tUnit + ')' : ' rb/psi') + ' was found together with ' + N + ' and ' + m + ', by least squares on ' + F + ' = ' + N + ' [' + Eo + cxOp('+') + m + ' ' + Eg + cxOp('+') + '(1' + cxOp('+') + m + ') ' + Efw + ']' + cxOp('+') + aqSym + ' ' + V('S') + '. With it, ' + We + ' at each step is ' + aqSym + ' × ' + V('S') + ', as in step 2.'));
+      s6.push(P(view === 'origin' ? 'The slope of the line (' + eLine + ') is the oil initially in place,' : 'From the intercept and the slope of the line (' + eLine + '),'));
+      s6.push(inline(N, view === 'origin' ? sigText(Nv, 5) + cxU('STB') : b0, view === 'origin' ? null : sigText(Nv, 5) + cxU('STB'), cxRes(fmtRes(Nm), 'MMSTB')));
+      if (view === 'water') s6.push(inline(aqSym, b1, null, cxRes(s5(slopeV), uUnit)));
+      if (gas) {
+        s6.push(P('and Eq. (' + eG + ') gives the gas-cap gas initially in place'));
+        s6.push(worked(G, cxFr(m + N + ' ' + Boi, Bgi), cxFr(fmtM(R.m) + ' × ' + cxPar(sigText(Nv, 5)) + ' × ' + givenText(P0.Boi), givenText(P0.Bgi)), gRes));
+      }
     }
     var rec = E.recovery(terms, R.N);
-    if (rec) sec5.push(cxLine('RF', cxFr(Np, N), cxFr(givenText(rec.Np) + ' STB', cxPar(sigText(Nv, 5)) + ' STB'), rfText(rec.RF), '%'));
-    var lastT = inc[inc.length - 1];
-    if (lastT && lastT.F > 0 && !negativeM(b)) {
-      var di = [['DDI', cxFr(N + ' ' + Eo, F), cxFr(cxPar(sigText(Nv, 5)) + ' × ' + s5(lastT.Eo), s5(lastT.F)), Nv * lastT.Eo / lastT.F]];
-      if (gas) di.push(['SDI', cxFr(N + ' ' + m + ' ' + Eg, F), cxFr(cxPar(sigText(Nv, 5)) + ' × ' + fmtFixed(R.m, 4) + ' × ' + s5(lastT.Eg), s5(lastT.F)), Nv * R.m * lastT.Eg / lastT.F]);
-      if (water) di.push(['WDI', cxFr(We, F), cxFr(s5(lastT.We), s5(lastT.F)), lastT.We / lastT.F]);
-      if (efw) di.push(['CDI', cxFr(N + (gas ? ' (1' + cxOp('+') + m + ') ' : ' ') + Efw, F), cxFr(cxPar(sigText(Nv, 5)) + ' × ' + (gas ? fmtFixed(1 + R.m, 4) + ' × ' : '') + s5(lastT.Efw), s5(lastT.F)), Nv * (1 + R.m) * lastT.Efw / lastT.F]);
-      sec5.push(cxP('Drive indices at the last point in the fit, ' + fmtFixed(lastT.p, 0) + ' psia; they add up to ' + fmtFixed(di.reduce(function (s, d) { return s + d[3]; }, 0), 2) + ':'));
-      di.forEach(function (d) { sec5.push(cxLine('<span class="word">' + d[0] + '</span>', d[1], d[2], fmtFixed(d[3], 3), '')); });
+    if (rec) {
+      s6.push(P('By ' + fmtFixed(rec.p, 0) + ' psia, the latest step, the recovery factor is'));
+      s6.push(inline('RF', cxFr(Np, N), cxFr(givenText(rec.Np), sigText(Nv, 5)), cxRes(rfText(rec.RF), '%')));
     }
-    h.push(cxSec(5, 'Results', sec5.join('') + cxP('Numbers are rounded for display; the calculation keeps full precision, so working them out by hand can differ in the last digit.')));
-    var keep = body.scrollTop;
-    body.innerHTML = h.join('');
+    var lastT = inc[inc.length - 1];
+    if (lastT && lastT.F > 0 && isFinite(lastT.sumDI) && !negativeM(b)) {
+      var di = [['Depletion', 'DDI', cxFr(N + ' ' + Eo, F), lastT.DDI]];
+      if (gas) di.push(['Gas cap', 'SDI', cxFr(N + ' ' + m + ' ' + Eg, F), lastT.SDI]);
+      if (water) di.push(['Water influx', 'WDI', cxFr(We, F), lastT.WDI]);
+      if (efw) di.push(['Rock and connate water', 'CDI', cxFr(N + (gas ? ' (1' + cxOp('+') + m + ') ' : ' ') + Efw, F), lastT.CDI]);
+      var diSum = sum(di.map(function (d) { return d[3]; })), tDi = nextTab();
+      s6.push(P('The drive indices in Table ' + tDi + ' give the share of each drive in the underground withdrawal at ' + fmtFixed(lastT.p, 0) + ' psia, the last point in the fit.' +
+        (Math.abs(diSum - 1) >= 0.0005 ? ' They add up to ' + fmtFixed(diSum, 3) + ' rather than 1 because the point lies a little off the line; the drive-index chart shows each divided by their sum.' : '')));
+      s6.push(table(tDi, 'Drive indices at ' + fmtFixed(lastT.p, 0) + ' psia.', [{ h: 'Drive', left: true }, { h: 'Index', center: true }, { h: 'Definition', center: true }, { h: 'Value' }],
+        di.map(function (d) { return { cells: [d[0], d[1], d[2], fmtFixed(d[3], 3)] }; }), ['Sum', '', '', fmtFixed(diSum, 3)]));
+    }
+    sections.push({ title: 'Results', blocks: s6 });
+
+    var got = [N + ' = ' + fmtRes(R.N / 1e6) + ' MMSTB'];
+    if (gas) got.push(m + ' = ' + fmtM(R.m) + (R.mFixed ? ' (given)' : ''), G + ' = ' + fmtRes(R.G / 1e9) + ' Bscf');
+    if (water && aq !== 'column') got.push(aqSym + ' = ' + s5(c.fit.U) + ' ' + uUnit);
+    var summary = 'This note works through the Havlena–Odeh analysis of the data with the numbers put in at every step. The data indicate ' + mw.mech + '. ' +
+      'The least-squares fit gives ' + andList(got) + ', with ' + R2 + ' = ' + fit.r2.toFixed(3) + '.';
+    // a run of displayed equations is set as one, lined up at the equals sign
+    sections.forEach(function (sec) {
+      sec.blocks = sec.blocks.reduce(function (out, bl) {
+        var last = out[out.length - 1];
+        if (bl.t === 'eq' && last && last.t === 'eq') last.rows = last.rows.concat(bl.rows);
+        else out.push(bl.t === 'eq' ? { t: 'eq', rows: bl.rows.slice() } : bl);
+        return out;
+      }, []);
+    });
+    return { summary: tie(summary), sections: sections, refs: refList(aq), pts: pts };
+  }
+
+  /** The pressure picker of the window: chips, or a list when there are many pressures. */
+  function cxPicker(pts) {
+    if (pts.length <= 14) {
+      return '<div class="cx-chips" role="group" aria-label="Pressure for the sample calculation">' + pts.map(function (q) {
+        return '<button type="button" class="cx-chip" data-cx-id="' + esc(q.id) + '" aria-pressed="' + (q.id === cx.id) + '">' + fmtFixed(q.p, 0) + '</button>';
+      }).join('') + '<span class="cx-chip-u">psia</span></div>';
+    }
+    return '<label class="cx-pick">Pressure <select id="cx-select">' + pts.map(function (q) {
+      return '<option value="' + esc(q.id) + '"' + (q.id === cx.id ? ' selected' : '') + '>' + fmtFixed(q.p, 0) + ' psia</option>';
+    }).join('') + '</select></label>';
+  }
+
+  /** One block as HTML, for the window (pre 'cx') or the PDF (pre 'rp'). */
+  function cxBlock(bl, pre, pts) {
+    var doc = pre === 'rp';
+    if (bl.t === 'p') return bl.only === (doc ? 'screen' : 'print') ? '' : '<p class="' + (doc ? 'rp-text' : 'cx-p') + '">' + bl.html + '</p>';
+    if (bl.t === 'pick') return doc ? '' : '<p class="cx-p">Pick the pressure to work out:</p>' + cxPicker(pts);
+    if (bl.t === 'eq') {   // a row that starts an equation (it has a left side) stands a little apart from the one before
+      return '<div class="' + pre + '-al">' + bl.rows.map(function (r, i) {
+        var c = i && r[0] ? ' al-new' : '';
+        return '<span class="al-l' + c + '">' + r[0] + '</span><span class="al-r' + c + '">' + r[1] + '</span><span class="al-n' + c + '">' + (r[2] ? '(' + r[2] + ')' : '') + '</span>';
+      }).join('') + '</div>';
+    }
+    if (bl.t !== 'table') return '';
+    var al = function (col) { return col.left ? ' class="' + pre + '-l"' : col.center ? ' class="' + pre + '-c"' : ''; };
+    var head = '<thead><tr>' + bl.cols.map(function (col) {
+      return '<th' + al(col) + '>' + col.h + (col.u ? '<span class="' + (doc ? 'rp-u' : 'cx-th-u') + '">' + col.u + '</span>' : '') + '</th>';
+    }).join('') + '</tr></thead>';
+    var body = '<tbody>' + bl.rows.map(function (r) {
+      if (r.gap) return '<tr class="' + pre + '-gap"><td colspan="' + bl.cols.length + '">' + r.gap + '</td></tr>';
+      var cls = (r.on ? 'is-on ' : '') + (r.out ? 'is-out' : '');
+      return '<tr' + (cls ? ' class="' + cls.trim() + '"' : '') + (r.id != null && !doc ? ' data-cx-id="' + esc(r.id) + '"' : '') + '>' +
+        r.cells.map(function (v, i) { return '<td' + al(bl.cols[i]) + '>' + v + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</tbody>';
+    var foot = bl.foot ? '<tfoot><tr>' + bl.foot.map(function (v, i) { return '<td' + al(bl.cols[i]) + '>' + v + '</td>'; }).join('') + '</tr></tfoot>' : '';
+    var caption = '<b>Table\u00a0' + bl.no + '.</b> ' + bl.caption;
+    if (doc) return '<table class="rp-calc"><caption>' + caption + '</caption>' + head + body + foot + '</table>';
+    return '<figure class="cx-fig"><figcaption class="cx-cap">' + caption + '</figcaption>' +
+      '<div class="cx-table-wrap"><table class="cx-table">' + head + body + foot + '</table></div></figure>';
+  }
+
+  function renderCalcs(b) {
+    var body = $('cx-body');
+    if (!b || !hasFit(b)) { body.innerHTML = '<p class="cx-p">The calculations appear once a straight line is fitted to the data.</p>'; return; }
+    var M = calcModel(b), keep = body.scrollTop;
+    body.innerHTML = '<div class="cx-doc"><p class="cx-p cx-summary"><b>Summary.</b> ' + M.summary + '</p>' + M.sections.map(function (sec, i) {
+      return '<section class="cx-sec"' + (sec.id ? ' id="cx-' + sec.id + '"' : '') + '><h3><span class="cx-no">' + (i + 1) + '</span><span>' + sec.title + '</span></h3>' +
+        sec.blocks.map(function (bl) { return cxBlock(bl, 'cx', M.pts); }).join('') + '</section>';
+    }).join('') + '<section class="cx-sec cx-refs"><h3>References</h3>' + M.refs.map(function (r) { return '<p class="cx-ref">' + r + '</p>'; }).join('') + '</section></div>';
     body.scrollTop = keep;
   }
 
@@ -6747,12 +6986,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open');
   }
 
-  /** A pressure picked in step 2 or a row clicked in step 3. */
-  function pickCalc(id) {
+  /** A pressure picked in Section 3, or a row clicked in the table of all pressures (which brings Section 3 into view). */
+  function pickCalc(id, fromTable) {
     cx.id = isNaN(Number(id)) ? id : Number(id);
-    var at = $('cx-body').scrollTop;
     renderCalcs(state.bundle);
-    $('cx-body').scrollTop = at;
+    var body = $('cx-body'), sec = $('cx-sample');
+    if (fromTable && sec) body.scrollTop += sec.getBoundingClientRect().top - body.getBoundingClientRect().top - 8;
   }
 
   function renderExplorer(b, opts) {
@@ -7259,9 +7498,52 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return fmtFixed(mant, decimalsOf(mant)) + ' × 10<sup>' + C.minus(String(e)) + '</sup>';
   }
 
-  function reportName(ext) {
+  /** The name of a document made from the data: havlena-odeh-example_report.pdf, mydata_Havlena-Odeh_calculations.pdf. */
+  function docName(kind, ext) {
     var base = String(state.source.fileName || 'data').replace(/\.[^.]+$/, '');
-    return base + (/havlena-odeh/i.test(base) ? '_report' : '_Havlena-Odeh_report') + ext;
+    return base + (/havlena-odeh/i.test(base) ? '_' : '_Havlena-Odeh_') + kind + ext;
+  }
+  function reportName(ext) { return docName('report', ext); }
+
+  /** The drive mechanism in words, for the report and the calculations. */
+  function mechWords(b) {
+    var det = b.detection || {}, c = b.model, fam = c ? c.family : 'depletion';
+    var aq = influxOn(b) ? c.aquifer : null;
+    var aqWords = { pot: 'a pot aquifer', steady: 'a steady-state aquifer (Schilthuis, 1936)', veh: 'an unsteady-state radial aquifer (van Everdingen and Hurst, 1949)', column: 'a water influx given in the data file' }[aq] || '';
+    var mech = !c ? 'no drive mechanism that is both physically valid and consistent with the data; the results are therefore those for depletion alone'
+      : fam === 'depletion' ? (b.inputs.noGas || (det.saturation || {}).allAbove ? 'a depletion drive above the bubble point, with no gas cap and no water influx' : 'a solution-gas (depletion) drive with no gas cap and no water influx')
+      : fam === 'gascap' ? (c.key === 'gascap-known' ? 'a gas-cap drive, with the gas-cap size given in the data file, and no water influx' : 'a gas-cap drive with no water influx')
+      : fam === 'water' ? 'a water drive with ' + aqWords + (c.mFixed > 0 ? '' : ' and no gas cap')
+      : 'a combination drive: a gas cap together with ' + aqWords;
+    var mechShort = !c ? 'depletion alone' : { depletion: 'a depletion drive', gascap: 'a gas-cap drive', water: 'a water drive', combination: 'a combined gas-cap and water drive' }[fam];
+    return { mech: mech, mechShort: mechShort, aqWords: aqWords };
+  }
+
+  /** The references of the report and the calculations, by author. */
+  function refList(aq) {
+    var refs = [];
+    if (aq === 'veh') refs.push('Dake, L.P. 1978. <i>Fundamentals of Reservoir Engineering</i>. Amsterdam: Elsevier.');
+    refs.push('Havlena, D. and Odeh, A.S. 1963. The Material Balance as an Equation of a Straight Line. <i>J Pet Technol</i> 15 (8): 896–900. https://doi.org/10.2118/559-PA.');
+    if (aq === 'steady') refs.push('Schilthuis, R.J. 1936. Active Oil and Reservoir Energy. <i>Trans. AIME</i> 118 (1): 33–52. https://doi.org/10.2118/936033-G.');
+    if (aq === 'veh') refs.push('van Everdingen, A.F. and Hurst, W. 1949. The Application of the Laplace Transformation to Flow Problems in Reservoirs. <i>J Pet Technol</i> 1 (12): 305–324. https://doi.org/10.2118/949305-G.');
+    return refs;
+  }
+
+  function dataNameText() {
+    return state.source.name + (state.source.fileName && state.source.fileName !== state.source.name ? ' (' + state.source.fileName + ')' : '');
+  }
+
+  /** The letterhead (when the page has one: crest, course, department; the date at the right) and the title block. */
+  function docHead(title) {
+    var crest = document.querySelector('.brand-crest'), course = document.querySelector('.brand .course'), org = document.querySelector('.foot-course p + p');
+    var day = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    var letter = !!(crest || course || org), h = '';
+    if (letter) {
+      h += '<div class="rp-letter">' + (crest ? '<img class="rp-crest" src="' + esc(crest.src) + '" alt="">' : '') +
+        '<div>' + (course ? '<p>' + course.innerHTML + '</p>' : '') + (org ? '<p>' + esc(org.textContent) + '</p>' : '') + '</div>' +
+        '<p class="rp-date">' + esc(day) + '</p></div>';
+    }
+    return h + '<header class="rp-head"><h1>' + title + '</h1><p class="rp-sub">Data: ' + esc(dataNameText()) + '</p>' + (letter ? '' : '<p>' + esc(day) + '</p>') + '</header>';
   }
 
   /** The report in the style of a short technical paper; the chart is drawn into .rp-chart afterwards. */
@@ -7283,27 +7565,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var mm = function (x) { return fmtFixed(x / 1e6, nD); };
     var range = function (pair, f) { return pair ? f(pair[0]) + '–' + f(pair[1]) : '–'; };
     var F = rv('F'), N = rv('N'), m = rv('m'), We = rv('W', 'e'), Eo = rv('E', 'o'), Eg = rv('E', 'g'), Efw = rv('E', 'fw'), Et = rv('E', 't'), Np = rv('N', 'p');
-    var aqWords = { pot: 'a pot aquifer', steady: 'a steady-state aquifer (Schilthuis, 1936)', veh: 'an unsteady-state radial aquifer (van Everdingen and Hurst, 1949)', column: 'a water influx given in the data file' }[aq] || '';
-    var mech = !c ? 'no drive mechanism that is both physically valid and consistent with the data; the results are therefore those for depletion alone'
-      : fam === 'depletion' ? (b.inputs.noGas || (det.saturation || {}).allAbove ? 'a depletion drive above the bubble point, with no gas cap and no water influx' : 'a solution-gas (depletion) drive with no gas cap and no water influx')
-      : fam === 'gascap' ? (c.key === 'gascap-known' ? 'a gas-cap drive, with the gas-cap size given in the data file, and no water influx' : 'a gas-cap drive with no water influx')
-      : fam === 'water' ? 'a water drive with ' + aqWords + (c.mFixed > 0 ? '' : ' and no gas cap')
-      : 'a combination drive: a gas cap together with ' + aqWords;
-    var mechShort = !c ? 'depletion alone' : { depletion: 'a depletion drive', gascap: 'a gas-cap drive', water: 'a water drive', combination: 'a combined gas-cap and water drive' }[fam];
-    var h = [];
-
-    // letterhead and title
-    var crest = document.querySelector('.brand-crest'), course = document.querySelector('.brand .course'), org = document.querySelector('.foot-course p + p');
-    var day = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-    var letter = !!(crest || course || org);
-    if (letter) {
-      h.push('<div class="rp-letter">' + (crest ? '<img class="rp-crest" src="' + esc(crest.src) + '" alt="">' : '') +
-        '<div>' + (course ? '<p>' + course.innerHTML + '</p>' : '') + (org ? '<p>' + esc(org.textContent) + '</p>' : '') + '</div>' +
-        '<p class="rp-date">' + esc(day) + '</p></div>');
-    }
-    var dataName = state.source.name + (state.source.fileName && state.source.fileName !== state.source.name ? ' (' + state.source.fileName + ')' : '');
-    h.push('<header class="rp-head"><h1>Material Balance Analysis by the Havlena–Odeh Method</h1>' +
-      '<p class="rp-sub">Data: ' + esc(dataName) + '</p>' + (letter ? '' : '<p>' + esc(day) + '</p>') + '</header>');
+    var mw = mechWords(b), aqWords = mw.aqWords, mech = mw.mech, mechShort = mw.mechShort;
+    var h = [docHead('Material Balance Analysis by the Havlena–Odeh Method')];
 
     // summary
     var sum = ['The production and PVT data were analysed with the straight-line form of the material balance equation (Havlena and Odeh, 1963). The data indicate ' + mech + '.'];
@@ -7474,13 +7737,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var notes = collectMessages(b).filter(function (msg) { return msg.level !== 'ok' && !skip[msg.code]; }).slice(0, 3);
     if (notes.length) h.push('<h2><span class="rp-no">4</span>Remarks</h2><ol class="rp-list">' + notes.map(function (msg) { return '<li>' + rich(msg.text) + '</li>'; }).join('') + '</ol>');
 
-    // references
-    var refs = [];
-    if (aq === 'veh') refs.push('Dake, L.P. 1978. <i>Fundamentals of Reservoir Engineering</i>. Amsterdam: Elsevier.');
-    refs.push('Havlena, D. and Odeh, A.S. 1963. The Material Balance as an Equation of a Straight Line. <i>J Pet Technol</i> 15 (8): 896–900. https://doi.org/10.2118/559-PA.');
-    if (aq === 'steady') refs.push('Schilthuis, R.J. 1936. Active Oil and Reservoir Energy. <i>Trans. AIME</i> 118 (1): 33–52. https://doi.org/10.2118/936033-G.');
-    if (aq === 'veh') refs.push('van Everdingen, A.F. and Hurst, W. 1949. The Application of the Laplace Transformation to Flow Problems in Reservoirs. <i>J Pet Technol</i> 1 (12): 305–324. https://doi.org/10.2118/949305-G.');
-    h.push('<h2>References</h2><div class="rp-refs">' + refs.map(function (r) { return '<p>' + r + '</p>'; }).join('') + '</div>');
+    h.push('<h2>References</h2><div class="rp-refs">' + refList(aq).map(function (r) { return '<p>' + r + '</p>'; }).join('') + '</div>');
     return h.join('');
   }
 
@@ -7564,14 +7821,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       '<div id="report" style="' + esc(reportFonts()) + '">' + el.innerHTML + '</div></body></html>';
   }
 
-  function printReport() {
-    var b = state.bundle;
-    if (!hasFit(b) || !b.detection) {
-      state.fileError = { title: 'Nothing to report yet', message: 'There is no fitted line yet. Load data that gives N and m first.' };
-      renderAlert(b);
-      return;
-    }
-    var el = prepareReport(b);
+  /**
+   * Prints what is laid out in #report; the print dialog suggests `name` for the PDF. Where printing is blocked
+   * (the hosted preview), the same page comes as an HTML file to open and print: file() gives its name and content.
+   */
+  function printDocument(name, file) {
     var title = document.title, started = false, done = false;
     var onBefore = function () { started = true; };
     var finish = function () {
@@ -7583,16 +7837,128 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     };
     window.addEventListener('beforeprint', onBefore);
     window.addEventListener('afterprint', finish);
-    document.title = reportName('');   // the name the print dialog suggests for the PDF
+    document.title = name;   // the name the print dialog suggests for the PDF
     try { window.print(); } catch (e) { /* printing blocked */ }
     setTimeout(function () {
       window.removeEventListener('beforeprint', onBefore);
       if (started) return;
-      // printing is blocked here (the hosted preview): hand over the same page as a file to open and print
-      var html = standaloneReport(el);
+      var f = file();
       finish();
-      download(reportName('.html'), html, 'text/html');
+      download(f.name, f.html, 'text/html');
     }, 400);
+  }
+
+  function printReport() {
+    var b = state.bundle;
+    if (!hasFit(b) || !b.detection) {
+      state.fileError = { title: 'Nothing to report yet', message: 'There is no fitted line yet. Load data that gives N and m first.' };
+      renderAlert(b);
+      return;
+    }
+    var el = prepareReport(b);
+    printDocument(reportName(''), function () { return { name: reportName('.html'), html: standaloneReport(el) }; });
+  }
+
+  /* ------------------------------------------------------------------
+   * The calculations as a PDF: the sections, equations and tables of the window, set like the report and
+   * printed on as many A4 pages as they need, numbered at the foot.
+   * ------------------------------------------------------------------ */
+  var CALC_CSS = [
+    // displayed equations: centred, lined up at the equals sign, numbered at the right
+    '#report .rp-al { display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr); align-items: center; column-gap: 0.3em; row-gap: 0.9mm; margin: 1.6mm 0; break-inside: avoid; font-variant-numeric: lining-nums tabular-nums; }',
+    '#report .rp-al > .al-l { grid-column: 2; justify-self: end; white-space: nowrap; }',
+    '#report .rp-al > .al-r { grid-column: 3; min-width: 0; }',
+    '#report .rp-al > .al-n { grid-column: 4; justify-self: end; padding-left: 4mm; }',
+    '#report .rp-al b { font-weight: 600; }',
+    '#report .frac { display: inline-flex; flex-direction: column; vertical-align: middle; margin: 0 0.12em; text-align: center; }',
+    '#report .frac > span { padding: 0 0.2em; line-height: 1.22; white-space: nowrap; }',
+    '#report .frac > .den { border-top: 0.5pt solid #000; }',
+    '#report .op { margin: 0 0.28em; }',
+    '#report .cx-u { margin-left: 0.3em; color: #000; font-weight: 400; }',
+    '#report .bp { font-size: 1.5em; line-height: 0; vertical-align: -0.1em; }',
+    '#report .rp-al > .al-new { margin-top: 1.1mm; }',
+    // headings stay with what follows, and a line that leads into an equation stays with it
+    '#report h2 { break-after: avoid; }',
+    '#report .rp-text { orphans: 3; widows: 3; }',
+    '#report .rp-text:has(+ .rp-al) { break-after: avoid; }',
+    // tables: as wide as they need, centred; kept on one page when they fit, else the heading repeats on each page and the sums close the last
+    '#report table.rp-calc { width: auto; margin: 2.4mm auto 2.2mm; break-inside: avoid; }',
+    '#report table.rp-calc th, #report table.rp-calc td { padding: 0.5mm 2.6mm; }',
+    '#report table.rp-calc th:first-child, #report table.rp-calc td:first-child { padding-left: 0; }',
+    '#report table.rp-calc th:last-child, #report table.rp-calc td:last-child { padding-right: 0; }',
+    '#report table.rp-calc caption { break-after: avoid; }',
+    '#report table.rp-calc tr { break-inside: avoid; }',
+    '#report table.rp-calc tfoot { display: table-row-group; }',
+    '#report table.rp-calc tfoot td { border-top: 0.5pt solid #000; }',
+    '#report table.rp-calc tr.is-on td { font-weight: 600; }',
+    '#report table.rp-calc td .frac > span { line-height: 1.2; }'
+  ].join('\n');
+
+  /** A4 pages with the page number at the foot, and a running head after the first page. */
+  var CALC_PAGES = '@page { size: A4 portrait; margin: 16mm 18mm 17mm;' +
+    ' @bottom-center { content: counter(page) " / " counter(pages); font: 8.5pt ' + SERIF + '; color: #000; }' +
+    ' @top-left { content: "Havlena–Odeh material balance: worked calculations"; font: italic 8.5pt ' + SERIF + '; color: #000; } }\n' +
+    '@page :first { @top-left { content: none; } }';
+
+  /** In the dashboard: laid out off screen at the width of the page, and all that prints. */
+  var CALC_PRINT_CSS = [
+    '#report { position: absolute; left: -10000px; top: 0; width: 174mm; visibility: hidden; }',
+    CALC_PAGES,
+    '@media print {',
+    '  html.print-report body { background: #fff !important; }',
+    '  html.print-report body > :not(#report) { display: none !important; }',
+    '  html.print-report #report { position: static; left: auto; width: auto; visibility: visible; }',
+    '}'
+  ].join('\n');
+
+  /** As a file of its own: sheets of paper on screen, the same pages in print. */
+  var CALC_PAGE_CSS = REPORT_PAGE_CSS + '\n' + CALC_PAGES + '\n#report { padding: 16mm 18mm 17mm; }\n@media print { #report { padding: 0; } }';
+
+  function calcName(ext) { return docName('calculations', ext); }
+
+  function calcDocBody(b) {
+    var M = calcModel(b);
+    var h = [docHead('Havlena–Odeh Material Balance: Worked Calculations')];
+    h.push('<p class="rp-text rp-summary"><b>Summary.</b> ' + M.summary + '</p>');
+    M.sections.forEach(function (sec, i) {
+      h.push('<section><h2><span class="rp-no">' + (i + 1) + '</span>' + sec.title + '</h2>' + sec.blocks.map(function (bl) { return cxBlock(bl, 'rp', M.pts); }).join('') + '</section>');
+    });
+    h.push('<section><h2>References</h2><div class="rp-refs">' + M.refs.map(function (r) { return '<p>' + r + '</p>'; }).join('') + '</div></section>');
+    return h.join('');
+  }
+
+  /** Builds the calculations into the page, at the pressure picked in the window, ready to print. */
+  function prepareCalcDoc(b) {
+    clearReport();
+    var style = document.createElement('style');
+    style.id = 'report-style';
+    style.textContent = CALC_PRINT_CSS + '\n' + REPORT_CSS + '\n' + CALC_CSS;
+    document.head.appendChild(style);
+    var el = document.createElement('div');
+    el.id = 'report';
+    el.setAttribute('aria-hidden', 'true');
+    el.setAttribute('style', reportFonts());
+    el.innerHTML = calcDocBody(b);
+    document.body.appendChild(el);
+    document.documentElement.classList.add('print-report');
+    return el;
+  }
+
+  /** The calculations as an HTML file of their own, to open and print. */
+  function standaloneCalcs(el) {
+    var fonts = document.querySelector('link[href*="fonts.googleapis.com/css"]');
+    return '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>' + esc(calcName('')) + '</title>' + (fonts ? fonts.outerHTML : '') +
+      '<style>\n' + REPORT_CSS + '\n' + CALC_CSS + '\n' + CALC_PAGE_CSS + '\n</style></head><body>' +
+      '<p class="rp-tools"><button type="button" onclick="window.print()">Print or save as PDF</button></p>' +
+      '<div id="report" style="' + esc(reportFonts()) + '">' + el.innerHTML + '</div></body></html>';
+  }
+
+  function printCalcs() {
+    var b = state.bundle;
+    if (!hasFit(b)) return;
+    var el = prepareCalcDoc(b);
+    printDocument(calcName(''), function () { return { name: calcName('.html'), html: standaloneCalcs(el) }; });
   }
 
   /* ------------------------------------------------------------------
@@ -7674,10 +8040,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('report-btn').addEventListener('click', printReport);
     $('calc-btn').addEventListener('click', openCalcs);
     $('cx-close').addEventListener('click', closeCalcs);
+    $('cx-pdf').addEventListener('click', printCalcs);
     $('cx').addEventListener('click', function (e) { if (e.target === this) closeCalcs(); });   // a click on the backdrop
     $('cx-body').addEventListener('click', function (e) {
       var el = e.target.closest('[data-cx-id]');
-      if (el) pickCalc(el.getAttribute('data-cx-id'));
+      if (el) pickCalc(el.getAttribute('data-cx-id'), el.tagName === 'TR');
     });
     $('cx-body').addEventListener('change', function (e) { if (e.target.id === 'cx-select') pickCalc(e.target.value); });
     // the report's serif, fetched ahead so that it is ready when the print dialog opens
@@ -7777,6 +8144,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     report: {
       prepare: function () { return !!prepareReport(state.bundle); },
       html: function () { var el = prepareReport(state.bundle), html = standaloneReport(el); clearReport(); return html; },
+      clear: clearReport
+    },
+    // the calculations laid out for print, and their file version
+    calcs: {
+      prepare: function () { return !!prepareCalcDoc(state.bundle); },
+      html: function () { var el = prepareCalcDoc(state.bundle), html = standaloneCalcs(el); clearReport(); return html; },
       clear: clearReport
     }
   };

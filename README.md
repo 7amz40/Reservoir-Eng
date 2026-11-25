@@ -16,10 +16,12 @@ with the Havlena–Odeh straight-line method:
 It opens with an example already loaded: a gas-cap oil reservoir, for which it finds a gas-cap drive
 with *N* = 108.6 MMSTB, *m* = 0.542 and *G* = 84.6 Bscf, of which 16.3 % has been produced.
 
-**Show calculations** works the whole method out with the numbers put in: the initial values, every
-term at a pressure you pick (*R*<sub>p</sub>, *F*, *E*<sub>o</sub>, *E*<sub>g</sub>, *E*<sub>f,w</sub>, *W*<sub>e</sub> and the point on the
-line), the same terms at every pressure, the least-squares line as a table of sums, and the results with the
-drive indices.
+**Show calculations** works the whole method out with the numbers put in, set as a short paper with
+numbered sections, equations and tables: the data, the equations, a sample calculation at a pressure you
+pick (*R*<sub>p</sub>, *F*, *E*<sub>o</sub>, *E*<sub>g</sub>, *E*<sub>fw</sub>, *W*<sub>e</sub> and the point on the line), the same
+terms at every pressure, the least-squares fit as a table of sums, and the results with the drive indices.
+**Download PDF** in that window prints the same pages on A4, numbered at the foot; choose *Save as PDF*
+in the print window.
 
 **Print report** writes one A4 page in the style of a short technical paper: a summary, the method with
 its numbered equations, the results table and the Havlena–Odeh plot, the input data and the references.

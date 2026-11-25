@@ -387,30 +387,75 @@ def t_sketch(b):
     ph.close()
 
 
-@check("calculations: every step worked out, and it matches the results")
+@check("calculations: every step worked out, matching the results, and as a PDF")
 def t_calcs(b):
     pg = Page(b)
     assert pg.page.is_enabled("#calc-btn")
     pg.page.click("#calc-btn")
     assert pg.page.evaluate("document.getElementById('cx').open")
-    body = pg.text("#cx-body")
+    body = pg.text("#cx-body").replace("\xa0", " ")
+    # set as a short paper: numbered sections, equations and tables
+    heads = [re.sub(r"\s+", " ", h.replace("\xa0", " ")).strip() for h in pg.page.locator("#cx-body h3").all_inner_texts()]
+    assert heads == ["1 Data", "2 Equations", "3 Sample calculation at p = 3,150 psia", "4 All pressures", "5 Least-squares fit", "6 Results", "References"], heads
+    assert pg.page.locator("#cx-body .cx-table").count() == 5 and "Table 5." in body
+    assert [n.strip() for n in pg.page.locator("#cx-body .al-n").all_inner_texts() if n.strip()] == ["(%d)" % i for i in range(1, 8)]
     # the example at 3,150 psia: R_p, F, E_o, E_g and the point (x, y); then the least squares and the results
-    for t in ("Initial values", "The terms at one pressure", "All pressures", "The straight line by least squares", "Results",
-              "1,050.1", "5.8075 × 106", "0.014560", "0.071902", "4.9383", "398.87", "58.843", "108.65", "0.542", "84.62", "16.3", "0.968"):
+    for t in ("Summary.", "1,050.1", "5.8075 × 106", "0.014560", "0.071902", "4.9383", "398.87", "58.843", "108.65", "0.542", "84.62", "16.3", "0.968",
+              "Havlena, D. and Odeh, A.S. 1963"):
         assert t in body, t
-    # pick another pressure, or click its row in the table
+    # pick another pressure, or click its row in the table, which brings the worked example into view
     pg.page.click("#cx-body .cx-chip:has-text('2,400')")
-    assert "At p = 2,400 psia" in pg.text("#cx-body")
+    assert "At p = 2,400 psia" in pg.text("#cx-body").replace("\xa0", " ")
     assert pg.page.locator("#cx-body tr.is-on td").first.inner_text() == "2,400"
     pg.page.click("#cx-body tr[data-cx-id] >> nth=2")
-    assert "At p = 2,850 psia" in pg.text("#cx-body")
+    assert "At p = 2,850 psia" in pg.text("#cx-body").replace("\xa0", " ")
+    assert pg.page.evaluate("""() => { const b = document.getElementById('cx-body'), s = document.getElementById('cx-sample');
+      return Math.abs(s.getBoundingClientRect().top - b.getBoundingClientRect().top) < 24; }""")
+    # the PDF: the same sections, equations and tables, at the pressure picked, on A4 pages; only it prints
+    assert pg.page.is_visible("#cx-pdf")
+    assert pg.page.evaluate("HOApp.calcs.prepare()")
+    rep = pg.page.locator("#report").text_content().replace("\xa0", " ")
+    for t in ("Worked Calculations", "Summary.", "Sample calculation at p = 2,850 psia", "Least-squares fit", "Table 5.", "Havlena, D. and Odeh, A.S. 1963"):
+        assert t in rep, t
+    assert pg.page.locator("#report .rp-al").count() == pg.page.locator("#cx-body .cx-al").count()
+    assert pg.page.locator("#report table").count() == 5 and pg.page.locator("#report .cx-chip").count() == 0
+    pg.page.emulate_media(media="print")
+    assert pg.page.evaluate("getComputedStyle(document.getElementById('cx')).display") == "none"
+    assert pg.page.evaluate("getComputedStyle(document.getElementById('report')).visibility") == "visible"
+    assert pdf_pages(pg.page.pdf(prefer_css_page_size=True, print_background=True)) >= 2
+    pg.page.emulate_media(media="screen")
+    pg.page.evaluate("HOApp.calcs.clear()")
+    # the button prints it with the file name of the data, and tidies up after the print dialog
+    pg.page.evaluate("""() => { window.__ev = []; addEventListener('beforeprint', () => __ev.push(document.title + ':' + !!document.querySelector('#report h1')));
+      addEventListener('afterprint', () => __ev.push('after')); }""")
+    title = pg.page.title()
+    pg.page.click("#cx-pdf")
+    pg.page.wait_for_timeout(600)
+    assert pg.page.evaluate("__ev") == ["havlena-odeh-example_calculations:true", "after"], pg.page.evaluate("__ev")
+    assert pg.page.locator("#report").count() == 0 and pg.page.title() == title
+    assert pg.page.evaluate("document.getElementById('cx').open")
+    # where printing is blocked (the hosted preview), the same pages come as a file to open and print
+    pg.page.evaluate("window.print = () => {}")
+    with pg.page.expect_download() as d:
+        pg.page.click("#cx-pdf")
+    assert d.value.suggested_filename == "havlena-odeh-example_calculations.html"
+    path = os.path.join(tempfile.mkdtemp(), d.value.suggested_filename)
+    d.value.save_as(path)
+    html = open(path, encoding="utf-8").read()
+    assert "Print or save as PDF" in html and "Worked Calculations" in html and "2,850" in html
+    page2 = pg.page.context.new_page()
+    page2.route("**/fonts.googleapis.com/**", lambda r: r.abort())
+    page2.route("**/fonts.gstatic.com/**", lambda r: r.abort())
+    page2.goto("file://" + path)
+    assert pdf_pages(page2.pdf(prefer_css_page_size=True, print_background=True)) >= 2
+    page2.close()
     pg.page.keyboard.press("Escape")
     assert not pg.page.evaluate("document.getElementById('cx').open")
     # a water drive: the aquifer function, and U from the line
     pg.upload(os.path.join(SAMPLES, "drive_water_unsteady_N150.xlsx"))
     pg.page.click("#calc-btn")
-    body = pg.text("#cx-body")
-    assert "aquifer function" in body and "U from step 4" in body and "150.0" in body, body[:400]
+    body = pg.text("#cx-body").replace("\xa0", " ")
+    assert "aquifer function" in body and "U from the fit in Section 5" in body and "150.0" in body, body[:400]
     pg.page.click("#cx-close")
     assert not pg.page.evaluate("document.getElementById('cx').open")
     pg.close()

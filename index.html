@@ -86,7 +86,7 @@
           <summary>What the file needs</summary>
           <ul>
             <li>A table with a header row: pressure <var>p</var>, <var>N</var><sub>p</sub>, <var>G</var><sub>p</sub> (or <var>R</var><sub>p</sub>), <var>B</var><sub>o</sub>, <var>R</var><sub>s</sub> and <var>B</var><sub>g</sub>, in any order. Units in the header, like “Np (MMSTB)”, are read.</li>
-            <li>The initial parameters <var>p</var><sub>i</sub>, <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub>, <var>R</var><sub>si</sub>, <var>S</var><sub>wc</sub>, <var>C</var><sub>w</sub>, <var>C</var><sub>f</sub> as label and value pairs, on a second sheet or beside or below the table.</li>
+            <li>The initial parameters <var>p</var><sub>i</sub>, <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub>, <var>R</var><sub>si</sub>, <var>S</var><sub>wc</sub>, <var>c</var><sub>w</sub>, <var>c</var><sub>f</sub> as label and value pairs, on a second sheet or beside or below the table.</li>
             <li>If <var>B</var><sub>oi</sub>, <var>B</var><sub>gi</sub> or <var>R</var><sub>si</sub> are missing, they are read from the table row at <var>p</var><sub>i</sub>.</li>
             <li>Optional columns: time (<var>t</var> in years, months or days, or dates), water produced <var>W</var><sub>p</sub>, and water influx <var>W</var><sub>e</sub> if you know it. Time lets the dashboard test steady- and unsteady-state aquifers.</li>
             <li>For oil above its bubble point, <var>R</var><sub>s</sub>, <var>B</var><sub>g</sub> and <var>G</var><sub>p</sub> can be left out.</li>
@@ -103,7 +103,7 @@
         <div id="params"></div>
         <label class="switch">
           <input type="checkbox" id="efw" checked>
-          <span>Include water and rock expansion, <var>E</var><sub>fw</sub><small>Uses <var>S</var><sub>wc</sub>, <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub>. Turn off to neglect it.</small></span>
+          <span>Include water and rock expansion, <var>E</var><sub>fw</sub><small>Uses <var>S</var><sub>wc</sub>, <var>c</var><sub>w</sub> and <var>c</var><sub>f</sub>. Turn off to neglect it.</small></span>
         </label>
       </div>
     </details>
@@ -345,7 +345,7 @@
         </div>
         <div class="eq">
           <span class="eq-name">Connate water and rock</span>
-          <div class="eqn"><var>E</var><sub>fw</sub><span class="op">=</span><var>B</var><sub>oi</sub> <span class="frac"><span class="num"><var>C</var><sub>w</sub> <var>S</var><sub>wc</sub><span class="op">+</span><var>C</var><sub>f</sub></span><span class="den">1<span class="op">−</span><var>S</var><sub>wc</sub></span></span> Δ<var>p</var></div>
+          <div class="eqn"><var>E</var><sub>fw</sub><span class="op">=</span><var>B</var><sub>oi</sub> <span class="frac"><span class="num"><var>c</var><sub>w</sub> <var>S</var><sub>wc</sub><span class="op">+</span><var>c</var><sub>f</sub></span><span class="den">1<span class="op">−</span><var>S</var><sub>wc</sub></span></span> Δ<var>p</var></div>
         </div>
         <div class="eq">
           <span class="eq-name">Material balance</span>
@@ -372,18 +372,22 @@
           <div class="eqn"><span class="frac"><span class="num"><var>F</var></span><span class="den"><var>E</var><sub>t</sub></span></span><span class="op">=</span><var>N</var><span class="op">+</span><span class="frac"><span class="num"><var>W</var><sub>e</sub></span><span class="den"><var>E</var><sub>t</sub></span></span></div>
         </div>
       </div>
-      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>C</var><sub>w</sub> and <var>C</var><sub>f</sub> in psi⁻¹. <var>t</var> in days. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method.</p>
+      <p class="units-note">Units used in the calculation: <var>p</var> in psia, <var>N</var><sub>p</sub> in STB, <var>G</var><sub>p</sub> in SCF, <var>R</var><sub>s</sub> and <var>R</var><sub>p</sub> in SCF/STB, <var>B</var><sub>o</sub> in rb/STB, <var>B</var><sub>g</sub> in rb/SCF (ft³/SCF ÷ 5.615), <var>c</var><sub>w</sub> and <var>c</var><sub>f</sub> in psi⁻¹. <var>t</var> in days. Values in other units are converted first. The 95 % ranges come from the least-squares fit; the range of <var>m</var> uses the delta method.</p>
     </section>
   </main>
 </div>
 
 <dialog class="cx" id="cx" aria-labelledby="cx-title">
   <div class="cx-head">
-    <div>
+    <div class="cx-titles">
       <h2 id="cx-title">Calculations</h2>
       <p class="cx-sub">Every step from the data to the results, with the numbers put in.</p>
     </div>
-    <button class="icon-btn" type="button" id="cx-close" aria-label="Close the calculations">
+    <button class="btn btn-outline" type="button" id="cx-pdf" aria-label="Download the calculations as a PDF" title="Opens the print window: choose Save as PDF" data-download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+      <span>Download PDF</span>
+    </button>
+    <button class="icon-btn" type="button" id="cx-close" aria-label="Close the calculations" autofocus>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
   </div>
