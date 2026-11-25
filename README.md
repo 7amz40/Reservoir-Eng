@@ -10,6 +10,8 @@ with the Havlena–Odeh straight-line method:
 - the water influx *W*<sub>e</sub> and the aquifer constant, when there is an aquifer
 - the oil recovered so far, *RF* = *N*<sub>p</sub> / *N* at the latest step, and the oil that remains
 - the drive indices at every step, and how much the answer moves when the table values are rounded
+- a sketch of the reservoir: a cross-section in which the gas cap, the oil and the water that came in are drawn
+  to scale at each pressure, with a slider and **Play** to step through the history
 
 It opens with an example already loaded: a gas-cap oil reservoir, for which it finds a gas-cap drive
 with *N* = 108.6 MMSTB, *m* = 0.542 and *G* = 84.6 Bscf, of which 16.3 % has been produced.
@@ -84,8 +86,8 @@ the file you load is read in the browser and never leaves your computer.
 ## Tests
 
 ```
-node --test tests/*.test.js         # 117 tests: units, file reading, table detection, calculation, drive mechanisms
-python3 tests/e2e.py                # 16 checks in a real browser, the one-page report included (needs playwright and openpyxl)
+node --test tests/*.test.js         # 118 tests: units, file reading, table detection, calculation, drive mechanisms
+python3 tests/e2e.py                # 17 checks in a real browser, the sketch and the one-page report included (needs playwright and openpyxl)
 python3 tests/make_fixtures.py      # rebuilds the example, the template, the known-answer sample and tests/fixtures/
 node tests/make_drive_samples.js    # rebuilds the drive_*.xlsx samples
 python3 tools/build.py              # rebuilds dist/havlena-odeh-analyzer.html

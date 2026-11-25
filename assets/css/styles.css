@@ -529,6 +529,31 @@ main {
 .mini-h { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
 .mini-h span { font-weight: 400; color: var(--muted); }
 
+/* reservoir sketch */
+.sk-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 0 18px 12px; }
+.sk-controls .m-slider { flex: 1 1 360px; }
+.sk-play svg { color: var(--ink); }
+.sk-play .i-pause, .sk-play[aria-pressed="true"] .i-play { display: none; }
+.sk-play[aria-pressed="true"] .i-pause { display: block; }
+.sk-out { min-width: 96px; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.sk-grid { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 0 22px; padding: 0 18px 18px; }
+#sketch { min-height: 230px; }
+.sk-side { border-left: 1px solid var(--line); padding-left: 20px; min-width: 0; font-size: 13px; color: var(--ink-2); }
+.sk-h { font-size: 13px; font-weight: 600; color: var(--ink); margin: 2px 0 8px; font-variant-numeric: tabular-nums; }
+.sk-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.sk-table th, .sk-table td { padding: 6px 0 6px 10px; text-align: right; font-weight: 400; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sk-table th:first-child { padding-left: 0; text-align: left; white-space: normal; }
+.sk-table thead th { font-size: 12px; color: var(--muted); padding-top: 0; }
+.sk-table tbody td { color: var(--ink); }
+.sk-table .sk-total th, .sk-table .sk-total td { color: var(--muted); border-bottom: 0; }
+.sk-sw { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border-radius: 3px; border: 1px solid; }
+.sk-sw-gas { background: color-mix(in srgb, var(--gas) 34%, var(--paper)); border-color: var(--gas); }
+.sk-sw-oil { background: color-mix(in srgb, var(--oil) 36%, var(--paper)); border-color: var(--oil); }
+.sk-sw-water { background: color-mix(in srgb, var(--water) 34%, var(--paper)); border-color: var(--water); }
+.sk-sw-rock { background: color-mix(in srgb, var(--ink) 8%, var(--paper)); border-color: var(--line-strong); }
+.sk-sw-hatch { border-color: var(--muted); background: repeating-linear-gradient(45deg, var(--muted) 0 1.3px, transparent 1.3px 4.2px); }
+.sk-note { margin-top: 9px; line-height: 1.45; }
+
 /* table */
 .table-wrap { position: relative; overflow-x: auto; border-top: 1px solid var(--line); }
 .calc { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -608,7 +633,8 @@ footer.foot {
 
 @media (max-width: 1280px) {
   :root { --side-w: 310px; }
-  .ho-grid { grid-template-columns: minmax(0, 1fr); }
+  .ho-grid, .sk-grid { grid-template-columns: minmax(0, 1fr); }
+  .sk-side { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 10px; }
   .notes-col { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 8px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 0 24px; }
 }
 
@@ -643,7 +669,7 @@ footer.foot {
   .ho-eq-fit { margin-left: 0; width: 100%; }
   .ho-eq { margin-left: 14px; margin-right: 14px; }
   .notes-col { grid-template-columns: minmax(0, 1fr); }
-  .panel-head, .panel-body, .ho-grid, .explorer-controls, .explorer-read, .explorer-grid { padding-left: 14px; padding-right: 14px; }
+  .panel-head, .panel-body, .ho-grid, .explorer-controls, .explorer-read, .explorer-grid, .sk-controls, .sk-grid { padding-left: 14px; padding-right: 14px; }
   .eq { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .prm { grid-template-columns: minmax(0, 1fr) 140px; }
 }
@@ -653,7 +679,7 @@ footer.foot {
 }
 
 @media print {
-  .appbar-tools, .side, .panel-tools, .explorer-controls, .skip, .table-foot button, .drop-overlay { display: none !important; }
+  .appbar-tools, .side, .panel-tools, .explorer-controls, .sk-controls, .skip, .table-foot button, .drop-overlay { display: none !important; }
   .shell { grid-template-columns: minmax(0, 1fr); }
   body { background: #fff; }
   .panel { break-inside: avoid; }

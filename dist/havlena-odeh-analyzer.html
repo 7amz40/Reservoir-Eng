@@ -541,6 +541,31 @@ main {
 .mini-h { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
 .mini-h span { font-weight: 400; color: var(--muted); }
 
+/* reservoir sketch */
+.sk-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 0 18px 12px; }
+.sk-controls .m-slider { flex: 1 1 360px; }
+.sk-play svg { color: var(--ink); }
+.sk-play .i-pause, .sk-play[aria-pressed="true"] .i-play { display: none; }
+.sk-play[aria-pressed="true"] .i-pause { display: block; }
+.sk-out { min-width: 96px; text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.sk-grid { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 0 22px; padding: 0 18px 18px; }
+#sketch { min-height: 230px; }
+.sk-side { border-left: 1px solid var(--line); padding-left: 20px; min-width: 0; font-size: 13px; color: var(--ink-2); }
+.sk-h { font-size: 13px; font-weight: 600; color: var(--ink); margin: 2px 0 8px; font-variant-numeric: tabular-nums; }
+.sk-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.sk-table th, .sk-table td { padding: 6px 0 6px 10px; text-align: right; font-weight: 400; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sk-table th:first-child { padding-left: 0; text-align: left; white-space: normal; }
+.sk-table thead th { font-size: 12px; color: var(--muted); padding-top: 0; }
+.sk-table tbody td { color: var(--ink); }
+.sk-table .sk-total th, .sk-table .sk-total td { color: var(--muted); border-bottom: 0; }
+.sk-sw { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border-radius: 3px; border: 1px solid; }
+.sk-sw-gas { background: color-mix(in srgb, var(--gas) 34%, var(--paper)); border-color: var(--gas); }
+.sk-sw-oil { background: color-mix(in srgb, var(--oil) 36%, var(--paper)); border-color: var(--oil); }
+.sk-sw-water { background: color-mix(in srgb, var(--water) 34%, var(--paper)); border-color: var(--water); }
+.sk-sw-rock { background: color-mix(in srgb, var(--ink) 8%, var(--paper)); border-color: var(--line-strong); }
+.sk-sw-hatch { border-color: var(--muted); background: repeating-linear-gradient(45deg, var(--muted) 0 1.3px, transparent 1.3px 4.2px); }
+.sk-note { margin-top: 9px; line-height: 1.45; }
+
 /* table */
 .table-wrap { position: relative; overflow-x: auto; border-top: 1px solid var(--line); }
 .calc { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -620,7 +645,8 @@ footer.foot {
 
 @media (max-width: 1280px) {
   :root { --side-w: 310px; }
-  .ho-grid { grid-template-columns: minmax(0, 1fr); }
+  .ho-grid, .sk-grid { grid-template-columns: minmax(0, 1fr); }
+  .sk-side { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 10px; }
   .notes-col { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 8px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 0 24px; }
 }
 
@@ -655,7 +681,7 @@ footer.foot {
   .ho-eq-fit { margin-left: 0; width: 100%; }
   .ho-eq { margin-left: 14px; margin-right: 14px; }
   .notes-col { grid-template-columns: minmax(0, 1fr); }
-  .panel-head, .panel-body, .ho-grid, .explorer-controls, .explorer-read, .explorer-grid { padding-left: 14px; padding-right: 14px; }
+  .panel-head, .panel-body, .ho-grid, .explorer-controls, .explorer-read, .explorer-grid, .sk-controls, .sk-grid { padding-left: 14px; padding-right: 14px; }
   .eq { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .prm { grid-template-columns: minmax(0, 1fr) 140px; }
 }
@@ -665,7 +691,7 @@ footer.foot {
 }
 
 @media print {
-  .appbar-tools, .side, .panel-tools, .explorer-controls, .skip, .table-foot button, .drop-overlay { display: none !important; }
+  .appbar-tools, .side, .panel-tools, .explorer-controls, .sk-controls, .skip, .table-foot button, .drop-overlay { display: none !important; }
   .shell { grid-template-columns: minmax(0, 1fr); }
   body { background: #fff; }
   .panel { break-inside: avoid; }
@@ -865,6 +891,34 @@ footer.foot {
             <dl class="stats" id="stats"></dl>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-sketch" aria-labelledby="sk-title">
+      <div class="panel-head">
+        <div>
+          <h2 id="sk-title">Reservoir sketch</h2>
+          <p class="panel-sub">A cross-section drawn from the fitted <var>N</var>, <var>m</var> and water influx. The areas of gas, oil and water are in proportion to their volumes in the reservoir; the shape itself is only a sketch. Move the slider to see the reservoir at each pressure.</p>
+        </div>
+        <div class="panel-tools">
+          <button class="btn-quiet" type="button" id="png-sketch" data-download>PNG</button>
+        </div>
+      </div>
+      <div class="sk-controls">
+        <button class="btn-quiet sk-play" type="button" id="sk-play" aria-pressed="false">
+          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5h3v13H8zM13.5 5.5h3v13h-3z" fill="currentColor"/></svg>
+          <span>Play</span>
+        </button>
+        <div class="m-slider sk-slider">
+          <label for="sk-range">Pressure</label>
+          <input type="range" id="sk-range" min="0" max="1" step="1" value="1">
+          <output class="sk-out" id="sk-out" for="sk-range">–</output>
+        </div>
+      </div>
+      <div class="sk-grid">
+        <div class="chart" id="sketch"></div>
+        <div class="sk-side" id="sk-side"></div>
       </div>
     </section>
 
@@ -3352,6 +3406,32 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return { Np: last.Np, p: last.p, RF: last.Np / N, remaining: N - last.Np };
   }
 
+  /**
+   * What fills the initial hydrocarbon pore volume HCPV = (1 + m) N Boi at each step, as parts of it:
+   *   oil     the oil left:                                       (N − Np) Bo
+   *   water   the water that came in and stayed:                  We − Wp Bw
+   *   shrink  pore volume taken by rock and connate-water expansion: (1 + m) N Efw
+   *   gas     the rest: all free gas, the gas cap together with the solution gas that came out of the oil
+   *           and was not produced. With exact data this equals (G + N Rsi − (N − Np) Rs − Gp) Bg.
+   * The parts add up to 1; where the line does not fit exactly, gas takes up the difference (never below 0,
+   * and over says by how much oil, water and shrink together exceed the pore volume).
+   * Steps run in order of Np. Returns null unless N > 0 and Boi is known.
+   */
+  function fluids(terms, N, m, P) {
+    if (!(N > 0) || !(P && P.Boi > 0)) return null;
+    var mm = num(m) && m > 0 ? m : 0;
+    var hc = (1 + mm) * N * P.Boi;
+    return (terms || []).filter(function (t) { return num(t.p) && num(t.Np) && num(t.Bo); })
+      .slice().sort(function (a, b) { return a.Np - b.Np || b.p - a.p; })
+      .map(function (t) {
+        var oil = Math.max(0, (N - t.Np) * t.Bo) / hc;
+        var water = Math.max(0, (num(t.We) ? t.We : 0) - (t.Wp || 0) * (t.Bw || 1)) / hc;
+        var shrink = Math.max(0, (1 + mm) * N * (num(t.Efw) ? t.Efw : 0)) / hc;
+        var rest = 1 - oil - water - shrink;
+        return { id: t.id, p: t.p, Np: t.Np, hcpv: hc, oil: oil, water: water, shrink: shrink, gas: Math.max(0, rest), over: Math.max(0, -rest) };
+      });
+  }
+
   /** Et, implied N and the drive indices at each point, for the fitted N and m. */
   function driveIndices(terms, N, m) {
     terms.forEach(function (tt) {
@@ -3657,6 +3737,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     bestPotK: bestPotK,
     driveIndices: driveIndices,
     recovery: recovery,
+    fluids: fluids,
     analyzeOrigin: analyzeOrigin,
     analyzeWater: analyzeWater,
     analyze: analyze
@@ -5150,8 +5231,259 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(data);
   }
 
+  /* ---------- reservoir sketch ---------- */
+
+  var sketchSeq = 0;
+
+  /**
+   * A schematic cross-section of an anticline drawn from the material balance: a sand layer under the cap rock
+   * holding gas, oil and, with water drive, the aquifer water. Contacts are level lines, placed so that the areas
+   * in the drawing are in proportion to the volumes given, as parts of the initial hydrocarbon pore volume.
+   * Zones that gas or water moved into since the start are hatched.
+   * d = { now, start: {gas, oil, water} (parts of the pore volume, at the step shown and at the start),
+   *       gasCap: free gas gathers in a gas cap (otherwise it is drawn as bubbles in the oil),
+   *       aquifer: null or { reach: aquifer edge over the oil-zone edge (Infinity: past the drawing), lines: [rich text] },
+   *       gasLines, oilLines, corner: [rich text], label: text for screen readers }
+   */
+  function reservoirSketch(el, d) {
+    var T = tokens();
+    var w = Math.max(280, Math.floor(el.clientWidth || 600));
+    var h = Math.round(Math.max(230, Math.min(360, w * 0.4)));
+    d3.select(el).selectAll('svg').remove();
+    d3.select(el).selectAll('.empty').remove();
+    var svg = d3.select(el).append('svg').attr('xmlns', SVGNS).attr('width', w).attr('height', h).attr('viewBox', '0 0 ' + w + ' ' + h)
+      .attr('role', 'img').attr('aria-label', d.label || '').attr('font-family', T.fontBody).attr('font-size', 12);
+    var id = 'sk' + (++sketchSeq);
+    var mix = function (c, k) { return d3.interpolateRgb(T.paper, c)(k); };
+    var col = {
+      shale: mix(T.ink, 0.06), shaleLine: mix(T.ink, 0.2),
+      gas: mix(T.gas, 0.34), gasIn: mix(T.gas, 0.12),
+      oil: mix(T.oil, 0.36),
+      water: mix(T.water, 0.34), waterIn: mix(T.water, 0.12)
+    };
+
+    // the structure: a dome-shaped top, and a layer that is a lens (no aquifer) or of even thickness (aquifer)
+    var X = function (u) { return w / 2 + u * w / 2; };
+    var y0 = h * 0.22, relief = h * 0.5, sig = 0.36;
+    var top = function (u) { return y0 + relief * (1 - Math.exp(-u * u / (2 * sig * sig))); };
+    var topU = function (z) { var q = (z - y0) / relief; return q <= 0 ? 0 : q >= 1 ? Infinity : sig * Math.sqrt(-2 * Math.log(1 - q)); };
+    var aq = d.aquifer;
+    var thick = aq ? h * 0.2 : h * 0.3;
+    var uHc = 0.5;   // with an aquifer: where the oil zone ends on the top of the layer
+    // the aquifer's outer edge, or none in the drawing when it lies past it
+    var uEdge = !aq ? 0.74 : isFinite(aq.reach) && aq.reach * uHc <= 0.97 ? Math.max(uHc + 0.14, aq.reach * uHc) : Infinity;
+    var th = function (u) {
+      var a = Math.abs(u);
+      if (!aq) return a >= uEdge ? 0 : thick * (1 - Math.pow(a / uEdge, 2));
+      if (!isFinite(uEdge) || a <= uEdge - 0.07) return thick;
+      return a >= uEdge ? 0 : thick * Math.sqrt(1 - Math.pow((a - uEdge + 0.07) / 0.07, 2));
+    };
+    var S = d3.range(0, w + 1).map(function (x) { var u = (x - w / 2) / (w / 2), t = top(u); return { x: x, u: u, t: t, b: t + th(u) }; });
+    var layer = S.filter(function (s) { return s.b - s.t > 0.05; });
+    var areaAbove = function (z) {
+      var a = 0;
+      for (var i = 0; i < layer.length; i++) a += Math.max(0, Math.min(z, layer[i].b) - layer[i].t);
+      return a;
+    };
+    var depthFor = function (a) {
+      var lo = y0 - 1, hi = h * 3;
+      for (var i = 0; i < 44; i++) { var mid = (lo + hi) / 2; if (areaAbove(mid) < a) lo = mid; else hi = mid; }
+      return (lo + hi) / 2;
+    };
+    // contacts: the hydrocarbon zone is the layer above the initial oil-water contact (or the whole lens)
+    var owc0 = aq ? top(uHc) : null;
+    var aHc = aq ? areaAbove(owc0) : areaAbove(h * 3);
+    var part = function (f) {
+      var g = Math.max(0, f.gas || 0), wt = Math.max(0, f.water || 0), o = Math.max(0, f.oil || 0);
+      var sum = g + wt + o;
+      return sum > 1 ? { gas: g / sum, water: wt / sum, oil: o / sum } : { gas: g, water: wt, oil: o };
+    };
+    var now = part(d.now), start = part(d.start);
+    var goc = function (f) { return d.gasCap && f.gas > 0.001 ? depthFor(f.gas * aHc) : null; };
+    var g0 = goc(start), g1 = goc(now);
+    var o1 = aq ? depthFor((1 - now.water) * aHc) : null;
+    if (g1 != null && o1 != null && g1 > o1) g1 = o1;
+    var lowest = h * 3;
+
+    // defs: the layer as a clip path, rock textures and hatching
+    var defs = svg.append('defs');
+    var path = function (pts) { return pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0] + ',' + p[1].toFixed(1); }).join(''); };
+    var topPts = layer.map(function (s) { return [s.x, s.t]; }), botPts = layer.map(function (s) { return [s.x, s.b]; });
+    defs.append('clipPath').attr('id', id + '-layer').append('path').attr('d', path(topPts.concat(botPts.slice().reverse())) + 'Z');
+    var pat = function (pid, wd, ht) { return defs.append('pattern').attr('id', id + pid).attr('patternUnits', 'userSpaceOnUse').attr('width', wd).attr('height', ht); };
+    var shale = pat('-shale', 24, 10);
+    shale.append('line').attr('x1', 2).attr('y1', 3).attr('x2', 12).attr('y2', 3).attr('stroke', col.shaleLine).attr('stroke-width', 1);
+    shale.append('line').attr('x1', 14).attr('y1', 8).attr('x2', 23).attr('y2', 8).attr('stroke', col.shaleLine).attr('stroke-width', 1);
+    var sand = pat('-sand', 9, 8);
+    [[2, 2], [6.5, 6]].forEach(function (c) { sand.append('circle').attr('cx', c[0]).attr('cy', c[1]).attr('r', 0.85).attr('fill', T.ink).attr('fill-opacity', 0.2); });
+    var hatch = function (pid, color) {
+      pat(pid, 6, 6).attr('patternTransform', 'rotate(45)')
+        .append('line').attr('x1', 1).attr('y1', 0).attr('x2', 1).attr('y2', 6).attr('stroke', color).attr('stroke-width', 1.3).attr('stroke-opacity', 0.7);
+    };
+    hatch('-gh', T.gas);
+    hatch('-wh', T.water);
+
+    // rock around the reservoir
+    svg.append('rect').attr('width', w).attr('height', h).attr('fill', col.shale);
+    svg.append('rect').attr('width', w).attr('height', h).attr('fill', 'url(#' + id + '-shale)');
+
+    // fluids in the layer, from the bottom up
+    var fl = svg.append('g').attr('clip-path', 'url(#' + id + '-layer)');
+    var band = function (z1, z2, fill) {
+      if (!(z2 > z1)) return;
+      fl.append('rect').attr('x', 0).attr('width', w).attr('y', Math.max(-1, z1)).attr('height', Math.min(lowest, z2) - Math.max(-1, z1)).attr('fill', fill);
+    };
+    band(-1, lowest, aq ? col.water : col.oil);
+    if (aq && o1 < owc0 - 0.5) { band(o1, owc0, col.waterIn); band(o1, owc0, 'url(#' + id + '-wh)'); }
+    band(g1 != null ? g1 : -1, aq ? o1 : lowest, col.oil);
+    if (g0 != null || g1 != null) {
+      var gTop = g0 != null && g1 != null ? Math.min(g0, g1) : g1 != null ? g1 : -1;
+      band(-1, gTop, col.gas);
+      if (g0 != null && g1 != null && g1 > g0 + 0.5) { band(g0, g1, col.gasIn); band(g0, g1, 'url(#' + id + '-gh)'); }
+    }
+    fl.append('rect').attr('width', w).attr('height', h).attr('fill', 'url(#' + id + '-sand)');
+
+    // gas out of solution, as bubbles in the oil when there is no gas cap
+    if (!d.gasCap && now.gas > 0.002) {
+      var zTop = -1, zBot = aq ? o1 : lowest;
+      var oilArea = areaAbove(zBot) - areaAbove(zTop);
+      var count = Math.min(420, Math.round(now.gas / Math.max(1e-6, now.gas + now.oil) * oilArea / 34));
+      var rnd = (function (seed) { return function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; })(7);
+      var bubbles = [], xs = layer[0].x, xe = layer[layer.length - 1].x;
+      for (var k = 0; k < 6000 && bubbles.length < count; k++) {
+        var bx = xs + rnd() * (xe - xs), by = y0 + rnd() * (relief + thick), r = 1.3 + rnd() * 1.3;
+        var sx = S[Math.max(0, Math.min(S.length - 1, Math.round(bx)))];
+        if (by - r > sx.t + 1 && by + r < Math.min(sx.b, zBot) - 1) bubbles.push([bx, by, r]);
+      }
+      svg.append('g').attr('class', 'sk-bubbles').selectAll('circle').data(bubbles).join('circle')
+        .attr('cx', function (q) { return q[0].toFixed(1); }).attr('cy', function (q) { return q[1].toFixed(1); }).attr('r', function (q) { return q[2].toFixed(2); })
+        .attr('fill', mix(T.gas, 0.22)).attr('stroke', T.gas).attr('stroke-width', 0.9);
+    }
+
+    // the layer's top and base
+    var edge = function (pts) { svg.append('path').attr('d', path(pts)).attr('fill', 'none').attr('stroke', T.ink2).attr('stroke-width', 1.2); };
+    edge(topPts);
+    edge(botPts);
+    if (aq && !isFinite(uEdge)) {
+      // the aquifer runs on past the drawing: break marks
+      [6, w - 6].forEach(function (bx) {
+        var s = S[bx], zz = [];
+        for (var j = 0; j <= 4; j++) zz.push([bx + (j % 2 ? 4 : -4), s.t - 4 + (s.b - s.t + 8) * j / 4]);
+        svg.append('path').attr('d', path(zz)).attr('fill', 'none').attr('stroke', T.ink2).attr('stroke-width', 1.4);
+      });
+    }
+
+    // contacts: level lines inside the layer; dashed where they were at the start
+    var cl = svg.append('g').attr('clip-path', 'url(#' + id + '-layer)');
+    var lab = svg.append('g').attr('class', 'sk-labels');
+    var text = function (x, y, markup, o) {
+      o = o || {};
+      var t = lab.append('text').attr('x', x).attr('y', y).attr('text-anchor', o.anchor || 'start').attr('fill', o.fill || T.ink)
+        .attr('font-size', o.size || 12).attr('font-weight', o.weight || null);
+      richSvg(t, markup, T);
+      halo(t, T);
+      return t;
+    };
+    var contact = function (z, color, name, initial) {
+      cl.append('line').attr('x1', 0).attr('x2', w).attr('y1', z).attr('y2', z)
+        .attr('stroke', initial ? T.muted : color).attr('stroke-width', initial ? 1.1 : 1.8).attr('stroke-dasharray', initial ? '5 4' : null);
+      var u = topU(z);
+      if (!isFinite(u)) return;
+      if (initial) text(X(-u) - 6, z + 4, name + ' at start', { anchor: 'end', fill: T.muted, size: 11.5 });
+      else text(X(u) + 6, z + 4, name, { weight: 600 });
+    };
+    if (g0 != null && g1 != null && Math.abs(g1 - g0) > 1.5) contact(g0, T.gas, 'GOC', true);
+    if (aq && Math.abs(o1 - owc0) > 1.5) contact(owc0, T.water, 'OWC', true);
+    if (g1 != null) contact(g1, T.gas, 'GOC', false);
+    if (aq) contact(o1, T.water, 'OWC', false);
+
+    // water coming in from the aquifer, up the flanks
+    if (aq) {
+      var reach = isFinite(uEdge) ? uEdge - 0.06 : 0.98;
+      [0.3, 0.75].forEach(function (k) {
+        var ua = uHc + 0.06 + (reach - uHc - 0.06) * k;
+        if (ua <= uHc + 0.05) return;
+        [-1, 1].forEach(function (sgn) {
+          var u1 = sgn * ua, u2 = sgn * (ua - 0.07);
+          var p1 = [X(u1), top(u1) + th(u1) / 2], p2 = [X(u2), top(u2) + th(u2) / 2];
+          var ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
+          var head = 'M' + p2[0] + ',' + p2[1] + 'L' + (p2[0] - 7 * Math.cos(ang - 0.45)) + ',' + (p2[1] - 7 * Math.sin(ang - 0.45)) +
+            'L' + (p2[0] - 7 * Math.cos(ang + 0.45)) + ',' + (p2[1] - 7 * Math.sin(ang + 0.45)) + 'Z';
+          var ar = svg.append('g').attr('class', 'sk-influx');
+          ar.append('line').attr('x1', p1[0]).attr('y1', p1[1]).attr('x2', p2[0]).attr('y2', p2[1]).attr('stroke', T.water).attr('stroke-width', 2);
+          ar.append('path').attr('d', head).attr('fill', T.water);
+        });
+      });
+    }
+
+    // a producing well, left of the crest where the oil column was thickest at the start, perforated in it
+    var oilAt = function (u) { return { a: g0 != null ? Math.max(g0, top(u)) : top(u), b: Math.min(top(u) + th(u), aq ? owc0 : lowest) }; };
+    var uw = -0.2, best = -1;
+    for (var uu = -0.14; uu >= -0.5; uu -= 0.01) {
+      var oc = oilAt(uu), hh = oc.b - oc.a;
+      if (hh > best + 2) { best = hh; uw = uu; }
+    }
+    var xw = Math.round(X(uw)) + 0.5, pTop = oilAt(uw).a, pBot = oilAt(uw).b;
+    if (pBot > pTop + 6) {
+      var p1 = pTop + (pBot - pTop) * 0.35, p2 = pTop + (pBot - pTop) * 0.75;
+      svg.append('line').attr('class', 'sk-well').attr('x1', xw).attr('x2', xw).attr('y1', 0).attr('y2', p2 + 3).attr('stroke', T.ink).attr('stroke-width', 2.2);
+      for (var yp = p1; yp <= p2; yp += 5) {
+        svg.append('line').attr('x1', xw - 6).attr('x2', xw + 6).attr('y1', yp).attr('y2', yp).attr('stroke', T.ink).attr('stroke-width', 1.2);
+      }
+    }
+
+    // names in the drawing: inside a zone where it is thick enough, otherwise outside with a leader line
+    text(X(-0.94), h * 0.1, 'Cap rock', { fill: T.ink2 });
+    var block = function (x, yMid, lines, anchor) {
+      lines.forEach(function (l, i) { text(x, yMid + 4 + (i - (lines.length - 1) / 2) * 15, l, { anchor: anchor || 'middle', weight: i ? null : 600 }); });
+    };
+    var zoneAt = function (u, zTop, zBot) { return [Math.max(zTop, top(u)), Math.min(zBot, top(u) + th(u))]; };
+    var name = function (lines, zTop, zBot, outside) {
+      if (!lines || !lines.length || !(zBot > zTop)) return;
+      var tall = lines.length * 15 + 4;
+      var halfU = (d3.max(lines, function (l) { return l.replace(/[*_]/g, '').length; }) * 3.6 + 6) / (w / 2);
+      var fit = null, thickest = null;
+      for (var u = 0.04; u <= 0.62; u += 0.02) {
+        var zc = zoneAt(u, zTop, zBot), mid = (zc[0] + zc[1]) / 2;
+        if (!thickest || zc[1] - zc[0] > thickest.t + 0.5) thickest = { u: u, t: zc[1] - zc[0], y: mid };
+        // the whole label, end to end, must sit inside the zone and clear of the well
+        var inside = X(u - halfU) > xw + 10 && [-1, -0.5, 0, 0.5, 1].every(function (k) {
+          var z = zoneAt(u + k * halfU, zTop, zBot);
+          return z[0] <= mid - tall / 2 && z[1] >= mid + tall / 2;
+        });
+        if (inside && !fit) fit = { u: u, y: mid };
+      }
+      if (fit) { block(X(fit.u), fit.y, lines); return; }
+      if (!thickest || !(thickest.t > 1)) return;
+      // outside, in the rock above or below the layer, clear of it along the label's length
+      var ua = thickest.u, ax = X(ua), ay = thickest.y;
+      var u0 = Math.min(0.62, ua + 0.16), us = [u0, u0 + halfU, u0 + 2 * halfU];
+      var ly = outside === 'above'
+        ? Math.max(14, d3.min(us, function (q) { return top(q); }) - 12 - (lines.length - 1) * 15)
+        : Math.min(h - 8 - (lines.length - 1) * 15, d3.max(us, function (q) { return top(q) + th(q); }) + 22);
+      var lx = Math.max(4, Math.min(X(u0), w - 4 - halfU * w));   // the whole label on the drawing
+      svg.insert('line', '.sk-labels').attr('x1', ax).attr('y1', ay).attr('x2', lx - 3).attr('y2', outside === 'above' ? ly + 3 : ly - 12)
+        .attr('stroke', T.ink2).attr('stroke-width', 1);
+      svg.insert('circle', '.sk-labels').attr('cx', ax).attr('cy', ay).attr('r', 2.2).attr('fill', T.ink2);
+      block(lx, ly - 4 + (lines.length - 1) * 7.5, lines, 'start');
+    };
+    var gasBottom = g1 != null ? g1 : null;
+    if (gasBottom != null) name(d.gasLines, -1, gasBottom, 'above');
+    name(d.oilLines, gasBottom != null ? gasBottom : -1, aq ? o1 : lowest, gasBottom != null ? 'below' : 'above');
+    if (aq && aq.lines) {
+      var ua2 = isFinite(uEdge) ? Math.min(0.8, uEdge - 0.13) : 0.8;
+      var half2 = d3.max(aq.lines, function (l) { return l.replace(/[*_]/g, '').length; }) * 3.3 + 4;
+      var xa2 = Math.max(half2 + 4, Math.min(w - half2 - 4, X(ua2)));
+      aq.lines.forEach(function (l, i) { text(xa2, top(ua2) - 12 - (aq.lines.length - 1 - i) * 15, l, { anchor: 'middle', weight: i ? null : 600 }); });
+    }
+    // the pressure and production in the corner; on a narrow screen the slider and the list say it
+    if (w >= 520) (d.corner || []).forEach(function (l, i) { text(w - 10, 20 + i * 16, l, { anchor: 'end', weight: i ? null : 600 }); });
+    return { w: w, h: h, goc: g1, owc: o1, gocStart: g0, owcStart: owc0 };
+  }
+
   return {
     tokens: tokens,
+    reservoirSketch: reservoirSketch,
     hoPlot: hoPlot,
     originPlot: originPlot,
     driveBars: driveBars,
@@ -5926,6 +6258,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       C.empty(ho, msg); C.empty(chk, msg); C.empty(drv, msg);
       C.legend($('legend-ho'), [], {}); C.legend($('legend-check'), [], {}); C.legend($('legend-drive'), [], {});
       renderExplorer(b, { reset: true });
+      renderSketch(b);
       $('reset-points').hidden = true;
       return;
     }
@@ -5959,6 +6292,120 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       blockedText: negativeM(b) ? 'Not shown: the fitted m is ' + fmtM(R.m) + '. A negative gas cap would give a negative gas-cap drive index, which has no physical meaning. See the fit notes.' : ''
     });
     renderExplorer(b, opts);
+    renderSketch(b);
+  }
+
+  /* ---------- reservoir sketch: where the gas, oil and water are at each pressure ---------- */
+  var sketch = { steps: null, at: 0, key: '', timer: null };
+
+  function renderSketch(b) {
+    var fitOk = hasFit(b), R = fitOk ? b.result.results : null;
+    var steps = fitOk && R.N > 0 ? E.fluids(b.result.terms, R.N, R.m, b.inputs.params) : null;
+    var ok = !!(steps && steps.length);
+    $('sk-range').disabled = !ok;
+    $('sk-play').disabled = !ok || steps.length < 2;
+    if (!ok) {
+      stopSketch();
+      sketch.steps = null;
+      C.empty($('sketch'), fitOk ? 'The sketch needs a positive N. See the fit notes.' : 'The sketch appears once N and m are found.');
+      $('sk-out').textContent = '–';
+      $('sk-side').innerHTML = '';
+      return;
+    }
+    // a new data set opens on its latest step; otherwise the step shown stays
+    var key = state.source.name + '|' + steps.map(function (st) { return st.id; }).join(',');
+    if (key !== sketch.key) { sketch.key = key; sketch.at = steps.length - 1; stopSketch(); }
+    sketch.steps = steps;
+    sketch.at = Math.max(0, Math.min(steps.length - 1, sketch.at));
+    var range = $('sk-range');
+    range.max = steps.length - 1;
+    range.value = sketch.at;
+    drawSketch(b);
+  }
+
+  function drawSketch(b) {
+    var steps = sketch.steps;
+    if (!steps || !b || !hasFit(b)) return;
+    var st = steps[sketch.at], s0 = steps[0];
+    var R = b.result.results, c = b.model, nu = state.out.N, div = N_DIV[nu];
+    var gasCap = R.m > 0;
+    var row = b.inputs.rows.filter(function (r) { return r.id === st.id; })[0] || {};
+    var aq = null;
+    if (influxOn(b) && c) {
+      var reD = c.reD === 'inf' ? Infinity : Number(c.reD);
+      aq = c.aquifer === 'pot' ? { reach: 1.85, lines: ['Pot aquifer'] }
+        : c.aquifer === 'steady' ? { reach: Infinity, lines: ['Aquifer', 'steady state'] }
+        : c.aquifer === 'veh' ? { reach: isFinite(reD) ? reD : Infinity, lines: ['Aquifer', isFinite(reD) ? '*r*_e/*r*_o = ' + reText(c.reD) : 'infinite'] }
+        : { reach: Infinity, lines: ['Aquifer', '*W*_e from the file'] };
+    }
+    var pText = fmtFixed(st.p, 0) + ' psia';
+    var corner = ['*p* = ' + pText, '*N*_p = ' + (st.Np > 0 ? fmtRes(st.Np / div) : '0') + ' ' + nu];
+    if (b.inputs.hasTime && isFinite(row.t)) corner.push('*t* = ' + fmtFixed(row.t / 365.25, row.t % 365.25 ? 1 : 0) + ' years');
+    var pc = function (f) { return f < 0.0005 ? '0 %' : pctText(f); };
+    var label = 'Reservoir sketch at ' + pText + ': ' + (gasCap ? 'gas cap' : 'free gas') + ' ' + pc(st.gas) + ', oil ' + pc(st.oil) +
+      (aq ? ', water that came in ' + pc(st.water) : '') + ' of the hydrocarbon pore volume.';
+    var geo = C.reservoirSketch($('sketch'), {
+      now: st, start: s0, gasCap: gasCap, aquifer: aq,
+      gasLines: gasCap ? ['Gas cap', '*m* = ' + fmtM(R.m)] : null,
+      oilLines: ['Oil', '*N* = ' + fmtRes(R.N / div) + ' ' + nu],
+      corner: corner, label: label
+    });
+    $('sk-out').textContent = pText;
+    $('sk-range').setAttribute('aria-valuetext', pText);
+    var hatchG = geo && geo.goc != null && geo.gocStart != null && geo.goc > geo.gocStart + 0.5;
+    var hatchW = geo && geo.owc != null && geo.owc < geo.owcStart - 0.5;
+    // the numbers beside it
+    var hc = st.hcpv;
+    var mmrb = function (f) { var v = f * hc / 1e6; return v < 0.05 ? '0' : fmtRes(v); };
+    var share = function (f) { return f < 0.0005 ? '0 %' : pctText(f); };
+    var line = function (cls, name, f) {
+      return '<tr><th><span class="sk-sw ' + cls + '"></span>' + name + '</th><td>' + mmrb(f) + '</td><td>' + share(f) + '</td></tr>';
+    };
+    var anyGas = gasCap || steps.some(function (x) { return x.gas > 0.0005; });
+    var rows = anyGas ? [line('sk-sw-gas', gasCap ? 'Gas cap' : 'Gas out of the oil', st.gas)] : [];
+    rows.push(line('sk-sw-oil', 'Oil', st.oil));
+    if (aq) rows.push(line('sk-sw-water', 'Water that came in', st.water));
+    if (st.shrink > 0.0005) rows.push(line('sk-sw-rock', 'Rock and water expansion', st.shrink));
+    var notes = ['Oil left: ' + fmtRes((R.N - st.Np) / div) + ' of ' + fmtRes(R.N / div) + ' ' + esc(nu) + '.'];
+    if (R.m < 0) notes.push('The fitted <var>m</var> is negative, which has no physical meaning, so no gas cap is drawn. See the fit notes.');
+    if (gasCap) notes.push('At the start the gas cap filled ' + pctText(s0.gas) + ' of the pore volume. Gas that comes out of the oil is drawn in the gas cap.');
+    else if (anyGas) notes.push('Gas that comes out of the oil is drawn as bubbles.');
+    if (st.over > 0.03) notes.push('At this pressure the fitted line does not balance exactly: oil' + (aq ? ', water' : '') + ' and rock expansion add up to ' + pctText(1 + st.over) + ' of the pore volume.');
+    $('sk-side').innerHTML = '<p class="sk-h">At ' + esc(pText) + '</p>' +
+      '<table class="sk-table"><thead><tr><th>Hydrocarbon pore volume</th><th>MM rb</th><th>Share</th></tr></thead><tbody>' + rows.join('') +
+      '<tr class="sk-total"><th>Total at the start</th><td>' + fmtRes(hc / 1e6) + '</td><td>100 %</td></tr></tbody></table>' +
+      notes.map(function (n) { return '<p class="sk-note">' + n + '</p>'; }).join('') +
+      (hatchG || hatchW ? '<p class="sk-note"><span class="sk-sw sk-sw-hatch"></span>Hatched: where ' + (hatchG && hatchW ? 'gas or water has' : hatchW ? 'water has' : 'gas has') + ' moved in since the start.</p>' : '');
+  }
+
+  function setPlaying(on) {
+    var btn = $('sk-play');
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.querySelector('span').textContent = on ? 'Pause' : 'Play';
+  }
+
+  function stopSketch() {
+    if (sketch.timer) clearTimeout(sketch.timer);
+    sketch.timer = null;
+    setPlaying(false);
+  }
+
+  /** Steps through the pressures from the start, about three seconds in all. */
+  function playSketch() {
+    if (sketch.timer) { stopSketch(); return; }
+    var n = sketch.steps ? sketch.steps.length : 0;
+    if (n < 2) return;
+    if (sketch.at >= n - 1) sketch.at = 0;
+    var stride = Math.max(1, Math.ceil(n / 40)), delay = Math.max(70, Math.min(450, 3000 / Math.ceil(n / stride)));
+    var show = function () { $('sk-range').value = sketch.at; drawSketch(state.bundle); };
+    var tick = function () {
+      sketch.at = Math.min(n - 1, sketch.at + stride);
+      show();
+      if (sketch.at >= n - 1) stopSketch(); else sketch.timer = setTimeout(tick, delay);
+    };
+    setPlaying(true);
+    show();
+    sketch.timer = setTimeout(tick, delay);
   }
 
   function renderExplorer(b, opts) {
@@ -6885,6 +7332,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('csv-btn').addEventListener('click', exportCSV);
     $('png-ho').addEventListener('click', function () { exportPNG('chart-ho', 'havlena-odeh-plot.png'); });
     $('png-check').addEventListener('click', function () { exportPNG('chart-check', 'F-vs-Et-check.png'); });
+    $('png-sketch').addEventListener('click', function () { exportPNG('sketch', 'reservoir-sketch.png'); });
+    $('sk-play').addEventListener('click', playSketch);
+    $('sk-range').addEventListener('input', function () {
+      stopSketch();
+      sketch.at = Number(this.value) || 0;
+      drawSketch(state.bundle);
+    });
     $('png-drive').addEventListener('click', function () { exportPNG('chart-drive', 'drive-indices.png'); });
 
     $('notes').addEventListener('click', function (ev) {

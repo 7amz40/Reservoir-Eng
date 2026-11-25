@@ -207,6 +207,34 @@
       </div>
     </section>
 
+    <section class="panel" id="panel-sketch" aria-labelledby="sk-title">
+      <div class="panel-head">
+        <div>
+          <h2 id="sk-title">Reservoir sketch</h2>
+          <p class="panel-sub">A cross-section drawn from the fitted <var>N</var>, <var>m</var> and water influx. The areas of gas, oil and water are in proportion to their volumes in the reservoir; the shape itself is only a sketch. Move the slider to see the reservoir at each pressure.</p>
+        </div>
+        <div class="panel-tools">
+          <button class="btn-quiet" type="button" id="png-sketch" data-download>PNG</button>
+        </div>
+      </div>
+      <div class="sk-controls">
+        <button class="btn-quiet sk-play" type="button" id="sk-play" aria-pressed="false">
+          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5h3v13H8zM13.5 5.5h3v13h-3z" fill="currentColor"/></svg>
+          <span>Play</span>
+        </button>
+        <div class="m-slider sk-slider">
+          <label for="sk-range">Pressure</label>
+          <input type="range" id="sk-range" min="0" max="1" step="1" value="1">
+          <output class="sk-out" id="sk-out" for="sk-range">–</output>
+        </div>
+      </div>
+      <div class="sk-grid">
+        <div class="chart" id="sketch"></div>
+        <div class="sk-side" id="sk-side"></div>
+      </div>
+    </section>
+
     <div class="pair">
       <section class="panel" aria-labelledby="check-title">
         <div class="panel-head">

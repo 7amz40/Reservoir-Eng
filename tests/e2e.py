@@ -343,6 +343,50 @@ def t_explorer(b):
     pg.close()
 
 
+@check("reservoir sketch: gas cap, aquifer, bubbles and the slider")
+def t_sketch(b):
+    pg = Page(b)
+    step = lambda k: pg.page.eval_on_selector("#sk-range", "(el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }", k)
+    # the example: a gas cap that grows as the pressure falls, no aquifer; it opens on the latest step
+    assert pg.page.locator("#sketch svg").count() == 1
+    assert pg.text("#sk-out") == "2,400 psia" and pg.page.get_attribute("#sk-range", "max") == "6"
+    side = pg.text("#sk-side")
+    assert "Gas cap" in side and "49 %" in side and "Water that came in" not in side, side
+    assert "Hatched: where gas has moved in" in side
+    svg_text = pg.page.locator("#sketch svg").text_content()
+    assert "Gas cap" in svg_text and "m = 0.542" in svg_text and "GOC at start" in svg_text, svg_text
+    step(0)
+    side = pg.text("#sk-side")
+    assert pg.text("#sk-out") == "3,300 psia" and "35 %" in side and "Hatched" not in side
+    assert "GOC at start" not in pg.page.locator("#sketch svg").text_content()
+    # play: from the start to the latest step, then the button reads Play again
+    pg.page.click("#sk-play")
+    assert pg.page.get_attribute("#sk-play", "aria-pressed") == "true"
+    pg.page.wait_for_function("document.getElementById('sk-play').getAttribute('aria-pressed') === 'false'", timeout=8000)
+    assert pg.page.input_value("#sk-range") == "6" and pg.text("#sk-out") == "2,400 psia"
+    # a water drive: the aquifer and its size, the water that came in, arrows of influx
+    pg.upload(os.path.join(SAMPLES, "drive_water_unsteady_N150.xlsx"))
+    side = pg.text("#sk-side")
+    assert "Water that came in" in side and "Gas cap" not in side, side
+    svg_text = pg.page.locator("#sketch svg").text_content()
+    assert "Aquifer" in svg_text and "re/ro = 5" in svg_text and "OWC at start" in svg_text, svg_text
+    assert pg.page.locator("#sketch .sk-influx").count() == 4
+    # a solution-gas drive: gas out of the oil as bubbles, none at the start
+    pg.upload(os.path.join(SAMPLES, "drive_depletion_N150.xlsx"))
+    assert pg.page.locator("#sketch .sk-bubbles circle").count() > 40
+    assert "Gas out of the oil" in pg.text("#sk-side")
+    step(0)
+    assert pg.page.locator("#sketch .sk-bubbles circle").count() == 0
+    # redrawn in the dark theme, and nothing sticks out on a phone
+    pg.page.click("#theme-btn")
+    assert pg.page.locator("#sketch svg").count() == 1
+    pg.close()
+    ph = Page(b, width=390, height=844)
+    assert ph.page.locator("#sketch svg").count() == 1
+    assert ph.page.evaluate("document.documentElement.scrollWidth") <= 390
+    ph.close()
+
+
 @check("theme switch redraws the charts in dark colors")
 def t_theme(b):
     pg = Page(b)
@@ -399,6 +443,8 @@ def t_downloads(b):
     assert text.startswith("t (years),p (psia),Np (STB)") and text.count("\n") == 7
     p = grab("#png-ho")
     assert open(p, "rb").read(8) == b"\x89PNG\r\n\x1a\n"
+    p = grab("#png-sketch")
+    assert open(p, "rb").read(8) == b"\x89PNG\r\n\x1a\n" and os.path.basename(p) == "reservoir-sketch.png"
     pg.close()
 
 

@@ -757,6 +757,7 @@
       C.empty(ho, msg); C.empty(chk, msg); C.empty(drv, msg);
       C.legend($('legend-ho'), [], {}); C.legend($('legend-check'), [], {}); C.legend($('legend-drive'), [], {});
       renderExplorer(b, { reset: true });
+      renderSketch(b);
       $('reset-points').hidden = true;
       return;
     }
@@ -790,6 +791,120 @@
       blockedText: negativeM(b) ? 'Not shown: the fitted m is ' + fmtM(R.m) + '. A negative gas cap would give a negative gas-cap drive index, which has no physical meaning. See the fit notes.' : ''
     });
     renderExplorer(b, opts);
+    renderSketch(b);
+  }
+
+  /* ---------- reservoir sketch: where the gas, oil and water are at each pressure ---------- */
+  var sketch = { steps: null, at: 0, key: '', timer: null };
+
+  function renderSketch(b) {
+    var fitOk = hasFit(b), R = fitOk ? b.result.results : null;
+    var steps = fitOk && R.N > 0 ? E.fluids(b.result.terms, R.N, R.m, b.inputs.params) : null;
+    var ok = !!(steps && steps.length);
+    $('sk-range').disabled = !ok;
+    $('sk-play').disabled = !ok || steps.length < 2;
+    if (!ok) {
+      stopSketch();
+      sketch.steps = null;
+      C.empty($('sketch'), fitOk ? 'The sketch needs a positive N. See the fit notes.' : 'The sketch appears once N and m are found.');
+      $('sk-out').textContent = '–';
+      $('sk-side').innerHTML = '';
+      return;
+    }
+    // a new data set opens on its latest step; otherwise the step shown stays
+    var key = state.source.name + '|' + steps.map(function (st) { return st.id; }).join(',');
+    if (key !== sketch.key) { sketch.key = key; sketch.at = steps.length - 1; stopSketch(); }
+    sketch.steps = steps;
+    sketch.at = Math.max(0, Math.min(steps.length - 1, sketch.at));
+    var range = $('sk-range');
+    range.max = steps.length - 1;
+    range.value = sketch.at;
+    drawSketch(b);
+  }
+
+  function drawSketch(b) {
+    var steps = sketch.steps;
+    if (!steps || !b || !hasFit(b)) return;
+    var st = steps[sketch.at], s0 = steps[0];
+    var R = b.result.results, c = b.model, nu = state.out.N, div = N_DIV[nu];
+    var gasCap = R.m > 0;
+    var row = b.inputs.rows.filter(function (r) { return r.id === st.id; })[0] || {};
+    var aq = null;
+    if (influxOn(b) && c) {
+      var reD = c.reD === 'inf' ? Infinity : Number(c.reD);
+      aq = c.aquifer === 'pot' ? { reach: 1.85, lines: ['Pot aquifer'] }
+        : c.aquifer === 'steady' ? { reach: Infinity, lines: ['Aquifer', 'steady state'] }
+        : c.aquifer === 'veh' ? { reach: isFinite(reD) ? reD : Infinity, lines: ['Aquifer', isFinite(reD) ? '*r*_e/*r*_o = ' + reText(c.reD) : 'infinite'] }
+        : { reach: Infinity, lines: ['Aquifer', '*W*_e from the file'] };
+    }
+    var pText = fmtFixed(st.p, 0) + ' psia';
+    var corner = ['*p* = ' + pText, '*N*_p = ' + (st.Np > 0 ? fmtRes(st.Np / div) : '0') + ' ' + nu];
+    if (b.inputs.hasTime && isFinite(row.t)) corner.push('*t* = ' + fmtFixed(row.t / 365.25, row.t % 365.25 ? 1 : 0) + ' years');
+    var pc = function (f) { return f < 0.0005 ? '0 %' : pctText(f); };
+    var label = 'Reservoir sketch at ' + pText + ': ' + (gasCap ? 'gas cap' : 'free gas') + ' ' + pc(st.gas) + ', oil ' + pc(st.oil) +
+      (aq ? ', water that came in ' + pc(st.water) : '') + ' of the hydrocarbon pore volume.';
+    var geo = C.reservoirSketch($('sketch'), {
+      now: st, start: s0, gasCap: gasCap, aquifer: aq,
+      gasLines: gasCap ? ['Gas cap', '*m* = ' + fmtM(R.m)] : null,
+      oilLines: ['Oil', '*N* = ' + fmtRes(R.N / div) + ' ' + nu],
+      corner: corner, label: label
+    });
+    $('sk-out').textContent = pText;
+    $('sk-range').setAttribute('aria-valuetext', pText);
+    var hatchG = geo && geo.goc != null && geo.gocStart != null && geo.goc > geo.gocStart + 0.5;
+    var hatchW = geo && geo.owc != null && geo.owc < geo.owcStart - 0.5;
+    // the numbers beside it
+    var hc = st.hcpv;
+    var mmrb = function (f) { var v = f * hc / 1e6; return v < 0.05 ? '0' : fmtRes(v); };
+    var share = function (f) { return f < 0.0005 ? '0 %' : pctText(f); };
+    var line = function (cls, name, f) {
+      return '<tr><th><span class="sk-sw ' + cls + '"></span>' + name + '</th><td>' + mmrb(f) + '</td><td>' + share(f) + '</td></tr>';
+    };
+    var anyGas = gasCap || steps.some(function (x) { return x.gas > 0.0005; });
+    var rows = anyGas ? [line('sk-sw-gas', gasCap ? 'Gas cap' : 'Gas out of the oil', st.gas)] : [];
+    rows.push(line('sk-sw-oil', 'Oil', st.oil));
+    if (aq) rows.push(line('sk-sw-water', 'Water that came in', st.water));
+    if (st.shrink > 0.0005) rows.push(line('sk-sw-rock', 'Rock and water expansion', st.shrink));
+    var notes = ['Oil left: ' + fmtRes((R.N - st.Np) / div) + ' of ' + fmtRes(R.N / div) + ' ' + esc(nu) + '.'];
+    if (R.m < 0) notes.push('The fitted <var>m</var> is negative, which has no physical meaning, so no gas cap is drawn. See the fit notes.');
+    if (gasCap) notes.push('At the start the gas cap filled ' + pctText(s0.gas) + ' of the pore volume. Gas that comes out of the oil is drawn in the gas cap.');
+    else if (anyGas) notes.push('Gas that comes out of the oil is drawn as bubbles.');
+    if (st.over > 0.03) notes.push('At this pressure the fitted line does not balance exactly: oil' + (aq ? ', water' : '') + ' and rock expansion add up to ' + pctText(1 + st.over) + ' of the pore volume.');
+    $('sk-side').innerHTML = '<p class="sk-h">At ' + esc(pText) + '</p>' +
+      '<table class="sk-table"><thead><tr><th>Hydrocarbon pore volume</th><th>MM rb</th><th>Share</th></tr></thead><tbody>' + rows.join('') +
+      '<tr class="sk-total"><th>Total at the start</th><td>' + fmtRes(hc / 1e6) + '</td><td>100 %</td></tr></tbody></table>' +
+      notes.map(function (n) { return '<p class="sk-note">' + n + '</p>'; }).join('') +
+      (hatchG || hatchW ? '<p class="sk-note"><span class="sk-sw sk-sw-hatch"></span>Hatched: where ' + (hatchG && hatchW ? 'gas or water has' : hatchW ? 'water has' : 'gas has') + ' moved in since the start.</p>' : '');
+  }
+
+  function setPlaying(on) {
+    var btn = $('sk-play');
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.querySelector('span').textContent = on ? 'Pause' : 'Play';
+  }
+
+  function stopSketch() {
+    if (sketch.timer) clearTimeout(sketch.timer);
+    sketch.timer = null;
+    setPlaying(false);
+  }
+
+  /** Steps through the pressures from the start, about three seconds in all. */
+  function playSketch() {
+    if (sketch.timer) { stopSketch(); return; }
+    var n = sketch.steps ? sketch.steps.length : 0;
+    if (n < 2) return;
+    if (sketch.at >= n - 1) sketch.at = 0;
+    var stride = Math.max(1, Math.ceil(n / 40)), delay = Math.max(70, Math.min(450, 3000 / Math.ceil(n / stride)));
+    var show = function () { $('sk-range').value = sketch.at; drawSketch(state.bundle); };
+    var tick = function () {
+      sketch.at = Math.min(n - 1, sketch.at + stride);
+      show();
+      if (sketch.at >= n - 1) stopSketch(); else sketch.timer = setTimeout(tick, delay);
+    };
+    setPlaying(true);
+    show();
+    sketch.timer = setTimeout(tick, delay);
   }
 
   function renderExplorer(b, opts) {
@@ -1716,6 +1831,13 @@
     $('csv-btn').addEventListener('click', exportCSV);
     $('png-ho').addEventListener('click', function () { exportPNG('chart-ho', 'havlena-odeh-plot.png'); });
     $('png-check').addEventListener('click', function () { exportPNG('chart-check', 'F-vs-Et-check.png'); });
+    $('png-sketch').addEventListener('click', function () { exportPNG('sketch', 'reservoir-sketch.png'); });
+    $('sk-play').addEventListener('click', playSketch);
+    $('sk-range').addEventListener('input', function () {
+      stopSketch();
+      sketch.at = Number(this.value) || 0;
+      drawSketch(state.bundle);
+    });
     $('png-drive').addEventListener('click', function () { exportPNG('chart-drive', 'drive-indices.png'); });
 
     $('notes').addEventListener('click', function (ev) {

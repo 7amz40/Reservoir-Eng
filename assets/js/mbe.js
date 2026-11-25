@@ -417,6 +417,32 @@
     return { Np: last.Np, p: last.p, RF: last.Np / N, remaining: N - last.Np };
   }
 
+  /**
+   * What fills the initial hydrocarbon pore volume HCPV = (1 + m) N Boi at each step, as parts of it:
+   *   oil     the oil left:                                       (N − Np) Bo
+   *   water   the water that came in and stayed:                  We − Wp Bw
+   *   shrink  pore volume taken by rock and connate-water expansion: (1 + m) N Efw
+   *   gas     the rest: all free gas, the gas cap together with the solution gas that came out of the oil
+   *           and was not produced. With exact data this equals (G + N Rsi − (N − Np) Rs − Gp) Bg.
+   * The parts add up to 1; where the line does not fit exactly, gas takes up the difference (never below 0,
+   * and over says by how much oil, water and shrink together exceed the pore volume).
+   * Steps run in order of Np. Returns null unless N > 0 and Boi is known.
+   */
+  function fluids(terms, N, m, P) {
+    if (!(N > 0) || !(P && P.Boi > 0)) return null;
+    var mm = num(m) && m > 0 ? m : 0;
+    var hc = (1 + mm) * N * P.Boi;
+    return (terms || []).filter(function (t) { return num(t.p) && num(t.Np) && num(t.Bo); })
+      .slice().sort(function (a, b) { return a.Np - b.Np || b.p - a.p; })
+      .map(function (t) {
+        var oil = Math.max(0, (N - t.Np) * t.Bo) / hc;
+        var water = Math.max(0, (num(t.We) ? t.We : 0) - (t.Wp || 0) * (t.Bw || 1)) / hc;
+        var shrink = Math.max(0, (1 + mm) * N * (num(t.Efw) ? t.Efw : 0)) / hc;
+        var rest = 1 - oil - water - shrink;
+        return { id: t.id, p: t.p, Np: t.Np, hcpv: hc, oil: oil, water: water, shrink: shrink, gas: Math.max(0, rest), over: Math.max(0, -rest) };
+      });
+  }
+
   /** Et, implied N and the drive indices at each point, for the fitted N and m. */
   function driveIndices(terms, N, m) {
     terms.forEach(function (tt) {
@@ -722,6 +748,7 @@
     bestPotK: bestPotK,
     driveIndices: driveIndices,
     recovery: recovery,
+    fluids: fluids,
     analyzeOrigin: analyzeOrigin,
     analyzeWater: analyzeWater,
     analyze: analyze

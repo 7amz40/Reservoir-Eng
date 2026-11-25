@@ -283,3 +283,40 @@ test('recovery so far: N_p at the latest step over N', async () => {
   assert.equal(E.recovery([{ Np: 0, p: 3300 }], N), null);
   assert.equal(E.recovery([], N), null);
 });
+
+test('reservoir sketch: what fills the pore volume at each step', () => {
+  // exact data: the free gas left over equals the gas balance (G + N Rsi − (N − Np) Rs − Gp) Bg
+  for (const c of [{ N: 150e6, m: 0.4 }, { N: 150e6, m: 0.3, K: 30000 }, { N: 150e6, m: 0 }]) {
+    const s = synthetic(c);
+    const r = E.analyze(s.rows, s.params, c.K ? { aquifer: { mode: 'pot', K: c.K } } : {});
+    const P = s.params, G = c.m * c.N * P.Boi / P.Bgi;
+    const f = E.fluids(r.terms, c.N, c.m, P);
+    assert.equal(f.length, s.rows.length);
+    close(f[0].hcpv, (1 + c.m) * c.N * P.Boi, 1e-12, 'HCPV');
+    close(f[0].oil, 1 / (1 + c.m), 1e-12, 'oil at the start');
+    assert.ok(Math.abs(f[0].gas - c.m / (1 + c.m)) < 1e-12, 'gas cap at the start');
+    assert.equal(f[0].water, 0);
+    for (const st of f) {
+      const t = r.terms.find(x => x.id === st.id);
+      assert.ok(Math.abs(st.gas + st.oil + st.water + st.shrink - 1) < 1e-12, 'the parts fill the pore volume');
+      assert.ok(Math.abs(st.gas - (G + c.N * P.Rsi - (c.N - t.Np) * t.Rs - t.Gp) * t.Bg / st.hcpv) < 1e-9, 'gas balance');
+      close(st.oil, (c.N - t.Np) * t.Bo / st.hcpv, 1e-12, 'oil');
+      if (c.K) close(st.water, t.We / st.hcpv, 1e-12, 'water'); else assert.equal(st.water, 0);
+      assert.equal(st.over, 0);
+    }
+    // in order of production, the gas cap or the free gas grows as oil is produced
+    assert.ok(f.every((st, i) => i === 0 || st.Np >= f[i - 1].Np));
+    if (!c.K) assert.ok(f[f.length - 1].gas > f[0].gas);
+  }
+  // above the bubble point no gas comes out of the oil
+  const u = synthetic({ N: 150e6, m: 0, undersaturated: true });
+  const fu = E.fluids(E.analyzeOrigin(u.rows, u.params, { mFixed: 0 }).terms, 150e6, 0, u.params);
+  assert.ok(fu.every(st => st.gas < 1e-9 && st.over < 1e-9));
+  // a line that does not balance: the gas goes to zero and the excess is reported
+  const over = E.fluids([{ id: 1, p: 2000, Np: 0, Bo: 1.5, We: 0 }], 100, 0, { Boi: 1.2 });
+  close(over[0].over, 0.25, 1e-12, 'excess');
+  assert.equal(over[0].gas, 0);
+  // nothing to draw without a positive N
+  assert.equal(E.fluids([], 0, 0, u.params), null);
+  assert.equal(E.fluids(u.rows, -1, 0, u.params), null);
+});
