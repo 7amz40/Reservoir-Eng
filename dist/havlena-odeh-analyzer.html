@@ -566,6 +566,51 @@ main {
 .sk-sw-hatch { border-color: var(--muted); background: repeating-linear-gradient(45deg, var(--muted) 0 1.3px, transparent 1.3px 4.2px); }
 .sk-note { margin-top: 9px; line-height: 1.45; }
 
+/* calculations dialog */
+.cx {
+  width: min(960px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 48px);
+  margin: auto; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--r-m);
+  background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+}
+.cx[open] { display: flex; flex-direction: column; }
+.cx::backdrop { background: var(--overlay); }
+.cx-head { display: flex; align-items: flex-start; gap: 16px; padding: 18px 22px 14px; border-bottom: 1px solid var(--line); }
+.cx-head h2 { font-family: var(--font-display); font-size: 21px; font-weight: 600; line-height: 1.2; }
+.cx-sub { margin-top: 2px; font-size: 13.5px; color: var(--ink-2); }
+.cx-head .icon-btn { margin-left: auto; flex: none; }
+.cx-body { overflow-y: auto; padding: 0 22px 22px; overscroll-behavior: contain; }
+.cx-sec { padding: 18px 0 6px; border-top: 1px solid var(--line); }
+.cx-sec:first-child { border-top: 0; }
+.cx-sec h3 { display: flex; align-items: center; gap: 10px; font-size: 15.5px; font-weight: 600; color: var(--ink); }
+.cx-no { display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cx-p { margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--ink-2); max-width: 82ch; }
+.cx-given { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-top: 10px; font-size: 15.5px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.cx-u { margin-left: 0.3em; font-size: 0.88em; color: var(--ink-2); font-weight: 400; }
+.cx-line { margin-top: 4px; font-size: 15.5px; line-height: 2.5; font-variant-numeric: tabular-nums; }
+.cx-line .part { margin-right: 0.2em; max-width: 100%; }
+.cx-res b { font-weight: 600; }
+.cx-from { font-size: 13px; color: var(--muted); }
+.cx-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 6px; }
+.cx-chip {
+  min-height: 30px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px;
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.cx-chip:hover { background: var(--surface-2); }
+.cx-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.cx-pick { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 6px; font-size: 13.5px; color: var(--ink-2); }
+.cx-pick select { font: inherit; padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); }
+.cx-table-wrap { margin-top: 10px; max-height: 340px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.cx-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.cx-table th, .cx-table td { padding: 6px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.cx-table th:first-child, .cx-table td:first-child { text-align: left; }
+.cx-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); color: var(--ink); font-weight: 600; vertical-align: bottom; }
+.cx-th-u { display: block; font-size: 11.5px; font-weight: 400; color: var(--muted); }
+.cx-table tbody tr[data-cx-id] { cursor: pointer; }
+.cx-table tbody tr[data-cx-id]:hover td { background: var(--surface-2); }
+.cx-table tbody tr.is-on td { background: color-mix(in srgb, var(--oil) 12%, var(--surface)); }
+.cx-table tbody tr.is-out td { color: var(--muted); }
+.cx-table tfoot td { font-weight: 600; color: var(--ink); border-top: 1px solid var(--line-strong); border-bottom: 0; background: var(--surface-2); }
+
 /* table */
 .table-wrap { position: relative; overflow-x: auto; border-top: 1px solid var(--line); }
 .calc { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -674,6 +719,9 @@ footer.foot {
   .brand-crest { height: 40px; }
   .brand-org { padding-right: 12px; }
   .appbar .btn span { display: none; }
+  .cx { width: 100vw; height: 100%; max-height: 100%; border: 0; border-radius: 0; }
+  .cx-head, .cx-body { padding-left: 14px; padding-right: 14px; }
+  .cx-line .part { white-space: normal; }   /* long sums of numbers wrap on a phone */
   .appbar .btn { padding: 0 10px; }
   .ledger .ledger-grid, .ledger.has-we .ledger-grid, .ledger:not(.has-we) .ledger-grid { grid-template-columns: minmax(0, 1fr); }
   .res + .res { border-left: 0; padding-left: 2px; border-top: 1px solid var(--line); }
@@ -722,6 +770,10 @@ footer.foot {
   <div class="appbar-tools">
     <button class="icon-btn" id="theme-btn" type="button" aria-label="Switch to dark theme" title="Switch theme">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="i-moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><g class="i-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
+    </button>
+    <button class="btn btn-outline" id="calc-btn" type="button" aria-label="Show the calculations" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 7h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h.01M15.5 18h.01"/></svg>
+      <span>Show calculations</span>
     </button>
     <button class="btn btn-outline" id="report-btn" type="button" aria-label="Print a one-page report" data-download>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V4h10v5"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/></svg>
@@ -1059,6 +1111,19 @@ footer.foot {
     </section>
   </main>
 </div>
+
+<dialog class="cx" id="cx" aria-labelledby="cx-title">
+  <div class="cx-head">
+    <div>
+      <h2 id="cx-title">Calculations</h2>
+      <p class="cx-sub">Every step from the data to the results, with the numbers put in.</p>
+    </div>
+    <button class="icon-btn" type="button" id="cx-close" aria-label="Close the calculations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="cx-body" id="cx-body"></div>
+</dialog>
 
 <footer class="foot">
   <div class="foot-course">
@@ -6250,6 +6315,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   function renderCharts(b, opts) {
     opts = opts || {};
+    $('calc-btn').disabled = !hasFit(b);
     var nu = state.out.N, div = N_DIV[nu];
     var ho = $('chart-ho'), chk = $('chart-check'), drv = $('chart-drive');
     if (!b.result || !b.result.terms.length) {
@@ -6406,6 +6472,287 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     setPlaying(true);
     show();
     sketch.timer = setTimeout(tick, delay);
+  }
+
+  /* ---------- calculations: every step from the data to the results, with the numbers put in ---------- */
+  var cx = { id: null };
+
+  /** v with n significant digits and thousands separators; × 10^k when it is very large or very small. */
+  function sigText(v, n) {
+    if (!isFinite(v)) return '–';
+    if (v === 0) return '0';
+    n = n || 5;
+    var e = Math.floor(Math.log10(Math.abs(v)));
+    if (e >= 6 || e <= -4) {
+      var mant = Number((v / Math.pow(10, e)).toPrecision(n));
+      if (Math.abs(mant) >= 10) { mant /= 10; e += 1; }
+      return fmtFixed(mant, n - 1) + ' × 10<sup>' + minus(String(e)) + '</sup>';
+    }
+    return fmtFixed(v, Math.max(0, n - 1 - e));
+  }
+
+  /** A value from the data as it is written there; large ones as × 10⁶ or × 10⁹, tiny ones as × 10⁻ᵏ. */
+  function givenText(v) {
+    if (!isFinite(v)) return '–';
+    var a = Math.abs(v);
+    if (a >= 1e6) {
+      var e = a >= 1e9 ? 9 : 6, mant = v / Math.pow(10, e);
+      return fmtFixed(mant, decimalsOf(mant)) + ' × 10<sup>' + e + '</sup>';
+    }
+    if (a > 0 && a < 1e-4) return sciText(v);
+    return fmtFixed(v, decimalsOf(v));
+  }
+
+  var cxOp = function (s) { return '<span class="op">' + s + '</span>'; };
+  var cxFr = function (a, b) { return '<span class="frac"><span class="num">' + a + '</span><span class="den">' + b + '</span></span>'; };
+  var cxPar = function (s) { return /× 10/.test(s) ? '(' + s + ')' : s; };   // a number written with × 10ᵏ, as a factor
+
+  /** One worked line: the formula, the numbers put in, the result. */
+  function cxLine(lhs, formula, numbers, result, unit) {
+    var parts = ['<span class="part">' + lhs + cxOp('=') + formula + '</span>'];
+    if (numbers) parts.push('<span class="part">' + cxOp('=') + numbers + '</span>');
+    if (result != null) parts.push('<span class="part cx-res">' + cxOp('=') + '<b>' + result + '</b>' + (unit ? '<span class="cx-u">' + unit + '</span>' : '') + '</span>');
+    return '<div class="eqn wrap cx-line">' + parts.join('') + '</div>';
+  }
+  function cxSec(no, title, html) {
+    return '<section class="cx-sec"><h3><span class="cx-no">' + no + '</span>' + title + '</h3>' + html + '</section>';
+  }
+  function cxP(html) { return '<p class="cx-p">' + html + '</p>'; }
+
+  function renderCalcs(b) {
+    var body = $('cx-body');
+    if (!b || !hasFit(b)) { body.innerHTML = cxP('The calculations appear once a straight line is fitted to the data.'); return; }
+    var R = b.result.results, fit = b.result.fit, P0 = b.inputs.params, c = b.model;
+    var terms = b.result.terms, inc = terms.filter(function (t) { return t.included; });
+    var view = b.view, noGas = !!b.inputs.noGas, water = influxOn(b), aq = water ? c.aquifer : null;
+    var efw = anyEfw(b), gas = R.m > 0;
+    var mAx = view === 'line' ? (isFinite(fit.mAxes) ? fit.mAxes : R.m) : (gas ? R.m : 0);   // the m on the axes
+    var V = rv, s5 = function (v) { return sigText(v, 5); }, g = function (v) { return cxPar(givenText(v)); };
+    var F = V('F'), N = V('N'), m = V('m'), Np = V('N', 'p'), Gp = V('G', 'p'), Bo = V('B', 'o'), Boi = V('B', 'oi'), Bg = V('B', 'g'), Bgi = V('B', 'gi');
+    var Rs = V('R', 's'), Rsi = V('R', 'si'), Rp = V('R', 'p'), Eo = V('E', 'o'), Eg = V('E', 'g'), Efw = V('E', 'fw'), Et = V('E', 't'), We = V('W', 'e');
+    var Swc = V('S', 'wc'), Cw = V('C', 'w'), Cf = V('C', 'f'), pi = V('p', 'i'), p = V('p'), x = V('x'), y = V('y');
+    var withEg = !noGas && (view === 'line' || gas);
+    var withEt = view !== 'line';
+    var aqSym = aq === 'pot' ? V('K') : aq === 'steady' ? V('C') : V('U');
+    var S = c && c.S ? c.S : {};
+    var tUnit = b.detection && b.detection.timeMode === 'steps' ? 'row' : 'day';
+    var h = [];
+
+    // 1 the initial values
+    var gv = [[pi, givenText(P0.pi), 'psia'], [Boi, givenText(P0.Boi), 'rb/STB']];
+    if (!noGas) gv.push([Bgi, givenText(P0.Bgi), 'rb/SCF'], [Rsi, givenText(P0.Rsi), 'SCF/STB']);
+    if (efw) gv.push([Swc, givenText(P0.Swc), ''], [Cw, sciText(P0.Cw), 'psi<sup>−1</sup>'], [Cf, sciText(P0.Cf), 'psi<sup>−1</sup>']);
+    if (gas && R.mFixed) gv.push([m, givenText(R.m), '(given)']);
+    var n1 = ['Field units throughout: ' + Np + ' in STB, ' + Gp + ' in SCF, ' + Bo + ' in rb/STB, ' + Rs + ' in SCF/STB and ' + Bg + ' in rb/SCF (ft³/SCF ÷ 5.615). Values in other units were converted first.'];
+    if (noGas) n1.push('There are no ' + Rs + ', ' + Bg + ' or ' + Gp + ' columns, so the oil is taken as undersaturated: ' + Rs + ' = ' + Rsi + ' and no gas comes out of it.');
+    else if (!efw) n1.push(state.includeEfw ? Swc + ', ' + Cw + ' and ' + Cf + ' are not given, so ' + Efw + ' = 0.' : 'Water and rock expansion is switched off, so ' + Efw + ' = 0.');
+    h.push(cxSec(1, 'Initial values', '<div class="cx-given">' + gv.map(function (q) { return '<span>' + q[0] + ' = ' + q[1] + (q[2] ? ' <span class="cx-u">' + q[2] + '</span>' : '') + '</span>'; }).join('') + '</div>' + n1.map(cxP).join('')));
+
+    // 2 the terms at one pressure
+    var pts = terms.filter(function (t) { return t.Np > 0 && isFinite(t.p); });
+    if (!pts.some(function (t) { return t.id === cx.id; })) cx.id = (inc[0] || pts[0] || {}).id;
+    var t = pts.filter(function (q) { return q.id === cx.id; })[0];
+    var pick = pts.length <= 14
+      ? '<div class="cx-chips" role="group" aria-label="Pressure">' + pts.map(function (q) {
+          return '<button type="button" class="cx-chip" data-cx-id="' + esc(q.id) + '" aria-pressed="' + (q.id === cx.id) + '">' + fmtFixed(q.p, 0) + '</button>';
+        }).join('') + '<span class="cx-u">psia</span></div>'
+      : '<label class="cx-pick">Pressure <select id="cx-select">' + pts.map(function (q) {
+          return '<option value="' + esc(q.id) + '"' + (q.id === cx.id ? ' selected' : '') + '>' + fmtFixed(q.p, 0) + ' psia</option>';
+        }).join('') + '</select></label>';
+    var L = [];
+    if (t) {
+      var row = b.inputs.rows.filter(function (r) { return r.id === t.id; })[0] || {};
+      var data = [Np + ' = ' + givenText(t.Np) + ' STB'];
+      if (!noGas) data.push(Gp + ' = ' + givenText(t.Gp) + ' SCF');
+      data.push(Bo + ' = ' + givenText(t.Bo) + ' rb/STB');
+      if (!noGas) data.push(Rs + ' = ' + givenText(t.Rs) + ' SCF/STB', Bg + ' = ' + givenText(t.Bg) + ' rb/SCF');
+      if (t.Wp > 0) data.push(V('W', 'p') + ' = ' + givenText(t.Wp) + ' STB', V('B', 'w') + ' = ' + givenText(t.Bw) + ' rb/STB');
+      if (aq === 'column') data.push(We + ' = ' + givenText(t.We) + ' rb');
+      L.push(cxP('At ' + p + ' = ' + fmtFixed(t.p, 0) + ' psia the table gives ' + andList(data) + '.'));
+      var wpF = t.Wp > 0 ? cxOp('+') + V('W', 'p') + ' ' + V('B', 'w') : '', wpN = t.Wp > 0 ? cxOp('+') + g(t.Wp) + ' × ' + givenText(t.Bw) : '';
+      if (noGas) {
+        L.push(cxLine(F, Np + ' ' + Bo + wpF, g(t.Np) + ' × ' + givenText(t.Bo) + wpN, s5(t.F), 'rb'));
+        L.push(cxLine(Eo, Bo + cxOp('−') + Boi, givenText(t.Bo) + cxOp('−') + givenText(P0.Boi), s5(t.Eo), 'rb/STB'));
+      } else {
+        L.push(cxLine(Rp, cxFr(Gp, Np), cxFr(givenText(t.Gp), givenText(t.Np)), s5(t.Rp), 'SCF/STB'));
+        L.push(cxLine(F, Np + ' [' + Bo + cxOp('+') + '(' + Rp + cxOp('−') + Rs + ') ' + Bg + ']' + wpF,
+          g(t.Np) + ' × [' + givenText(t.Bo) + cxOp('+') + '(' + s5(t.Rp) + cxOp('−') + givenText(t.Rs) + ') × ' + givenText(t.Bg) + ']' + wpN, s5(t.F), 'rb'));
+        L.push(cxLine(Eo, '(' + Bo + cxOp('−') + Boi + ')' + cxOp('+') + '(' + Rsi + cxOp('−') + Rs + ') ' + Bg,
+          '(' + givenText(t.Bo) + cxOp('−') + givenText(P0.Boi) + ')' + cxOp('+') + '(' + givenText(P0.Rsi) + cxOp('−') + givenText(t.Rs) + ') × ' + givenText(t.Bg), s5(t.Eo), 'rb/STB'));
+      }
+      if (withEg) L.push(cxLine(Eg, Boi + ' (' + cxFr(Bg, Bgi) + cxOp('−') + '1)', givenText(P0.Boi) + ' × (' + cxFr(givenText(t.Bg), givenText(P0.Bgi)) + cxOp('−') + '1)', s5(t.Eg), 'rb/STB'));
+      if (efw) L.push(cxLine(Efw, Boi + ' ' + cxFr(Cw + ' ' + Swc + cxOp('+') + Cf, '1' + cxOp('−') + Swc) + ' (' + pi + cxOp('−') + p + ')',
+        givenText(P0.Boi) + ' × ' + cxFr(cxPar(sciText(P0.Cw)) + ' × ' + givenText(P0.Swc) + cxOp('+') + cxPar(sciText(P0.Cf)), '1' + cxOp('−') + givenText(P0.Swc)) + ' × (' + givenText(P0.pi) + cxOp('−') + givenText(t.p) + ')', s5(t.Efw), 'rb/STB'));
+      // water influx at this step (in the water view it follows x and y, as it needs U from step 4)
+      var weLines = [];
+      if (water && aq !== 'column' && isFinite(S[t.id])) {
+        var Uc = cxPar(s5(c.fit.U)), Sx = cxPar(s5(S[t.id]));
+        var from = '<span class="part cx-from">' + (view === 'water' ? '(' + aqSym + ' from step 4)' : '(' + aqSym + ' found with ' + N + ' and ' + m + ', step 5)') + '</span>';
+        if (aq === 'steady' && view !== 'water') weLines.push(cxP('The steady-state aquifer needs ∫ (' + pi + ' − ' + p + ') d' + V('t') + ' up to this step. Adding trapezoids between the steps gives ' + s5(S[t.id]) + ' psi·' + tUnit + (tUnit === 'row' ? ' (the rows taken as equal time steps)' : '') + '.'));
+        if (aq === 'veh' && view !== 'water') weLines.push(cxP('The unsteady-state aquifer adds up the pressure steps Δ' + V('p', 'j') + ' since the start, each weighted by the dimensionless influx ' + V('W', 'D') + ' of a radial aquifer with ' + V('r', 'e') + '/' + V('r', 'o') + ' = ' + reText(c.reD) +
+          ', at ' + V('t', 'D') + ' = ' + V('a') + ' ' + V('t') + ' with ' + V('a') + ' = ' + tdText(b, c.a) + '. For this step Σ Δ' + V('p', 'j') + ' ' + V('W', 'D') + ' = ' + s5(S[t.id]) + ' psi.'));
+        var weF = aq === 'pot' ? aqSym + ' (' + pi + cxOp('−') + p + ')'
+          : aq === 'steady' ? aqSym + ' ∫<sub>0</sub><sup><var>t</var></sup> (' + pi + cxOp('−') + p + ') d' + V('t')
+          : aqSym + ' Σ<sub><var>j</var></sub> Δ' + V('p', 'j') + ' ' + V('W', 'D') + '(' + V('t', 'D') + cxOp('−') + V('t', 'D<var>j</var>') + ')';
+        var weN = aq === 'pot' ? Uc + ' × (' + givenText(P0.pi) + cxOp('−') + givenText(t.p) + ')' : Uc + ' × ' + Sx;
+        weLines.push(cxLine(We, weF, weN, s5(t.We), 'rb').replace(/<\/div>$/, from + '</div>'));
+      }
+      if (view !== 'water') L = L.concat(weLines);
+      // the point on the line
+      if (view === 'line') {
+        var den = efw ? Eo + cxOp('+') + '(1' + cxOp('+') + m + ') ' + Efw : Eo;
+        var denV = t.Eo + (1 + mAx) * t.Efw;
+        if (efw) L.push(cxLine(V('E'), den, s5(t.Eo) + cxOp('+') + '(1' + cxOp('+') + fmtFixed(mAx, 4) + ') × ' + s5(t.Efw), s5(denV), 'rb/STB'));
+        var dSym = efw ? V('E') : Eo;
+        L.push(cxLine(x, cxFr(Eg, dSym), cxFr(s5(t.Eg), s5(denV)), s5(t.x), ''));
+        L.push(cxLine(y, cxFr(water ? F + cxOp('−') + We : F, dSym), cxFr(water ? cxPar(s5(t.F)) + cxOp('−') + cxPar(s5(t.We)) : s5(t.F), s5(denV)), s5(t.y / 1e6), 'MMSTB'));
+      } else {
+        var etF = Eo + (gas ? cxOp('+') + m + ' ' + Eg : '') + (efw ? cxOp('+') + (gas ? '(1' + cxOp('+') + m + ') ' : '') + Efw : '');
+        var etN = s5(t.Eo) + (gas ? cxOp('+') + fmtFixed(R.m, 4) + ' × ' + s5(t.Eg) : '') + (efw ? cxOp('+') + (gas ? '(1' + cxOp('+') + fmtFixed(R.m, 4) + ') × ' : '') + s5(t.Efw) : '');
+        var etV = t.Eo + R.m * t.Eg + (1 + R.m) * t.Efw;
+        if (gas || efw) L.push(cxLine(Et, etF, etN, s5(etV), 'rb/STB'));
+        else L.push(cxP('With no gas cap and ' + Efw + ' = 0, ' + Et + ' = ' + Eo + ' = ' + s5(etV) + ' rb/STB.'));
+        if (view === 'origin') {
+          if (water) L.push(cxLine(y, F + cxOp('−') + We, cxPar(s5(t.F)) + cxOp('−') + cxPar(s5(t.We)), s5(t.Fnet / 1e6), 'MM rb'));
+        } else {
+          var sWhat = aq === 'pot' ? pi + ' − ' + p
+            : aq === 'steady' ? '∫ (' + pi + ' − ' + p + ') d' + V('t') + ', added up in trapezoids between the steps' + (tUnit === 'row' ? ' (the rows taken as equal time steps)' : '')
+            : 'Σ Δ' + V('p', 'j') + ' ' + V('W', 'D') + '(' + V('t', 'D') + ' − ' + V('t', 'D<var>j</var>') + '): the pressure steps since the start, each weighted by the dimensionless influx ' + V('W', 'D') + ' of a radial aquifer with ' + V('r', 'e') + '/' + V('r', 'o') + ' = ' + reText(c.reD) + ', at ' + V('t', 'D') + ' = ' + V('a') + ' ' + V('t') + ' with ' + V('a') + ' = ' + tdText(b, c.a);
+          L.push(cxP('The aquifer function ' + V('S') + ' gives ' + We + ' = ' + aqSym + ' ' + V('S') + '. Here ' + V('S') + ' = ' + sWhat + '. At this pressure ' + V('S') + ' = ' + s5(S[t.id]) + (aq === 'steady' ? ' psi·' + tUnit : ' psi') + '.'));
+          L.push(cxLine(x, cxFr(V('S'), Et), cxFr(s5(S[t.id]), s5(etV)), s5(S[t.id] / etV), ''));
+          L.push(cxLine(y, cxFr(F, Et), cxFr(s5(t.F), s5(etV)), s5(t.F / etV), 'STB'));
+          L = L.concat(weLines);
+        }
+      }
+      if (!t.included) L.push(cxP('This point is ' + (t.usable ? 'left out of the fit' : 'not on the line: ' + esc(t.reason)) + '.'));
+    }
+    var intro2 = 'Pick a pressure to see its terms worked out.';
+    h.push(cxSec(2, 'The terms at one pressure', cxP(intro2) + pick + L.join('')));
+
+    // 3 all pressures, and 4 the least-squares line through the points in the fit
+    var cols = [{ h: p, u: 'psia', f: function (q) { return fmtFixed(q.p, 0); } }, { h: F, u: 'MM rb', f: function (q) { return s5(q.F / 1e6); } }, { h: Eo, u: 'rb/STB', f: function (q) { return s5(q.Eo); } }];
+    if (withEg) cols.push({ h: Eg, u: 'rb/STB', f: function (q) { return s5(q.Eg); } });
+    if (efw) cols.push({ h: Efw, u: 'rb/STB', f: function (q) { return s5(q.Efw); } });
+    if (water) cols.push({ h: We, u: 'MM rb', f: function (q) { return s5(q.We / 1e6); } });
+    var xOf, yOf, xH, yH, yU, xU;
+    if (view === 'line') {
+      xOf = function (q) { return q.x; }; yOf = function (q) { return q.y / 1e6; };
+      xH = x; xU = ''; yH = y; yU = 'MMSTB';
+    } else if (view === 'origin') {
+      xOf = function (q) { return q.x; }; yOf = function (q) { return q.Fnet / 1e6; };
+      xH = Et; xU = 'rb/STB'; yH = water ? F + cxOp('−') + We : F; yU = 'MM rb';
+    } else {
+      var etOf = function (q) { return q.Eo + R.m * q.Eg + (1 + R.m) * q.Efw; };
+      xOf = function (q) { return S[q.id] / etOf(q); }; yOf = function (q) { return q.F / etOf(q); };
+      cols.push({ h: Et, u: 'rb/STB', f: function (q) { return s5(etOf(q)); } });
+      xH = x + ' = ' + V('S') + '/' + Et; xU = 'psi·STB/rb'; yH = y + ' = ' + F + '/' + Et; yU = 'STB';
+    }
+    cols.push({ h: xH, u: xU, f: function (q) { return q.usable ? s5(xOf(q)) : '–'; } }, { h: yH, u: yU, f: function (q) { return q.usable ? s5(yOf(q)) : '–'; } });
+    var head = function (cs) { return '<thead><tr>' + cs.map(function (cc) { return '<th>' + cc.h + (cc.u ? '<span class="cx-th-u">' + cc.u + '</span>' : '') + '</th>'; }).join('') + '</tr></thead>'; };
+    var t3 = '<div class="cx-table-wrap"><table class="cx-table">' + head(cols.concat([{ h: 'In fit', u: '' }])) + '<tbody>' + pts.map(function (q) {
+      return '<tr class="' + (q.id === cx.id ? 'is-on ' : '') + (q.included ? '' : 'is-out') + '" data-cx-id="' + esc(q.id) + '">' + cols.map(function (cc) { return '<td>' + cc.f(q) + '</td>'; }).join('') +
+        '<td>' + (q.included ? 'yes' : q.usable ? 'no' : '–') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+    h.push(cxSec(3, 'All pressures', cxP('The same terms at every pressure. Click a row to work it out in step 2.') + t3));
+
+    var X = inc.map(xOf), Y = inc.map(yOf), n = X.length;
+    var sum = function (a) { return a.reduce(function (s, v) { return s + v; }, 0); };
+    var xm = sum(X) / n, ym = sum(Y) / n;
+    var sec4 = [], sec5 = [];
+    var Nv, slopeV;   // N in STB; the slope in the units of the line
+    if (view === 'origin') {
+      var sxy = sum(X.map(function (v, i) { return v * Y[i]; })), sxx = sum(X.map(function (v) { return v * v; }));
+      slopeV = sxy / sxx;
+      var etY = water ? Et + ' (' + yH + ')' : Et + ' ' + yH;
+      sec4.push(cxP('With no intercept, the line ' + yH + ' = ' + N + ' ' + Et + ' goes through the origin. Least squares makes Σ (' + yH + cxOp('−') + N + ' ' + Et + ')² as small as possible, which gives ' + N + ' = Σ ' + etY + ' / Σ ' + Et + '². Over the ' + n + ' points in the fit:'));
+      sec4.push('<div class="cx-table-wrap"><table class="cx-table">' + head([{ h: p, u: 'psia' }, { h: Et, u: 'rb/STB' }, { h: yH, u: 'MM rb' }, { h: Et + '²', u: '' }, { h: etY, u: '' }]) + '<tbody>' +
+        inc.map(function (q, i) { return '<tr><td>' + fmtFixed(q.p, 0) + '</td><td>' + s5(X[i]) + '</td><td>' + s5(Y[i]) + '</td><td>' + s5(X[i] * X[i]) + '</td><td>' + s5(X[i] * Y[i]) + '</td></tr>'; }).join('') +
+        '</tbody><tfoot><tr><td>Sum</td><td></td><td></td><td>' + s5(sxx) + '</td><td>' + s5(sxy) + '</td></tr></tfoot></table></div>');
+      sec4.push(cxLine(N, cxFr('Σ ' + etY, 'Σ ' + Et + '²'), cxFr(s5(sxy), s5(sxx)), s5(slopeV), 'MMSTB'));
+      Nv = slopeV * 1e6;
+    } else {
+      var dx = X.map(function (v) { return v - xm; }), dy = Y.map(function (v) { return v - ym; });
+      var Sxx = sum(dx.map(function (v) { return v * v; })), Sxy = sum(dx.map(function (v, i) { return v * dy[i]; }));
+      var fixedU = view === 'water' && fit.Ufixed;
+      var bV = fixedU ? R.U : Sxy / Sxx, aV = ym - bV * xm;
+      slopeV = bV;
+      sec4.push(cxP('The straight line ' + y + ' = ' + V('a') + cxOp('+') + V('b') + ' ' + x + ' that fits the ' + n + ' points in the fit best makes Σ (' + y + cxOp('−') + V('a') + cxOp('−') + V('b') + ' ' + x + ')² as small as possible. ' +
+        'With the means ' + V('x̄') + ' and ' + V('ȳ') + ', least squares gives ' + V('b') + ' = Σ (' + x + cxOp('−') + V('x̄') + ')(' + y + cxOp('−') + V('ȳ') + ') / Σ (' + x + cxOp('−') + V('x̄') + ')² and ' + V('a') + ' = ' + V('ȳ') + cxOp('−') + V('b') + ' ' + V('x̄') + '.'));
+      sec4.push('<div class="cx-table-wrap"><table class="cx-table">' + head([{ h: p, u: 'psia' }, { h: x, u: xU }, { h: y, u: yU }, { h: x + cxOp('−') + V('x̄'), u: '' }, { h: y + cxOp('−') + V('ȳ'), u: '' }, { h: '(' + x + cxOp('−') + V('x̄') + ')²', u: '' }, { h: '(' + x + cxOp('−') + V('x̄') + ')(' + y + cxOp('−') + V('ȳ') + ')', u: '' }]) + '<tbody>' +
+        inc.map(function (q, i) { return '<tr><td>' + fmtFixed(q.p, 0) + '</td><td>' + s5(X[i]) + '</td><td>' + s5(Y[i]) + '</td><td>' + s5(dx[i]) + '</td><td>' + s5(dy[i]) + '</td><td>' + s5(dx[i] * dx[i]) + '</td><td>' + s5(dx[i] * dy[i]) + '</td></tr>'; }).join('') +
+        '</tbody><tfoot><tr><td>Sum</td><td>' + s5(sum(X)) + '</td><td>' + s5(sum(Y)) + '</td><td></td><td></td><td>' + s5(Sxx) + '</td><td>' + s5(Sxy) + '</td></tr></tfoot></table></div>');
+      sec4.push(cxLine(V('x̄'), cxFr('Σ ' + x, V('n')), cxFr(s5(sum(X)), n), s5(xm), xU));
+      sec4.push(cxLine(V('ȳ'), cxFr('Σ ' + y, V('n')), cxFr(s5(sum(Y)), n), s5(ym), yU));
+      if (fixedU) sec4.push(cxP('The aquifer constant is given, so only the intercept is fitted: ' + V('b') + ' = ' + aqSym + ' = ' + s5(bV) + ' rb/psi.'));
+      else sec4.push(cxLine(V('b'), cxFr('Σ (' + x + cxOp('−') + V('x̄') + ')(' + y + cxOp('−') + V('ȳ') + ')', 'Σ (' + x + cxOp('−') + V('x̄') + ')²'), cxFr(s5(Sxy), s5(Sxx)), s5(bV), view === 'line' ? 'MMSTB' : 'rb/psi'));
+      sec4.push(cxLine(V('a'), V('ȳ') + cxOp('−') + V('b') + ' ' + V('x̄'), s5(ym) + cxOp('−') + cxPar(s5(bV)) + ' × ' + cxPar(s5(xm)), s5(aV), view === 'line' ? 'MMSTB' : 'STB'));
+      Nv = view === 'line' ? aV * 1e6 : aV;
+    }
+    // how well the line fits
+    var yHat = function (i) { return view === 'origin' ? slopeV * X[i] : (Nv / (view === 'line' ? 1e6 : 1)) + slopeV * X[i]; };
+    var sse = sum(Y.map(function (v, i) { return Math.pow(v - yHat(i), 2); })), sst = sum(Y.map(function (v) { return Math.pow(v - ym, 2); }));
+    sec4.push(cxLine(V('R') + '<sup>2</sup>', '1' + cxOp('−') + cxFr('Σ (' + y + cxOp('−') + V('ŷ') + ')²', 'Σ (' + y + cxOp('−') + V('ȳ') + ')²'), '1' + cxOp('−') + cxFr(s5(sse), s5(sst)), sst > 0 ? (1 - sse / sst).toFixed(3) : '1', ''));
+    if (view === 'line' && efw && fit.rounds > 1) sec4.push(cxP('Both axes contain ' + m + ', so the line was fitted again with each new ' + m + ' until ' + m + ' stopped changing (' + fit.rounds + ' rounds). The numbers above are from the last round, with ' + m + ' = ' + fmtFixed(mAx, 4) + ' on the axes.'));
+    var lineName = view === 'line' ? (water ? '(' + F + cxOp('−') + We + ')/' : F + '/') + (efw ? V('E') : Eo) + ' against ' + Eg + '/' + (efw ? V('E') : Eo)
+      : view === 'origin' ? yH + ' against ' + Et : F + '/' + Et + ' against ' + V('S') + '/' + Et;
+    h.push(cxSec(4, 'The straight line by least squares', cxP('The line is ' + lineName + '.') + sec4.join('')));
+
+    // 5 the results
+    // the final values are written as on the result cards
+    var Nm = Nv / 1e6, Gv = (view === 'line' ? slopeV * 1e6 : R.m * Nv) * P0.Boi / P0.Bgi;
+    var gText = function () { return sigText(Gv, 5) + '<span class="cx-u">SCF</span>' + cxOp('=') + '<b>' + fmtRes(Gv / 1e9) + '</b><span class="cx-u">Bscf</span>'; };
+    if (view === 'line') {
+      sec5.push(cxLine(N, 'intercept ' + V('a'), null, fmtRes(Nm), 'MMSTB'));
+      sec5.push(cxLine(m, cxFr('slope ' + V('b'), 'intercept ' + V('a')), cxFr(s5(slopeV), s5(Nm)), fmtM(slopeV / Nm), ''));
+      if (gas) sec5.push(cxLine(V('G'), cxFr(m + N + ' ' + Boi, Bgi), cxFr(cxPar(sigText(slopeV * 1e6, 5)) + ' × ' + givenText(P0.Boi), givenText(P0.Bgi)), gText(), ''));
+    } else if (view === 'origin') {
+      sec5.push(cxLine(N, 'slope', null, fmtRes(Nm), 'MMSTB'));
+      if (gas) sec5.push(cxLine(V('G'), cxFr(m + N + ' ' + Boi, Bgi), cxFr(fmtM(R.m) + ' × ' + cxPar(sigText(Nv, 5)) + ' × ' + givenText(P0.Boi), givenText(P0.Bgi)), gText(), ''));
+    } else {
+      sec5.push(cxLine(N, 'intercept ' + V('a'), cxPar(sigText(Nv, 5)) + ' STB', fmtRes(Nm), 'MMSTB'));
+      var cName = { pot: 'pot aquifer constant', steady: 'steady-state aquifer constant', veh: 'aquifer constant' }[aq] || 'aquifer constant';
+      sec5.push(cxLine(aqSym, 'slope ' + V('b'), null, s5(slopeV), aq === 'steady' ? 'rb/(psi ' + tUnit + ')' : 'rb/psi'));
+      sec5.push(cxP('The ' + cName + ' ' + aqSym + ' gives ' + We + ' = ' + aqSym + ' × ' + V('S') + ' at every step, so the points ' + F + '/' + Et + ' against ' + We + '/' + Et + ' lie on a line of slope 1 that meets the axis at ' + N + ' (the Havlena–Odeh plot).'));
+    }
+    if (water && view === 'line' && aq !== 'column') {
+      sec5.push(cxP('The aquifer constant ' + aqSym + ' = ' + s5(c.fit.U) + (aq === 'steady' ? ' rb/(psi ' + tUnit + ')' : ' rb/psi') + ' was found together with ' + N + ' and ' + m + ', by least squares on ' + F + ' = ' + N + ' [' + Eo + cxOp('+') + m + ' ' + Eg + cxOp('+') + '(1' + cxOp('+') + m + ') ' + Efw + ']' + cxOp('+') + aqSym + ' ' + V('S') + '. With it, ' + We + ' at each step is ' + aqSym + ' × ' + V('S') + ', as in step 2.'));
+    }
+    var rec = E.recovery(terms, R.N);
+    if (rec) sec5.push(cxLine('RF', cxFr(Np, N), cxFr(givenText(rec.Np) + ' STB', cxPar(sigText(Nv, 5)) + ' STB'), rfText(rec.RF), '%'));
+    var lastT = inc[inc.length - 1];
+    if (lastT && lastT.F > 0 && !negativeM(b)) {
+      var di = [['DDI', cxFr(N + ' ' + Eo, F), cxFr(cxPar(sigText(Nv, 5)) + ' × ' + s5(lastT.Eo), s5(lastT.F)), Nv * lastT.Eo / lastT.F]];
+      if (gas) di.push(['SDI', cxFr(N + ' ' + m + ' ' + Eg, F), cxFr(cxPar(sigText(Nv, 5)) + ' × ' + fmtFixed(R.m, 4) + ' × ' + s5(lastT.Eg), s5(lastT.F)), Nv * R.m * lastT.Eg / lastT.F]);
+      if (water) di.push(['WDI', cxFr(We, F), cxFr(s5(lastT.We), s5(lastT.F)), lastT.We / lastT.F]);
+      if (efw) di.push(['CDI', cxFr(N + (gas ? ' (1' + cxOp('+') + m + ') ' : ' ') + Efw, F), cxFr(cxPar(sigText(Nv, 5)) + ' × ' + (gas ? fmtFixed(1 + R.m, 4) + ' × ' : '') + s5(lastT.Efw), s5(lastT.F)), Nv * (1 + R.m) * lastT.Efw / lastT.F]);
+      sec5.push(cxP('Drive indices at the last point in the fit, ' + fmtFixed(lastT.p, 0) + ' psia; they add up to ' + fmtFixed(di.reduce(function (s, d) { return s + d[3]; }, 0), 2) + ':'));
+      di.forEach(function (d) { sec5.push(cxLine('<span class="word">' + d[0] + '</span>', d[1], d[2], fmtFixed(d[3], 3), '')); });
+    }
+    h.push(cxSec(5, 'Results', sec5.join('') + cxP('Numbers are rounded for display; the calculation keeps full precision, so working them out by hand can differ in the last digit.')));
+    var keep = body.scrollTop;
+    body.innerHTML = h.join('');
+    body.scrollTop = keep;
+  }
+
+  function openCalcs() {
+    var b = state.bundle, dlg = $('cx');
+    if (!b || !hasFit(b)) return;
+    renderCalcs(b);
+    $('cx-body').scrollTop = 0;
+    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+
+  function closeCalcs() {
+    var dlg = $('cx');
+    if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open');
+  }
+
+  /** A pressure picked in step 2 or a row clicked in step 3. */
+  function pickCalc(id) {
+    cx.id = isNaN(Number(id)) ? id : Number(id);
+    var at = $('cx-body').scrollTop;
+    renderCalcs(state.bundle);
+    $('cx-body').scrollTop = at;
   }
 
   function renderExplorer(b, opts) {
@@ -7325,6 +7672,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     $('dl-example').addEventListener('click', downloadExample);
     $('export-btn').addEventListener('click', exportResults);
     $('report-btn').addEventListener('click', printReport);
+    $('calc-btn').addEventListener('click', openCalcs);
+    $('cx-close').addEventListener('click', closeCalcs);
+    $('cx').addEventListener('click', function (e) { if (e.target === this) closeCalcs(); });   // a click on the backdrop
+    $('cx-body').addEventListener('click', function (e) {
+      var el = e.target.closest('[data-cx-id]');
+      if (el) pickCalc(el.getAttribute('data-cx-id'));
+    });
+    $('cx-body').addEventListener('change', function (e) { if (e.target.id === 'cx-select') pickCalc(e.target.value); });
     // the report's serif, fetched ahead so that it is ready when the print dialog opens
     if (document.fonts && document.fonts.load) {
       ['400', '600', 'italic 400'].forEach(function (w) { document.fonts.load(w + ' 10pt "STIX Two Text"', 'Ag−Δ').catch(function () {}); });

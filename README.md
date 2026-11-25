@@ -16,6 +16,11 @@ with the Havlena–Odeh straight-line method:
 It opens with an example already loaded: a gas-cap oil reservoir, for which it finds a gas-cap drive
 with *N* = 108.6 MMSTB, *m* = 0.542 and *G* = 84.6 Bscf, of which 16.3 % has been produced.
 
+**Show calculations** works the whole method out with the numbers put in: the initial values, every
+term at a pressure you pick (*R*<sub>p</sub>, *F*, *E*<sub>o</sub>, *E*<sub>g</sub>, *E*<sub>f,w</sub>, *W*<sub>e</sub> and the point on the
+line), the same terms at every pressure, the least-squares line as a table of sums, and the results with the
+drive indices.
+
 **Print report** writes one A4 page in the style of a short technical paper: a summary, the method with
 its numbered equations, the results table and the Havlena–Odeh plot, the input data and the references.
 The print dialog can save it as a PDF. **Export results** writes the results and the full calculation
@@ -87,7 +92,7 @@ the file you load is read in the browser and never leaves your computer.
 
 ```
 node --test tests/*.test.js         # 118 tests: units, file reading, table detection, calculation, drive mechanisms
-python3 tests/e2e.py                # 17 checks in a real browser, the sketch and the one-page report included (needs playwright and openpyxl)
+python3 tests/e2e.py                # 18 checks in a real browser, the calculations, the sketch and the report included (needs playwright and openpyxl)
 python3 tests/make_fixtures.py      # rebuilds the example, the template, the known-answer sample and tests/fixtures/
 node tests/make_drive_samples.js    # rebuilds the drive_*.xlsx samples
 python3 tools/build.py              # rebuilds dist/havlena-odeh-analyzer.html

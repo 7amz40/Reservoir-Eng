@@ -36,6 +36,10 @@
     <button class="icon-btn" id="theme-btn" type="button" aria-label="Switch to dark theme" title="Switch theme">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="i-moon" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/><g class="i-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
     </button>
+    <button class="btn btn-outline" id="calc-btn" type="button" aria-label="Show the calculations" aria-haspopup="dialog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8.5 7h7M8.5 11h.01M12 11h.01M15.5 11h.01M8.5 14.5h.01M12 14.5h.01M15.5 14.5h.01M8.5 18h.01M12 18h.01M15.5 18h.01"/></svg>
+      <span>Show calculations</span>
+    </button>
     <button class="btn btn-outline" id="report-btn" type="button" aria-label="Print a one-page report" data-download>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V4h10v5"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/></svg>
       <span>Print report</span>
@@ -372,6 +376,19 @@
     </section>
   </main>
 </div>
+
+<dialog class="cx" id="cx" aria-labelledby="cx-title">
+  <div class="cx-head">
+    <div>
+      <h2 id="cx-title">Calculations</h2>
+      <p class="cx-sub">Every step from the data to the results, with the numbers put in.</p>
+    </div>
+    <button class="icon-btn" type="button" id="cx-close" aria-label="Close the calculations">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="cx-body" id="cx-body"></div>
+</dialog>
 
 <footer class="foot">
   <div class="foot-course">

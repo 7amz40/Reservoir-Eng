@@ -387,6 +387,40 @@ def t_sketch(b):
     ph.close()
 
 
+@check("calculations: every step worked out, and it matches the results")
+def t_calcs(b):
+    pg = Page(b)
+    assert pg.page.is_enabled("#calc-btn")
+    pg.page.click("#calc-btn")
+    assert pg.page.evaluate("document.getElementById('cx').open")
+    body = pg.text("#cx-body")
+    # the example at 3,150 psia: R_p, F, E_o, E_g and the point (x, y); then the least squares and the results
+    for t in ("Initial values", "The terms at one pressure", "All pressures", "The straight line by least squares", "Results",
+              "1,050.1", "5.8075 × 106", "0.014560", "0.071902", "4.9383", "398.87", "58.843", "108.65", "0.542", "84.62", "16.3", "0.968"):
+        assert t in body, t
+    # pick another pressure, or click its row in the table
+    pg.page.click("#cx-body .cx-chip:has-text('2,400')")
+    assert "At p = 2,400 psia" in pg.text("#cx-body")
+    assert pg.page.locator("#cx-body tr.is-on td").first.inner_text() == "2,400"
+    pg.page.click("#cx-body tr[data-cx-id] >> nth=2")
+    assert "At p = 2,850 psia" in pg.text("#cx-body")
+    pg.page.keyboard.press("Escape")
+    assert not pg.page.evaluate("document.getElementById('cx').open")
+    # a water drive: the aquifer function, and U from the line
+    pg.upload(os.path.join(SAMPLES, "drive_water_unsteady_N150.xlsx"))
+    pg.page.click("#calc-btn")
+    body = pg.text("#cx-body")
+    assert "aquifer function" in body and "U from step 4" in body and "150.0" in body, body[:400]
+    pg.page.click("#cx-close")
+    assert not pg.page.evaluate("document.getElementById('cx').open")
+    pg.close()
+    # on a phone the worked lines wrap instead of running off the side
+    ph = Page(b, width=390, height=844)
+    ph.page.click("#calc-btn")
+    assert ph.page.evaluate("(() => { const el = document.getElementById('cx-body'); return el.scrollWidth <= el.clientWidth + 1; })()")
+    ph.close()
+
+
 @check("theme switch redraws the charts in dark colors")
 def t_theme(b):
     pg = Page(b)
