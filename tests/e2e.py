@@ -118,6 +118,9 @@ def t_example(b):
     assert pg.page.locator("#verdict, #evidence, #shares").count() == 0, "no verdict box"
     assert pg.page.locator("#sec-drive, input[name=mech], #aq-box").count() == 0, "no drive mechanism settings"
     assert pg.page.locator("#panel-diag, #models, #chart-app").count() == 0, "no models panel on the page"
+    # every column in Columns and units has its symbol
+    labels = pg.page.locator("#colmap label.sym").all_text_contents()
+    assert len(labels) == 10 and all(t.strip() and "undefined" not in t for t in labels), labels
     assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542" and pg.val("res-G") == "84.62"
     assert pg.page.locator("#res-We").is_hidden()
     assert "rounding the table" in pg.text("#res-N .res-ci")
