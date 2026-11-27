@@ -121,33 +121,41 @@ def t_example(b):
     # every column in Columns and units has its symbol
     labels = pg.page.locator("#colmap label.sym").all_text_contents()
     assert len(labels) == 10 and all(t.strip() and "undefined" not in t for t in labels), labels
-    assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542" and pg.val("res-G") == "84.62"
+    assert pg.val("res-N") == "112.1" and pg.val("res-m") == "0.500" and pg.val("res-G") == "80.67"
     assert pg.page.locator("#res-We").is_hidden()
     assert "rounding the table" in pg.text("#res-N .res-ci")
-    # oil recovered so far: 17.73 of 108.6 MMSTB at 2,400 psia
-    assert pg.val("res-RF") == "16.3" and pg.text("#res-RF .u") == "%"
+    # oil recovered so far: 17.73 of 112.1 MMSTB at 2,400 psia
+    assert pg.val("res-RF") == "15.8" and pg.text("#res-RF .u") == "%"
     assert "at 2,400 psia" in pg.text("#res-RF-how")
-    assert pg.text("#res-RF .res-ci") == "17.73 of 108.6 MMSTB produced; 90.92 MMSTB remain", pg.text("#res-RF .res-ci")
+    assert pg.text("#res-RF .res-ci") == "17.73 of 112.1 MMSTB produced; 94.40 MMSTB remain", pg.text("#res-RF .res-ci")
     assert pg.page.locator("#chart-ho circle.hit").count() == 6 and pg.fit_points() == 6
     assert pg.page.locator("#calc tbody tr").count() == 7
     assert "Example" in pg.text("#source")
-    # initial values from the second sheet; S_wc, C_w and C_f are not given, so E_fw = 0 and the line is F/Eo against Eg/Eo
+    # initial values from the second sheet, S_wc, c_w and c_f too, so E_fw is in the line
     pg.unfold("sec-params")
     assert pg.text("#src-pi").endswith("Initial!B2") and pg.text("#src-Bgi").endswith("Initial!B4")
-    assert pg.text("#src-Swc").startswith("Not in the file")
+    assert pg.text("#src-Swc").endswith("Initial!B6") and pg.text("#src-Cf").endswith("Initial!B8")
     axes = lambda: pg.page.locator("#chart-ho svg").text_content()
-    assert "Eg / Eo" in axes() and "F / Eo, MMSTB" in axes(), axes()
-    assert "Efw = 0" in pg.text("#notes")
+    assert "Eg / [Eo + (1 + m) Efw]" in axes(), axes()
+    assert "Efw = 0" not in pg.text("#notes")
     shot(pg, "desktop-light", full=True)
-    # typing S_wc, C_w and C_f brings E_fw in
+    # other values of S_wc, c_w and c_f change the answer; Reset brings the file's values back
     for k, v in (("Swc", "0.2"), ("Cw", "3e-6"), ("Cf", "5e-6")):
         pg.page.fill("#prm-" + k, v)
         pg.page.press("#prm-" + k, "Enter")
-    assert "Eg / [Eo + (1 + m) Efw]" in axes(), axes()
-    assert pg.val("res-N") != "108.6" and pg.title() == "Gas-cap drive"
+    assert pg.val("res-N") != "112.1" and pg.title() == "Gas-cap drive"
     for k in ("Swc", "Cw", "Cf"):
         pg.page.click("#src-%s .reset" % k)
-    assert pg.val("res-N") == "108.6"
+    assert pg.val("res-N") == "112.1"
+    # c_w = c_f = 0 takes E_fw out: the line is F/Eo against Eg/Eo, and N is the one without E_fw
+    for k in ("Cw", "Cf"):
+        pg.page.fill("#prm-" + k, "0")
+        pg.page.press("#prm-" + k, "Enter")
+    assert "Eg / Eo" in axes() and "F / Eo, MMSTB" in axes(), axes()
+    assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542"
+    for k in ("Cw", "Cf"):
+        pg.page.click("#src-%s .reset" % k)
+    assert pg.val("res-N") == "112.1"
     pg.close()
 
 
@@ -215,7 +223,7 @@ def t_errors(b):
     pg = Page(b)
     pg.upload(os.path.join(FIX, "q2_legacy.xls"))
     assert "97–2003" in pg.text("#alert")
-    assert pg.val("res-N") == "108.6", "previous result kept"
+    assert pg.val("res-N") == "112.1", "previous result kept"
     pg.page.click("#alert button[data-act=dismiss]")
     assert pg.page.locator("#alert").is_hidden()
     pg.upload(os.path.join(FIX, "q2_open_document.ods"))
@@ -232,7 +240,7 @@ def t_errors(b):
     pg.upload(os.path.join(SAMPLES, "havlena-odeh-template.xlsx"))
     assert "no rows with numbers" in pg.text("#alert")
     pg.page.click("#alert button[data-act=example]")
-    assert pg.val("res-N") == "108.6"
+    assert pg.val("res-N") == "112.1"
     pg.close()
     # a file without B_oi, B_gi and R_si opens Reservoir parameters, where they can be typed
     pg = Page(b)
@@ -260,9 +268,9 @@ def t_exclude(b):
     pg.page.uncheck("#calc tbody tr:nth-child(2) input[type=checkbox]")
     assert pg.fit_points() == 5
     assert pg.page.locator("#reset-points").is_visible()
-    assert pg.val("res-N") != "108.6"
+    assert pg.val("res-N") != "112.1"
     pg.page.click("#reset-points")
-    assert pg.fit_points() == 6 and pg.val("res-N") == "108.6"
+    assert pg.fit_points() == 6 and pg.val("res-N") == "112.1"
     pg.page.locator("#chart-ho circle.hit").first.focus()
     pg.page.keyboard.press("Enter")
     assert pg.fit_points() == 5
@@ -337,12 +345,12 @@ def t_explorer(b):
     assert "0.300" in pg.text("#m-read")
     assert pg.page.locator("#chart-exp svg").count() == 1 and pg.page.locator("#chart-scan svg").count() == 1
     pg.page.click("#m-fit")
-    assert "0.542" in pg.text("#m-read")
+    assert "0.500" in pg.text("#m-read")
     overlay = pg.page.locator("#chart-scan svg rect[fill=transparent]")
     overlay.scroll_into_view_if_needed()
     box = overlay.bounding_box()
     pg.page.mouse.click(box["x"] + box["width"] * 0.8, box["y"] + box["height"] / 2)
-    assert "0.542" not in pg.text("#m-read").split(",")[0]
+    assert "0.500" not in pg.text("#m-read").split(",")[0]
     pg.close()
 
 
@@ -354,13 +362,13 @@ def t_sketch(b):
     assert pg.page.locator("#sketch svg").count() == 1
     assert pg.text("#sk-out") == "2,400 psia" and pg.page.get_attribute("#sk-range", "max") == "6"
     side = pg.text("#sk-side")
-    assert "Gas cap" in side and "49 %" in side and "Water that came in" not in side, side
+    assert "Gas cap" in side and "47 %" in side and "Water that came in" not in side, side
     assert "Hatched: where gas has moved in" in side
     svg_text = pg.page.locator("#sketch svg").text_content()
-    assert "Gas cap" in svg_text and "m = 0.542" in svg_text and "GOC at start" in svg_text, svg_text
+    assert "Gas cap" in svg_text and "m = 0.500" in svg_text and "GOC at start" in svg_text, svg_text
     step(0)
     side = pg.text("#sk-side")
-    assert pg.text("#sk-out") == "3,300 psia" and "35 %" in side and "Hatched" not in side
+    assert pg.text("#sk-out") == "3,300 psia" and "33 %" in side and "Hatched" not in side
     assert "GOC at start" not in pg.page.locator("#sketch svg").text_content()
     # play: from the start to the latest step, then the button reads Play again
     pg.page.click("#sk-play")
@@ -401,9 +409,10 @@ def t_calcs(b):
     heads = [re.sub(r"\s+", " ", h.replace("\xa0", " ")).strip() for h in pg.page.locator("#cx-body h3").all_inner_texts()]
     assert heads == ["1 Data", "2 Equations", "3 Sample calculation at p = 3,150 psia", "4 All pressures", "5 Least-squares fit", "6 Results", "References"], heads
     assert pg.page.locator("#cx-body .cx-table").count() == 5 and "Table 5." in body
-    assert [n.strip() for n in pg.page.locator("#cx-body .al-n").all_inner_texts() if n.strip()] == ["(%d)" % i for i in range(1, 8)]
-    # the example at 3,150 psia: R_p, F, E_o, E_g and the point (x, y); then the least squares and the results
-    for t in ("Summary.", "1,050.1", "5.8075 × 106", "0.014560", "0.071902", "4.9383", "398.87", "58.843", "108.65", "0.542", "84.62", "16.3", "0.968",
+    # with S_wc, c_w and c_f given, E_fw has its own equation: eight in all
+    assert [n.strip() for n in pg.page.locator("#cx-body .al-n").all_inner_texts() if n.strip()] == ["(%d)" % i for i in range(1, 9)]
+    # the example at 3,150 psia: R_p, F, E_o, E_g, E_fw and the point (x, y); then the least squares and the results
+    for t in ("Summary.", "1,050.1", "5.8075 × 106", "0.014560", "0.071902", "8.1980 × 10−4", "0.015790", "4.5537", "367.80", "56.097", "112.13", "0.500", "80.67", "15.8", "0.959",
               "Havlena, D. and Odeh, A.S. 1963"):
         assert t in body, t
     # pick another pressure, or click its row in the table, which brings the worked example into view
@@ -501,21 +510,22 @@ def t_downloads(b):
     wb = load_workbook(p)
     assert wb.sheetnames == ["Production", "Initial"]
     assert wb["Production"]["A1"].value == "Pressure (psia)" and wb["Production"]["A3"].value == 3150
-    assert wb["Initial"]["B2"].value == 3300 and wb["Initial"]["B6"].value is None, "S_wc is not given"
+    assert wb["Initial"]["B2"].value == 3300 and wb["Initial"]["B6"].value == 0.05, "S_wc is given"
+    assert wb["Initial"]["B7"].value == 3e-6 and wb["Initial"]["B8"].value == 4e-6
     # the example file reads back into the same answer
     pg.upload(p)
-    assert pg.val("res-N") == "108.6" and pg.val("res-m") == "0.542"
+    assert pg.val("res-N") == "112.1" and pg.val("res-m") == "0.500"
     p = grab("#export-btn")
     wb = load_workbook(p)
     assert wb.sheetnames == ["Results", "Calculations", "Inputs", "Notes"]
     res = [r for r in wb["Results"].iter_rows(values_only=True) if r and r[0]]
     by = {(r[0], r[2]): r for r in res}
     assert any(r[0] == "Drive mechanism" and r[1].startswith("Gas-cap drive (found from the data)") for r in res)
-    approx(by[("N, oil initially in place", "MMSTB")][1], 108.647, 1e-4)
-    approx(by[("m, gas-cap to oil-zone volume ratio", "-")][1], 0.5416, 1e-3)
-    approx(by[("G, gas-cap gas initially in place", "Bscf")][1], 84.619, 1e-4)
+    approx(by[("N, oil initially in place", "MMSTB")][1], 112.127, 1e-4)
+    approx(by[("m, gas-cap to oil-zone volume ratio", "-")][1], 0.50029, 1e-3)
+    approx(by[("G, gas-cap gas initially in place", "Bscf")][1], 80.669, 1e-4)
     assert by[("Np, oil produced at the last step", "STB")][1] == 17.73e6
-    approx(by[("RF, oil recovered so far (Np / N)", "%")][1], 100 * 17.73 / 108.647, 1e-4)
+    approx(by[("RF, oil recovered so far (Np / N)", "%")][1], 100 * 17.73 / 112.127, 1e-4)
     assert by[("We, water influx at the last step", "rb")][1] is None
     assert not any("How the mechanism" in str(r[0]) for r in res), "no list of models or evidence in the export"
     # F at 3,150 psia: Np Bo + (Gp - Np Rs) Bg = 3.295e6 x 1.2353 + (3.460e9 - 3.295e6 x 477) x 0.00092 rb
@@ -540,7 +550,7 @@ def t_report(b):
     # laid out for print like a short paper, on one A4 page: summary, method, results, data, references
     assert pg.page.evaluate("HOApp.report.prepare()")
     text = pg.page.locator("#report").text_content()
-    for t in ("Summary.", "gas-cap drive", "108.6", "0.542", "84.62", "16.3", "1Method", "2Results", "3Data", "Table 1.", "Table 2.", "Table 3.",
+    for t in ("Summary.", "gas-cap drive", "112.1", "0.500", "80.67", "15.8", "1Method", "2Results", "3Data", "Table 1.", "Table 2.", "Table 3.",
               "Figure 1.", "Havlena, D. and Odeh, A.S. 1963", "3,150", "2,400"):
         assert t in text, t
     assert pg.page.locator("#report .rp-chart svg").count() == 1 and pg.page.locator("#report .rp-cols").count() == 1
@@ -567,7 +577,7 @@ def t_report(b):
     d.value.save_as(path)
     assert d.value.suggested_filename == "havlena-odeh-example_report.html"
     html = open(path, encoding="utf-8").read()
-    assert "Print or save as PDF" in html and "<svg" in html and "108.6" in html and "16.3" in html
+    assert "Print or save as PDF" in html and "<svg" in html and "112.1" in html and "15.8" in html
     page2 = pg.page.context.new_page()
     page2.route("**/fonts.googleapis.com/**", lambda r: r.abort())
     page2.route("**/fonts.gstatic.com/**", lambda r: r.abort())
@@ -624,7 +634,7 @@ def t_samples(b):
         ("drive_water_unsteady_N150.xlsx", "Water drive", "150.0", "0.000", "veh"),
         ("drive_gascap_water_N150_m030.xlsx", "Combination drive: gas cap and water", "150.0", "0.300", "pot"),
         ("drive_undersaturated_N150.xlsx", "Depletion drive", "150.0", "0.000", None),
-        ("havlena-odeh-example.xlsx", "Gas-cap drive", "108.6", "0.542", None),
+        ("havlena-odeh-example.xlsx", "Gas-cap drive", "112.1", "0.500", None),
     ]
     for f, title, N, m, aq in cases:
         pg.upload(os.path.join(SAMPLES, f))
@@ -663,7 +673,7 @@ def t_drop(b):
 def t_mobile(b):
     pg = Page(b, width=390, height=844)
     assert pg.page.evaluate("document.documentElement.scrollWidth") <= 390
-    assert pg.val("res-N") == "108.6"
+    assert pg.val("res-N") == "112.1"
     assert pg.title() == "Gas-cap drive"
     assert pg.page.locator("#sec-params").get_attribute("open") is None, "secondary sections start folded"
     shot(pg, "mobile", full=True)

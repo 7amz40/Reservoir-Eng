@@ -271,7 +271,7 @@ test('recovery so far: N_p at the latest step over N', async () => {
   assert.equal(rec.Np, 17.73e6);
   assert.equal(rec.p, 2400);
   close(rec.RF, 17.73e6 / N, 1e-12, 'RF');
-  close(rec.RF, 0.1632, 1e-3, 'about 16 % of N');
+  close(rec.RF, 0.15812, 1e-3, 'about 16 % of N');
   close(rec.remaining, N - 17.73e6, 1e-12, 'remaining');
   // the latest step counts even when it is left out of the fit
   const last = r.result.terms.find(t => t.Np === 17.73e6);

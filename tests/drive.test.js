@@ -202,12 +202,16 @@ for (const [name, gen, family, aquifer] of CASES) {
 
 /* ---------- real data with known answers ---------- */
 
-test('the example (HW Q1 data): gas-cap drive, N = 108.6 MMSTB and m = 0.542', async () => {
+test('the example (HW Q1 data with S_wc, c_w and c_f): gas-cap drive, N = 112.1 MMSTB and m = 0.500', async () => {
   const r0 = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
   const r = D.detect(r0.inputs.rows, r0.inputs.params, { includeEfw: true, precision: r0.inputs.precision });
   assert.equal(r.best.key, 'gascap');
-  close(r.best.fit.N, 108.6467e6, 1e-5, 'N');
-  close(r.best.fit.m, 0.5416, 1e-3, 'm');
+  close(r.best.fit.N, 112.1272e6, 1e-5, 'N');
+  close(r.best.fit.m, 0.50029, 1e-3, 'm');
+  // without E_fw (c_w = c_f = 0) the same table gives the Q1 answer
+  const r1 = D.detect(r0.inputs.rows, Object.assign({}, r0.inputs.params, { Cw: 0, Cf: 0 }), { includeEfw: true, precision: r0.inputs.precision });
+  assert.equal(r1.best.key, 'gascap');
+  close(r1.best.fit.N, 108.6467e6, 1e-5, 'N without Efw');
 });
 
 test('the HW Q2 data (Dake exercise 9.2, B_g rounded, no time): water drive, N near the book’s 312 MMSTB', async () => {

@@ -14,7 +14,7 @@ with the Havlena–Odeh straight-line method:
   to scale at each pressure, with a slider and **Play** to step through the history
 
 It opens with an example already loaded: a gas-cap oil reservoir, for which it finds a gas-cap drive
-with *N* = 108.6 MMSTB, *m* = 0.542 and *G* = 84.6 Bscf, of which 16.3 % has been produced.
+with *N* = 112.1 MMSTB, *m* = 0.500 and *G* = 80.7 Bscf, of which 15.8 % has been produced.
 
 **Show calculations** works the whole method out with the numbers put in, set as a short paper with
 numbered sections, equations and tables: the data, the equations, a sample calculation at a pressure you
@@ -64,7 +64,7 @@ the file you load is read in the browser and never leaves your computer.
 
 | File | Built with | The dashboard finds |
 | --- | --- | --- |
-| `havlena-odeh-example.xlsx` | the example the dashboard opens with: a gas-cap oil reservoir, with *B*<sub>g</sub> in ft³/SCF and *G*<sub>p</sub> in MMMSCF; *S*<sub>wc</sub>, *c*<sub>w</sub> and *c*<sub>f</sub> are not given, so *E*<sub>f,w</sub> = 0 | gas cap, *N* = 108.6 MMSTB, *m* = 0.542, *G* = 84.6 Bscf |
+| `havlena-odeh-example.xlsx` | the example the dashboard opens with: a gas-cap oil reservoir, with *B*<sub>g</sub> in ft³/SCF and *G*<sub>p</sub> in MMMSCF, and *S*<sub>wc</sub> = 0.05, *c*<sub>w</sub> = 3 × 10⁻⁶ psi⁻¹ and *c*<sub>f</sub> = 4 × 10⁻⁶ psi⁻¹, so *E*<sub>f,w</sub> is included | gas cap, *N* = 112.1 MMSTB, *m* = 0.500, *G* = 80.7 Bscf |
 | `known_answer_N150_m040.xlsx` | gas cap, *N* = 150 MMSTB, *m* = 0.40 | the same |
 | `drive_depletion_N150.xlsx` | depletion, *N* = 150 MMSTB | the same |
 | `drive_undersaturated_N150.xlsx` | above the bubble point, only *p*, *N*<sub>p</sub> and *B*<sub>o</sub> | depletion, *N* = 150 MMSTB |

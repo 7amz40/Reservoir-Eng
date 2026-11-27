@@ -13,7 +13,8 @@
 
   /* ------------------------------------------------------------------
    * Example data set: a gas-cap oil reservoir from the course, in the units of its handout,
-   * with the initial values on a second sheet. S_wc, c_w and c_f are not given for it, so E_fw = 0.
+   * with the initial values on a second sheet. S_wc, c_w and c_f are the course's values for the
+   * field data (0.05, 3e-6 and 4e-6 1/psi), so E_fw is included.
    * ------------------------------------------------------------------ */
   var EX_PROD = [
     ['Pressure (psia)', 'Np (MMSTB)', 'Gp (MMMSCF)', 'Bo (bbl/STB)', 'Rs (SCF/STB)', 'Bg (cuft/SCF)'],
@@ -31,9 +32,9 @@
     ['Initial oil FVF, Boi', 1.2511, 'bbl/STB', ''],
     ['Initial gas FVF, Bgi', 0.00488505, 'cuft/SCF', ''],
     ['Initial solution GOR, Rsi', 510, 'SCF/STB', ''],
-    ['Connate water saturation, Swc', null, 'fraction', 'Not given for this reservoir, so Efw = 0'],
-    ['Water compressibility, Cw', null, '1/psi', ''],
-    ['Formation compressibility, Cf', null, '1/psi', '']
+    ['Connate water saturation, Swc', 0.05, 'fraction', ''],
+    ['Water compressibility, Cw', 3e-6, '1/psi', ''],
+    ['Formation compressibility, Cf', 4e-6, '1/psi', '']
   ];
   function clone(rows) { return rows.map(function (r) { return r.slice(); }); }
   function exampleSource() {

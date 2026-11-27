@@ -57,7 +57,7 @@ Q2_PARAMS = [
 ]
 
 # The example data set (the one the dashboard opens with): a gas-cap oil reservoir, in the units of
-# its handout (Bg in ft3/SCF, Gp in MMMSCF). S_wc, C_w and C_f are not given for it, so E_fw = 0.
+# its handout (Bg in ft3/SCF, Gp in MMMSCF), with the course's S_wc, C_w and C_f, so E_fw is included.
 Q1_HEADER = ["Pressure (psia)", "Np (MMSTB)", "Gp (MMMSCF)", "Bo (bbl/STB)", "Rs (SCF/STB)", "Bg (cuft/SCF)"]
 Q1_ROWS = [
     [3300, 0, 0, 1.2511, 510, 0.00488505],
@@ -73,9 +73,9 @@ Q1_PARAMS = [
     ("Initial oil FVF, Boi", 1.2511, "bbl/STB", None),
     ("Initial gas FVF, Bgi", 0.00488505, "cuft/SCF", None),
     ("Initial solution GOR, Rsi", 510, "SCF/STB", None),
-    ("Connate water saturation, Swc", None, "fraction", "Not given for this reservoir, so Efw = 0"),
-    ("Water compressibility, Cw", None, "1/psi", None),
-    ("Formation compressibility, Cf", None, "1/psi", None),
+    ("Connate water saturation, Swc", 0.05, "fraction", None),
+    ("Water compressibility, Cw", 3.0e-6, "1/psi", None),
+    ("Formation compressibility, Cf", 4.0e-6, "1/psi", None),
 ]
 
 

@@ -89,7 +89,9 @@ function close(actual, expected, rel, msg) {
 const REF = {
   q2: { N: 729.8677949061476e6, m: -0.06984561928929446, G: -79.52578628986935e9, r2: 0.6131771326122093, n: 10 },
   q2NoEfw: { N: 705.3051039910318e6, m: -0.057057843918046344 },
-  q1: { N: 108.6467008239402e6, m: 0.541600632076894, G: 84.61911463582445e9, r2: 0.9677502298016208, n: 6 }
+  q1: { N: 108.6467008239402e6, m: 0.541600632076894, G: 84.61911463582445e9, r2: 0.9677502298016208, n: 6 },
+  // the example: the Q1 table with S_wc = 0.05, c_w = 3e-6 and c_f = 4e-6 1/psi (E_fw included), from an independent numpy fit
+  example: { N: 112.1272335769057e6, m: 0.5002941824052906, G: 80.66949376157339e9, r2: 0.9592401033207056, n: 6 }
 };
 
 module.exports = { U, X, P, E, FIX, SAMPLES, bytes, readFile, run, runFile, synthetic, close, REF };

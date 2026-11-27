@@ -229,7 +229,7 @@ test('rounding steps of the inputs are found and described', async () => {
   assert.equal(q1.inputs.precision.note, '');
 });
 
-test('the example file: Q1 table in its handout units, initial values on the second sheet, no S_wc, C_w or C_f', async () => {
+test('the example file: Q1 table in its handout units, initial values with S_wc, c_w and c_f on the second sheet', async () => {
   const r = await runFile(path.join(SAMPLES, 'havlena-odeh-example.xlsx'));
   assert.equal(r.analysis.errors.length, 0);
   assert.equal(r.analysis.warnings.length, 0);
@@ -240,10 +240,14 @@ test('the example file: Q1 table in its handout units, initial values on the sec
   assert.equal(p.Boi, 1.2511);
   close(p.Bgi, 0.00488505 / 5.615, 1e-12, 'Bgi in rb/SCF');
   assert.equal(p.Rsi, 510);
-  assert.deepEqual([p.Swc, p.Cw, p.Cf], [0, 0, 0]);
-  close(r.result.results.N, REF.q1.N, 1e-9, 'N');
-  close(r.result.results.m, REF.q1.m, 1e-9, 'm');
-  close(r.result.results.G, REF.q1.G, 1e-9, 'G');
+  close(p.Swc, 0.05, 1e-12, 'Swc');
+  close(p.Cw, 3e-6, 1e-12, 'Cw');
+  close(p.Cf, 4e-6, 1e-12, 'Cf');
+  for (const k of ['Swc', 'Cw', 'Cf']) assert.equal(r.inputs.paramInfo[k].source, 'file', k);
+  close(r.result.results.N, REF.example.N, 1e-9, 'N');
+  close(r.result.results.m, REF.example.m, 1e-9, 'm');
+  close(r.result.results.G, REF.example.G, 1e-9, 'G');
+  close(r.result.fit.r2, REF.example.r2, 1e-9, 'R2');
 });
 
 test('a W_e column is found, with its unit', async () => {
